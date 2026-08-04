@@ -1,0 +1,73 @@
+name: Sortify
+options:
+  bundleIdPrefix: com.fulltimestudio
+  deploymentTarget:
+    iOS: "27.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 7WHQR6L96K
+    DEVELOPMENT_LANGUAGE: en
+    SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
+    # Xcode 27 template default. Deliberately paired with the *nonisolated*
+    # default actor isolation: SortifyKit is shared with a hostless test target
+    # and its services must stay off the main actor, so isolation is annotated
+    # explicitly rather than inferred.
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: YES
+
+schemes:
+  Sortify:
+    build:
+      targets:
+        Sortify: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - SortifyTests
+
+targets:
+  Sortify:
+    type: application
+    platform: iOS
+    sources:
+      - Sortify
+      - SortifyKit
+      - Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.sortify
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_PREVIEWS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: Sortify/App/Info.plist
+      properties:
+        CFBundleDisplayName: Sortify
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+        # PKCE callback. Must be registered verbatim in the Spotify dashboard.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.fulltimestudio.sortify.auth
+            CFBundleURLSchemes: [sortify]
+
+  # Hostless: SortifyKit is pure logic + URLSession, so the tests need no app
+  # process. Same arrangement as Prelys.
+  SortifyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+      - SortifyKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.sortify.tests
+        GENERATE_INFOPLIST_FILE: YES

@@ -1,0 +1,53 @@
+#!/bin/bash
+# Headless screenshots of every screen on the iOS 27 simulator.
+#
+# Deliberately never drives the simulator GUI — each screen is reached from a
+# cold launch via the DebugLaunch arguments, then captured with `simctl io
+# screenshot`. That keeps this runnable while the Mac is being used for
+# something else, and keeps it reproducible.
+set -euo pipefail
+
+DEVICE="${DEVICE:-iPhone 17 Pro}"
+OS="${OS:-27.0}"
+BUNDLE_ID="com.fulltimestudio.sortify"
+OUT="${OUT:-$(cd "$(dirname "$0")/.." && pwd)/screenshots}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+mkdir -p "$OUT"
+
+echo "==> Building"
+xcodebuild -project "$ROOT/Sortify.xcodeproj" -scheme Sortify \
+  -destination "platform=iOS Simulator,name=$DEVICE,OS=$OS" \
+  -configuration Debug -derivedDataPath "$ROOT/.build" build >/dev/null
+
+APP="$ROOT/.build/Build/Products/Debug-iphonesimulator/Sortify.app"
+
+UDID=$(xcrun simctl list devices available -j \
+  | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS-${OS//./-}' in k for x in v if x['name']=='$DEVICE'))")
+
+echo "==> Booting $DEVICE ($UDID)"
+xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || xcrun simctl boot "$UDID"
+xcrun simctl bootstatus "$UDID" -b >/dev/null
+
+xcrun simctl install "$UDID" "$APP"
+
+shoot() {
+  local name="$1"; shift
+  echo "==> $name"
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@" >/dev/null
+  sleep "${SETTLE:-4}"
+  xcrun simctl io "$UDID" screenshot --type=png "$OUT/$name.png" >/dev/null
+}
+
+shoot 01-landing        -screen landing
+shoot 02-playlists      -screen playlists
+shoot 03-tracks-order   -screen tracks -playlist demo-longrun
+shoot 04-tracks-bpm     -screen tracks -playlist demo-longrun -sort bpm -direction descending
+shoot 05-tracks-asep    -screen tracks -playlist demo-mixed -sort asep
+shoot 06-settings       -screen settings
+shoot 07-faq            -screen faq
+
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+echo "==> Wrote screenshots to $OUT"
+ls -1 "$OUT"
