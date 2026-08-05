@@ -68,14 +68,21 @@ struct FeatureProviderFallbackTests {
         #expect(reason?.contains("no acoustic data") == true)
     }
 
-    @Test("Demo features cover the demo catalogue")
+    /// Not every track: the demo catalogue deliberately leaves some without
+    /// features, the way a real provider misses recent releases. The provider's
+    /// job is to answer for the ones it has and stay quiet about the rest —
+    /// never to invent a value, and never to report the whole playlist
+    /// unavailable because part of it is.
+    @Test("Demo features cover most of the catalogue, and omit the rest silently")
     func demoProviderCoversCatalog() async throws {
         let catalog = DemoCatalog()
         let provider = DemoAudioFeatureProvider(catalog: catalog)
         let ids = catalog.items(forPlaylist: "demo-morning").compactMap { $0.track?.id }
 
         let features = try await provider.features(forTrackIDs: ids)
-        #expect(features.count == ids.count)
+        #expect(features.count < ids.count, "some tracks must be missing features")
+        #expect(Double(features.count) / Double(ids.count) > 0.8, "but most must have them")
+        #expect(features.keys.allSatisfy { ids.contains($0) })
         #expect(await provider.unavailabilityReason == nil)
     }
 

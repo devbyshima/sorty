@@ -18,6 +18,11 @@ public struct DemoCatalog: Sendable {
 
     // MARK: - Generation
 
+    /// Each playlist has its own musical character — that is what makes picking
+    /// between them mean something, and what makes an arrangement of one look
+    /// different from an arrangement of another. Centres set the character;
+    /// the spread around them is wide enough that any single playlist still
+    /// covers most of each Attribute's range.
     private struct Spec {
         let id: String
         let name: String
@@ -26,10 +31,16 @@ public struct DemoCatalog: Sendable {
         let trackCount: Int
         let isPublic: Bool
         let collaborative: Bool
-        /// Centre of the tempo distribution, so each playlist sorts distinctly.
         let tempoCentre: Double
         let energyCentre: Double
+        let danceCentre: Double
+        let valenceCentre: Double
+        let acousticCentre: Double
         let episodes: Int
+        /// Tracks the audio-feature provider has nothing for. Real playlists
+        /// have these — ReccoBeats' catalogue is patchy for recent releases —
+        /// and the unrankable group in ticket 05 needs them to exist.
+        let tracksWithoutFeatures: Int
     }
 
     private static let specs: [Spec] = [
@@ -37,37 +48,51 @@ public struct DemoCatalog: Sendable {
              description: "Slow start, builds all the way up.",
              owner: PlaylistOwner(id: "demo-user", displayName: "Demo Listener"),
              trackCount: 42, isPublic: false, collaborative: false,
-             tempoCentre: 104, energyCentre: 0.52, episodes: 0),
+             tempoCentre: 104, energyCentre: 0.52, danceCentre: 0.58,
+             valenceCentre: 0.62, acousticCentre: 0.38,
+             episodes: 0, tracksWithoutFeatures: 3),
         Spec(id: "demo-longrun", name: "Long Run",
              description: "Steady tempo for distance.",
              owner: PlaylistOwner(id: "demo-user", displayName: "Demo Listener"),
              trackCount: 68, isPublic: true, collaborative: false,
-             tempoCentre: 162, energyCentre: 0.81, episodes: 0),
+             tempoCentre: 164, energyCentre: 0.82, danceCentre: 0.66,
+             valenceCentre: 0.58, acousticCentre: 0.12,
+             episodes: 0, tracksWithoutFeatures: 5),
         Spec(id: "demo-kitchen", name: "Kitchen Sessions",
              description: "Acoustic, mostly unplugged.",
              owner: PlaylistOwner(id: "demo-user", displayName: "Demo Listener"),
              trackCount: 31, isPublic: false, collaborative: true,
-             tempoCentre: 88, energyCentre: 0.31, episodes: 0),
+             tempoCentre: 86, energyCentre: 0.28, danceCentre: 0.36,
+             valenceCentre: 0.44, acousticCentre: 0.82,
+             episodes: 0, tracksWithoutFeatures: 2),
         Spec(id: "demo-latenight", name: "Late Night Drive",
              description: "",
              owner: PlaylistOwner(id: "demo-user", displayName: "Demo Listener"),
              trackCount: 55, isPublic: true, collaborative: false,
-             tempoCentre: 124, energyCentre: 0.66, episodes: 0),
+             tempoCentre: 124, energyCentre: 0.66, danceCentre: 0.62,
+             valenceCentre: 0.34, acousticCentre: 0.24,
+             episodes: 0, tracksWithoutFeatures: 4),
         Spec(id: "demo-mixed", name: "Commute Mix",
              description: "Music and a couple of shows.",
              owner: PlaylistOwner(id: "demo-user", displayName: "Demo Listener"),
              trackCount: 24, isPublic: false, collaborative: false,
-             tempoCentre: 112, energyCentre: 0.58, episodes: 3),
+             tempoCentre: 112, energyCentre: 0.58, danceCentre: 0.54,
+             valenceCentre: 0.5, acousticCentre: 0.34,
+             episodes: 3, tracksWithoutFeatures: 2),
         Spec(id: "demo-shared", name: "Road Trip (shared)",
              description: "Everyone gets three picks.",
              owner: PlaylistOwner(id: "other-user", displayName: "Sam"),
              trackCount: 37, isPublic: true, collaborative: true,
-             tempoCentre: 132, energyCentre: 0.74, episodes: 0),
+             tempoCentre: 132, energyCentre: 0.74, danceCentre: 0.7,
+             valenceCentre: 0.72, acousticCentre: 0.2,
+             episodes: 0, tracksWithoutFeatures: 3),
         Spec(id: "37i9dQZF-demo-weekly", name: "Discover Weekly",
              description: "Your weekly mixtape of fresh music.",
              owner: PlaylistOwner(id: "spotify", displayName: "Spotify"),
              trackCount: 30, isPublic: false, collaborative: false,
-             tempoCentre: 118, energyCentre: 0.6, episodes: 0),
+             tempoCentre: 118, energyCentre: 0.6, danceCentre: 0.56,
+             valenceCentre: 0.52, acousticCentre: 0.42,
+             episodes: 0, tracksWithoutFeatures: 6),
     ]
 
     private static let artistNames = [
@@ -100,9 +125,19 @@ public struct DemoCatalog: Sendable {
         for spec in Self.specs {
             var items: [PlaylistItem] = []
 
+            // Which tracks the feature provider will have nothing for. Chosen
+            // up front so they are scattered through the playlist rather than
+            // bunched at the end, which is what a real provider miss looks like.
+            var featurelessIndices: Set<Int> = []
+            while featurelessIndices.count < min(spec.tracksWithoutFeatures, spec.trackCount) {
+                featurelessIndices.insert(Int(generator.next(upperBound: UInt64(spec.trackCount))))
+            }
+
             for index in 0..<spec.trackCount {
                 let trackID = "\(spec.id)-t\(index)"
                 let albumID = "\(spec.id)-a\(index / 3)"
+
+                let albumArtwork = DemoArtwork.images(seed: albumID)
 
                 if albumsByID[albumID] == nil {
                     let year = 1998 + Int(generator.next(upperBound: 28))
@@ -111,6 +146,7 @@ public struct DemoCatalog: Sendable {
                     albumsByID[albumID] = TrackAlbum(
                         id: albumID,
                         name: "\(Self.titleHeads[Int(generator.next(upperBound: UInt64(Self.titleHeads.count)))]) Sessions",
+                        images: albumArtwork,
                         releaseDate: String(format: "%04d-%02d-%02d", year, month, day)
                     )
                 }
@@ -137,30 +173,45 @@ public struct DemoCatalog: Sendable {
                     durationMS: durationMS,
                     popularity: Int(generator.next(upperBound: 101)),
                     artists: [TrackArtist(id: "artist-\(artistIndex)", name: Self.artistNames[artistIndex])],
-                    album: TrackAlbum(id: albumID, name: albumsByID[albumID]?.name),
+                    album: TrackAlbum(id: albumID, name: albumsByID[albumID]?.name, images: albumArtwork),
                     type: .track
                 )
 
-                featuresByTrack[trackID] = AudioFeatures(
-                    id: trackID,
-                    // Spread kept narrow enough that the clamp almost never
-                    // bites — otherwise a whole run of tracks piles up on the
-                    // boundary value and the sorted column looks broken.
-                    tempo: (spec.tempoCentre + generator.nextGaussian() * 12).clamped(to: 60...200),
-                    energy: (spec.energyCentre + generator.nextGaussian() * 0.16).clamped(to: 0.02...1),
-                    danceability: (0.55 + generator.nextGaussian() * 0.18).clamped(to: 0.05...0.98),
-                    loudness: (-8.5 + generator.nextGaussian() * 3.4).clamped(to: -34 ... -1.2),
-                    valence: (0.5 + generator.nextGaussian() * 0.24).clamped(to: 0.02...0.98),
-                    acousticness: (spec.energyCentre < 0.45 ? 0.72 : 0.22 + generator.nextGaussian() * 0.18)
-                        .clamped(to: 0.001...0.995),
-                    instrumentalness: generator.nextDouble() * 0.6,
-                    liveness: (0.14 + generator.nextGaussian() * 0.08).clamped(to: 0.02...0.9),
-                    speechiness: (0.06 + generator.nextGaussian() * 0.03).clamped(to: 0.02...0.5),
-                    key: Int(generator.next(upperBound: 12)),
-                    mode: Int(generator.next(upperBound: 2)),
-                    timeSignature: 4,
-                    durationMS: durationMS
+                // Every draw is bounded rather than clamped, so the spread can
+                // be wide enough to fill each Attribute's range without a run of
+                // tracks piling onto a boundary value.
+                let energy = generator.nextBounded(
+                    centre: spec.energyCentre, spread: 0.9, in: 0.02...0.99
                 )
+
+                if !featurelessIndices.contains(index) {
+                    featuresByTrack[trackID] = AudioFeatures(
+                        id: trackID,
+                        tempo: generator.nextBounded(centre: spec.tempoCentre, spread: 0.85, in: 60...200),
+                        energy: energy,
+                        danceability: generator.nextBounded(
+                            centre: spec.danceCentre, spread: 0.95, in: 0.02...0.99
+                        ),
+                        // Louder tracks really are more energetic, so loudness
+                        // tracks energy rather than wandering independently.
+                        loudness: generator.nextBounded(
+                            centre: -26 + energy * 22, spread: 0.7, in: -38 ... -1.5
+                        ),
+                        valence: generator.nextBounded(
+                            centre: spec.valenceCentre, spread: 0.95, in: 0.02...0.99
+                        ),
+                        acousticness: generator.nextBounded(
+                            centre: spec.acousticCentre, spread: 0.9, in: 0.005...0.995
+                        ),
+                        instrumentalness: generator.nextDouble() * 0.6,
+                        liveness: generator.nextBounded(centre: 0.14, spread: 0.7, in: 0.02...0.9),
+                        speechiness: generator.nextBounded(centre: 0.07, spread: 0.6, in: 0.02...0.5),
+                        key: Int(generator.next(upperBound: 12)),
+                        mode: Int(generator.next(upperBound: 2)),
+                        timeSignature: 4,
+                        durationMS: durationMS
+                    )
+                }
 
                 let daysAgo = Int(generator.next(upperBound: 900))
                 let addedAt = ISO8601DateFormatter().string(
@@ -182,6 +233,10 @@ public struct DemoCatalog: Sendable {
                     popularity: nil,
                     artists: nil,
                     album: nil,
+                    // An episode belongs to a show, not an album, so it carries
+                    // its own artwork — seeded by the show so a series looks
+                    // like a series.
+                    images: DemoArtwork.images(seed: "show-\(Self.showNames[episodeIndex % Self.showNames.count])"),
                     type: .episode
                 )
                 let position = Int(generator.next(upperBound: UInt64(max(1, items.count))))
@@ -195,7 +250,7 @@ public struct DemoCatalog: Sendable {
                     name: spec.name,
                     uri: "spotify:playlist:\(spec.id)",
                     owner: spec.owner,
-                    images: nil,
+                    images: DemoArtwork.images(seed: spec.id),
                     tracks: PlaylistTrackCount(total: items.count),
                     collaborative: spec.collaborative,
                     isPublic: spec.isPublic,
@@ -243,6 +298,24 @@ struct SplitMix64 {
         let u1 = max(nextDouble(), .leastNormalMagnitude)
         let u2 = nextDouble()
         return (-2 * Foundation.log(u1)).squareRoot() * Foundation.cos(2 * .pi * u2)
+    }
+
+    /// A value in `range`, clustered around `centre`, spread by `spread`.
+    ///
+    /// The draw is squashed through a logistic curve rather than clamped.
+    /// Clamping is what made the old catalogue look wrong: a wide spread piled a
+    /// run of tracks onto the boundary value, so an arrangement showed a block
+    /// of identical numbers and the position bars in ticket 04 would all be full
+    /// or all empty. A logistic approaches the bounds without ever reaching
+    /// them, so the spread can be as wide as the music warrants.
+    mutating func nextBounded(
+        centre: Double, spread: Double, in range: ClosedRange<Double>
+    ) -> Double {
+        let width = range.upperBound - range.lowerBound
+        let fraction = ((centre - range.lowerBound) / width).clamped(to: 0.02...0.98)
+        let logit = Foundation.log(fraction / (1 - fraction))
+        let drawn = logit + nextGaussian() * spread
+        return range.lowerBound + width / (1 + Foundation.exp(-drawn))
     }
 }
 

@@ -226,10 +226,14 @@ public struct Playable: Codable, Sendable, Hashable {
     public let popularity: Int?
     public let artists: [TrackArtist]?
     public let album: TrackAlbum?
+    /// Episodes carry their own artwork — they belong to a show, not an album,
+    /// so there is no album to read it from. Tracks leave this nil and resolve
+    /// through `album`.
+    public let images: [SpotifyImage]?
     public let type: PlayableKind?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, uri, popularity, artists, album, type
+        case id, name, uri, popularity, artists, album, images, type
         case durationMS = "duration_ms"
     }
 
@@ -241,6 +245,7 @@ public struct Playable: Codable, Sendable, Hashable {
         popularity: Int? = nil,
         artists: [TrackArtist]? = nil,
         album: TrackAlbum? = nil,
+        images: [SpotifyImage]? = nil,
         type: PlayableKind? = .track
     ) {
         self.id = id
@@ -250,11 +255,25 @@ public struct Playable: Codable, Sendable, Hashable {
         self.popularity = popularity
         self.artists = artists
         self.album = album
+        self.images = images
         self.type = type
     }
 
     public var isEpisode: Bool { type == .episode }
     public var primaryArtistName: String? { artists?.first?.name }
+
+    /// Cover artwork for this track or episode: its own if it has any, else its
+    /// album's. One accessor so a row never has to know which kind it is
+    /// holding.
+    public var coverImageURL: URL? {
+        let candidates = images ?? album?.images
+        guard let candidates, !candidates.isEmpty else { return nil }
+        let sized = candidates
+            .filter { $0.width != nil }
+            .sorted { ($0.width ?? 0) < ($1.width ?? 0) }
+        let match = sized.first { ($0.width ?? 0) >= 160 }
+        return URL(string: (match ?? candidates[0]).url)
+    }
 }
 
 public struct PlaylistItem: Codable, Sendable, Hashable {

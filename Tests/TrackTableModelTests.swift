@@ -367,6 +367,80 @@ struct DemoCatalogTests {
         }
     }
 
+    @Test("Every playlist resolves cover artwork, so no card falls back to a glyph")
+    func playlistsHaveArtwork() {
+        let catalog = DemoCatalog()
+        for playlist in catalog.playlists {
+            #expect(playlist.cardImageURL != nil, "\(playlist.name) has no cover")
+        }
+        // Distinct covers, or the library reads as one repeated texture.
+        let seeds = catalog.playlists.compactMap { $0.cardImageURL.flatMap(DemoArtwork.Request.init)?.seed }
+        #expect(Set(seeds).count == catalog.playlists.count)
+    }
+
+    /// Every entry, episodes included. An episode has no album to read artwork
+    /// from, so it carries its own — without that, the artwork row in ticket 03
+    /// would have a hole in exactly the place this catalogue exists to exercise.
+    @Test("Every demo entry resolves cover artwork, tracks and episodes alike")
+    func everyEntryHasArtwork() {
+        let catalog = DemoCatalog()
+        var sawEpisode = false
+
+        for playlist in catalog.playlists {
+            for item in catalog.items(forPlaylist: playlist.id) {
+                guard let playable = item.track else { continue }
+                sawEpisode = sawEpisode || playable.isEpisode
+                #expect(playable.coverImageURL != nil, "\(playable.name) has no cover")
+            }
+        }
+
+        #expect(sawEpisode, "the catalogue should contain episodes to check")
+    }
+
+    @Test("Tracks on the same album share one cover, as they would on Spotify")
+    func albumArtworkIsSharedWithinAnAlbum() {
+        let catalog = DemoCatalog()
+        var seedsByAlbum: [String: Set<String>] = [:]
+
+        for item in catalog.items(forPlaylist: "demo-morning") {
+            guard let playable = item.track, let album = playable.album, let albumID = album.id,
+                  let url = album.images?.first.flatMap({ URL(string: $0.url) }),
+                  let seed = DemoArtwork.Request(url: url)?.seed
+            else { continue }
+            seedsByAlbum[albumID, default: []].insert(seed)
+        }
+
+        #expect(seedsByAlbum.count > 1, "the playlist should span several albums")
+        for (albumID, seeds) in seedsByAlbum {
+            #expect(seeds.count == 1, "\(albumID) resolved \(seeds.count) different covers")
+        }
+    }
+
+    @Test("Some tracks have no audio features, so the unrankable path has work to do")
+    func someTracksLackFeatures() {
+        let catalog = DemoCatalog()
+
+        for playlist in catalog.playlists {
+            let tracks = catalog.items(forPlaylist: playlist.id)
+                .compactMap(\.track)
+                .filter { !$0.isEpisode }
+            let missing = tracks.filter { $0.id.flatMap { catalog.features(forTrackID: $0) } == nil }
+
+            #expect(!missing.isEmpty, "\(playlist.name) has no featureless tracks")
+            #expect(
+                missing.count < tracks.count / 4,
+                "\(playlist.name) is mostly missing features, which reads as broken rather than patchy"
+            )
+        }
+    }
+
+    @Test("One playlist is long enough that reordering it reads as motion")
+    func aPlaylistIsLongEnoughToAnimate() {
+        let catalog = DemoCatalog()
+        let longest = catalog.playlists.map(\.tracks.total).max() ?? 0
+        #expect(longest >= 60, "longest playlist is only \(longest) tracks")
+    }
+
     @Test("The mixed playlist really does contain episodes with no artist")
     func episodesExist() {
         let catalog = DemoCatalog()

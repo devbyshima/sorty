@@ -69,23 +69,9 @@ private struct PlaylistCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(SortifyTheme.surface)
-                if let url = playlist.cardImageURL {
-                    AsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        ProgressView()
-                    }
-                    .clipShape(.rect(cornerRadius: 12))
-                } else {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 30))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .aspectRatio(1, contentMode: .fit)
+            CoverImage(url: playlist.cardImageURL)
+                .aspectRatio(1, contentMode: .fit)
+                .clipShape(.rect(cornerRadius: 12))
 
             Text(playlist.name)
                 .font(.subheadline.weight(.semibold))
