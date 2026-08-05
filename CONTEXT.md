@@ -23,6 +23,14 @@ arrangements are derived from one attribute, but an attribute is not itself an
 arrangement.
 _Avoid_: Column, field, metric
 
+**Basis**:
+An arrangement with its direction stripped off — what stays the same when you
+flip `By BPM, fastest first` to `By BPM, slowest first`. It is what the user
+means by "which arrangement is selected", and so what a chip is. Always derived
+from an arrangement, never stored next to one: the app holds exactly one piece
+of ordering state, and a stored basis would be a second.
+_Avoid_: Sort key, mode, kind
+
 **Artist separation**:
 An arrangement that spaces tracks by the same artist as far apart as possible.
 Computed by Sortify, not read from any track.

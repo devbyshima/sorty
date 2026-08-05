@@ -43,8 +43,8 @@ shoot() {
 shoot 01-landing        -screen landing
 shoot 02-playlists      -screen playlists
 shoot 03-tracks-order   -screen tracks -playlist demo-longrun
-shoot 04-tracks-bpm     -screen tracks -playlist demo-longrun -sort bpm -direction descending
-shoot 05-tracks-asep    -screen tracks -playlist demo-mixed -sort asep
+shoot 04-tracks-bpm     -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 05-tracks-asep    -screen tracks -playlist demo-mixed -arrangement artist-separation
 shoot 06-settings       -screen settings
 shoot 07-faq            -screen faq
 

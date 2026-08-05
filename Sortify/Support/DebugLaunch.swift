@@ -23,21 +23,18 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "playlist")
     }
 
-    /// `-sort bpm -direction descending`
-    static var sortColumn: SortColumn? {
-        UserDefaults.standard.string(forKey: "sort").flatMap(SortColumn.init)
-    }
-
-    static var sortDirection: SortDirection? {
-        UserDefaults.standard.string(forKey: "direction").flatMap(SortDirection.init)
+    /// `-arrangement bpm-descending`, `-arrangement artist-separation`.
+    /// One argument, because an Arrangement is one thing — a column plus a
+    /// separate direction could name a combination that doesn't exist.
+    static var arrangement: Arrangement? {
+        UserDefaults.standard.string(forKey: "arrangement").flatMap(Arrangement.init(argument:))
     }
 
     static var isActive: Bool { screen != nil }
     #else
     static var screen: Screen? { nil }
     static var playlistID: String? { nil }
-    static var sortColumn: SortColumn? { nil }
-    static var sortDirection: SortDirection? { nil }
+    static var arrangement: Arrangement? { nil }
     static var isActive: Bool { false }
     #endif
 }

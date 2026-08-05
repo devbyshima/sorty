@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// Drives the sort table for one playlist: loading, sorting, filtering, saving.
+/// Drives one playlist: loading, arranging, filtering, saving.
 @MainActor
 @Observable
 public final class TrackTableModel {
@@ -16,14 +16,17 @@ public final class TrackTableModel {
     public let playlist: Playlist
     public private(set) var rows: [TrackRow] = []
     public private(set) var phase: LoadPhase = .idle
-    /// Explains blank acoustic columns when the feature source can't serve them.
+    /// Explains blank audio features when the feature source can't serve them.
     public private(set) var featureNotice: String?
     /// Oldest `added_at` in the playlist — the closest thing Spotify offers to a
     /// creation date.
     public private(set) var oldestAddedAt: String?
 
-    public var sortColumn: SortColumn = .order { didSet { invalidateArrangement() } }
-    public var sortDirection: SortDirection = .ascending { didSet { invalidateArrangement() } }
+    /// The app's single piece of ordering state. Direction lives inside the
+    /// Arrangement, so there is nothing for it to fall out of step with.
+    public private(set) var arrangement: Arrangement = .originalOrder {
+        didSet { invalidateArrangement() }
+    }
     public var filter = BPMFilter() { didSet { invalidateArrangement() } }
 
     public private(set) var saveStatus: SaveStatus = .idle
@@ -39,9 +42,17 @@ public final class TrackTableModel {
     private let featureProvider: any AudioFeatureProviding
     private let currentUserID: String?
     private var albumReleaseDates: [String: String] = [:]
-    /// The arrangement last written to Spotify. Nil until the first load
-    /// finishes, which is what keeps Save disabled on arrival.
-    private var savedState: SortState?
+    /// What was last written to Spotify. Nil until the first load finishes,
+    /// which is what keeps Save disabled on arrival.
+    ///
+    /// Private, and deliberately not a public pair type: ADR-0002 splits the
+    /// two save paths, and a public `(arrangement, filter)` value is exactly
+    /// the shape parallel direction state would grow back on.
+    private struct Saved: Equatable {
+        var arrangement: Arrangement
+        var filter: BPMFilter
+    }
+    private var saved: Saved?
     private var arrangementCache: [TrackRow]?
 
     public init(
@@ -58,14 +69,12 @@ public final class TrackTableModel {
 
     // MARK: - Derived state
 
-    public var currentState: SortState {
-        SortState(column: sortColumn, direction: sortDirection, filter: filter)
-    }
+    private var current: Saved { Saved(arrangement: arrangement, filter: filter) }
 
     /// Rows in display order, after filtering.
     public var arrangedRows: [TrackRow] {
         if let arrangementCache { return arrangementCache }
-        let arranged = PlaylistSorter.arrange(rows, state: currentState)
+        let arranged = PlaylistSorter.arrange(rows, by: arrangement, filter: filter)
         arrangementCache = arranged
         return arranged
     }
@@ -77,8 +86,8 @@ public final class TrackTableModel {
     /// re-saved into a pointless duplicate.
     public var canSave: Bool {
         guard case .ready = phase, saveStatus != .saving else { return false }
-        guard let savedState else { return false }
-        return savedState != currentState && !arrangedRows.isEmpty
+        guard let saved else { return false }
+        return saved != current && !arrangedRows.isEmpty
     }
 
     public var canOverwrite: Bool {
@@ -95,7 +104,7 @@ public final class TrackTableModel {
         phase = .loading(loaded: 0, total: playlist.tracks.total)
         rows = []
         albumReleaseDates = [:]
-        savedState = nil
+        saved = nil
         invalidateArrangement()
 
         do {
@@ -139,7 +148,7 @@ public final class TrackTableModel {
             rows = mutableRows
 
             invalidateArrangement()
-            savedState = currentState
+            saved = current
             phase = .ready
         } catch is CancellationError {
             // Leaving the screen mid-load is not a failure.
@@ -189,19 +198,23 @@ public final class TrackTableModel {
 
     // MARK: - Interaction
 
-    /// Tapping a header: same column flips direction, a new column starts
-    /// ascending, and the Random column re-rolls so repeat taps reshuffle.
-    public func selectColumn(_ column: SortColumn) {
-        if column == sortColumn {
-            if column.directionMatters {
-                sortDirection = sortDirection.toggled
-            }
-        } else {
-            sortColumn = column
-            sortDirection = .ascending
-        }
+    /// The only mutator of ordering state, so there is exactly one place it can
+    /// change.
+    public func apply(_ arrangement: Arrangement) {
+        self.arrangement = arrangement
+    }
 
-        if column == .rnd {
+    /// The fifteen-column header's single tap gesture, which means three
+    /// different things depending on the column tapped — the exact conflation
+    /// ADR-0001 removes. The redesign gives the three meanings three separate
+    /// controls (apply, reverse, re-roll) and deletes this; it is named so it
+    /// cannot quietly calcify into the supported API in the meantime.
+    public func selectFromLegacyHeader(_ basis: Arrangement.Basis) {
+        // Reversing a directionless Arrangement is a no-op, so the two cases
+        // the old `directionMatters` guard separated now need no guard.
+        apply(basis == arrangement.basis ? arrangement.reversed : basis.arrangement())
+
+        if basis == .shuffle {
             var mutableRows = rows
             PlaylistSorter.reroll(&mutableRows)
             rows = mutableRows
@@ -219,7 +232,7 @@ public final class TrackTableModel {
         }
 
         saveStatus = .saving
-        let sortName = SaveNaming.sortName(column: sortColumn, direction: sortDirection)
+        let arrangementName = arrangement.name
 
         do {
             let target: Playlist
@@ -230,12 +243,10 @@ public final class TrackTableModel {
                 }
                 target = try await service.createPlaylist(
                     userID: userID,
-                    name: SaveNaming.playlistName(
-                        original: playlist.name, column: sortColumn, direction: sortDirection
-                    ),
+                    name: SaveNaming.playlistName(original: playlist.name, arrangement: arrangement),
                     isPublic: playlist.isPublic ?? false,
                     description: SaveNaming.playlistDescription(
-                        original: playlist.cleanDescription, column: sortColumn, direction: sortDirection
+                        original: playlist.cleanDescription, arrangement: arrangement
                     )
                 )
             } else {
@@ -244,10 +255,10 @@ public final class TrackTableModel {
 
             try await service.replaceTracks(playlistID: target.id, uris: uris)
 
-            savedState = currentState
+            saved = current
             saveStatus = createNew
-                ? .created("Created “\(target.name)” — \(uris.count) tracks by \(sortName).")
-                : .updated("Updated “\(playlist.name)” — \(uris.count) tracks by \(sortName).")
+                ? .created("Created “\(target.name)” — \(uris.count) tracks by \(arrangementName).")
+                : .updated("Updated “\(playlist.name)” — \(uris.count) tracks by \(arrangementName).")
         } catch let error as SpotifyAPIError where error.isNotWritable {
             saveStatus = .failed(
                 "This playlist can't be modified — it may be owned by Spotify or another listener. Save a new playlist instead."

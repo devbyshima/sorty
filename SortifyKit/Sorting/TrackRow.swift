@@ -1,8 +1,7 @@
 import Foundation
 
-/// One row of the sort table: a playlist entry flattened together with
-/// everything the columns need, so sorting never has to reach back into the
-/// network layer.
+/// One track of a playlist, flattened together with every Attribute it has, so
+/// arranging never has to reach back into the network layer.
 public struct TrackRow: Sendable, Identifiable, Hashable {
     /// Stable identity — playlists may legitimately contain the same track
     /// twice, so the original index is part of the identity, not the track ID.
@@ -17,7 +16,7 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
     public var albumReleaseDate: String?
     /// Position assigned by the artist-separation pass.
     public var artistSeparationIndex: Int?
-    /// Re-rolled every time the Random column is chosen.
+    /// Re-rolled every time the shuffle Arrangement is chosen.
     public var randomValue: Int
 
     public init(
@@ -39,12 +38,12 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         self.randomValue = randomValue
     }
 
-    // MARK: - Column values
+    // MARK: - Attribute values
 
-    /// Numeric value for a column, or nil when unavailable. Nil always sorts
-    /// last regardless of direction.
-    public func numericValue(for column: SortColumn) -> Double? {
-        switch column {
+    /// Numeric value for an Attribute, or nil when unavailable. Nil always
+    /// sorts last regardless of direction.
+    public func numericValue(for attribute: Attribute) -> Double? {
+        switch attribute {
         case .order: Double(originalIndex)
         case .bpm: features?.tempo.map { $0.rounded() }
         case .energy: features?.energy.map { ($0 * 100).rounded() }
@@ -54,15 +53,13 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         case .length: (features?.durationMS ?? playable.durationMS).map(Double.init)
         case .acoustic: features?.acousticness.map { ($0 * 100).rounded() }
         case .pop: Double(playable.popularity ?? 0)
-        case .asep: artistSeparationIndex.map(Double.init)
-        case .rnd: Double(randomValue)
         case .title, .artist, .release, .added: nil
         }
     }
 
-    /// Text value for the non-numeric columns.
-    public func textValue(for column: SortColumn) -> String? {
-        switch column {
+    /// Text value for the non-numeric Attributes.
+    public func textValue(for attribute: Attribute) -> String? {
+        switch attribute {
         case .title: playable.name
         case .artist: playable.primaryArtistName ?? ""
         case .release: albumReleaseDate
@@ -71,17 +68,17 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         }
     }
 
-    /// What the cell shows. Empty string means "no value".
-    public func displayValue(for column: SortColumn) -> String {
-        if column.isNumeric {
-            guard let value = numericValue(for: column) else { return "" }
-            switch column {
+    /// What the user is shown. Empty string means "no value".
+    public func displayValue(for attribute: Attribute) -> String {
+        if attribute.isNumeric {
+            guard let value = numericValue(for: attribute) else { return "" }
+            switch attribute {
             case .order: return String(Int(value) + 1)
             case .length: return TrackRow.formatDuration(ms: Int(value))
             default: return String(Int(value))
             }
         }
-        return textValue(for: column) ?? ""
+        return textValue(for: attribute) ?? ""
     }
 
     /// Milliseconds as `m:ss`.

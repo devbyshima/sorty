@@ -1,6 +1,6 @@
 import Foundation
 
-/// The BPM range filter shown above the table.
+/// The BPM range filter shown above the tracks.
 public struct BPMFilter: Sendable, Hashable {
     public var minBPM: Int?
     public var maxBPM: Int?
@@ -37,72 +37,74 @@ public struct BPMFilter: Sendable, Hashable {
     }
 }
 
-/// Everything that defines "what the user is looking at", so the app can tell
-/// whether the current arrangement differs from the last one saved.
-public struct SortState: Sendable, Hashable {
-    public var column: SortColumn
-    public var direction: SortDirection
-    public var filter: BPMFilter
-
-    public init(column: SortColumn = .order, direction: SortDirection = .ascending, filter: BPMFilter = BPMFilter()) {
-        self.column = column
-        self.direction = direction
-        self.filter = filter
-    }
-}
-
 public enum PlaylistSorter {
-    /// Sorts rows by a column. Missing values always sink to the bottom,
-    /// whichever direction is active.
-    public static func sorted(_ rows: [TrackRow], by column: SortColumn, direction: SortDirection) -> [TrackRow] {
+    /// Applies an Arrangement. Missing values always sink to the bottom,
+    /// whichever direction is active, and ties keep their original playlist
+    /// order so the result is stable and repeatable.
+    public static func ordered(_ rows: [TrackRow], by arrangement: Arrangement) -> [TrackRow] {
+        switch arrangement {
+        case .attribute(let attribute, let direction) where attribute.isNumeric:
+            ranked(rows, direction, key: { $0.numericValue(for: attribute) }, compare: compareNumbers)
+
+        case .attribute(let attribute, let direction):
+            ranked(rows, direction, key: { $0.textValue(for: attribute) },
+                   compare: { $0.localizedStandardCompare($1) })
+
+        case .artistSeparation:
+            ranked(rows, .ascending, key: { $0.artistSeparationIndex.map(Double.init) },
+                   compare: compareNumbers)
+
+        case .shuffle:
+            ranked(rows, .ascending, key: { Double($0.randomValue) }, compare: compareNumbers)
+        }
+    }
+
+    private static func compareNumbers(_ a: Double, _ b: Double) -> ComparisonResult {
+        a == b ? .orderedSame : (a < b ? .orderedAscending : .orderedDescending)
+    }
+
+    private static func ranked<Value>(
+        _ rows: [TrackRow],
+        _ direction: Arrangement.Direction,
+        key: (TrackRow) -> Value?,
+        compare: (Value, Value) -> ComparisonResult
+    ) -> [TrackRow] {
         let multiplier = direction.multiplier
 
         return rows.sorted { lhs, rhs in
             let comparison: Int
 
-            if column.isNumeric {
-                let a = lhs.numericValue(for: column)
-                let b = rhs.numericValue(for: column)
-                switch (a, b) {
-                case (nil, nil): comparison = 0
-                case (nil, _): return false   // nil sinks
-                case (_, nil): return true
-                case (let a?, let b?):
-                    if a == b { comparison = 0 } else { comparison = (a < b ? -1 : 1) * multiplier }
-                }
-            } else {
-                let a = lhs.textValue(for: column)
-                let b = rhs.textValue(for: column)
-                switch (a, b) {
-                case (nil, nil): comparison = 0
-                case (nil, _): return false
-                case (_, nil): return true
-                case (let a?, let b?):
-                    let result = a.localizedStandardCompare(b)
-                    comparison = result == .orderedSame ? 0 : (result == .orderedAscending ? -1 : 1) * multiplier
+            switch (key(lhs), key(rhs)) {
+            case (nil, nil): comparison = 0
+            case (nil, _): return false   // nil sinks
+            case (_, nil): return true
+            case (let a?, let b?):
+                switch compare(a, b) {
+                case .orderedSame: comparison = 0
+                case .orderedAscending: comparison = -1 * multiplier
+                case .orderedDescending: comparison = 1 * multiplier
                 }
             }
 
-            // Ties keep their original playlist order, so sorting is stable and
-            // repeatable rather than dependent on the sort algorithm.
+            // Ties keep their original playlist order, so arranging is stable
+            // and repeatable rather than dependent on the sort algorithm.
             if comparison == 0 { return lhs.originalIndex < rhs.originalIndex }
             return comparison < 0
         }
     }
 
-    /// Rows in the exact order and membership that a save would write.
-    public static func arrange(_ rows: [TrackRow], state: SortState) -> [TrackRow] {
-        sorted(rows, by: state.column, direction: state.direction)
-            .filter { state.filter.accepts($0) }
+    /// Rows in the exact order and membership that a save-as-new would write.
+    public static func arrange(_ rows: [TrackRow], by arrangement: Arrangement, filter: BPMFilter) -> [TrackRow] {
+        ordered(rows, by: arrangement).filter { filter.accepts($0) }
     }
 
     /// Track/episode URIs for the current arrangement, ready to PUT to Spotify.
-    public static func saveURIs(for rows: [TrackRow], state: SortState) -> [String] {
-        arrange(rows, state: state).compactMap(\.savableURI)
+    public static func saveURIs(for rows: [TrackRow], by arrangement: Arrangement, filter: BPMFilter) -> [String] {
+        arrange(rows, by: arrangement, filter: filter).compactMap(\.savableURI)
     }
 
-    /// Fresh random values for every row — called each time the Random column is
-    /// selected, so tapping it repeatedly reshuffles.
+    /// Fresh random values for every row — called each time the shuffle
+    /// Arrangement is re-selected, so choosing it repeatedly reshuffles.
     public static func reroll(_ rows: inout [TrackRow]) {
         for index in rows.indices {
             rows[index].randomValue = Int.random(in: 0..<10_000)
@@ -113,28 +115,17 @@ public enum PlaylistSorter {
 // MARK: - Naming a saved playlist
 
 public enum SaveNaming {
-    /// "increasing BPM", "decreasing Energy", or just "A.Sep" / "Rnd" for the
-    /// two columns where direction is meaningless.
-    public static func sortName(column: SortColumn, direction: SortDirection) -> String {
-        guard column.directionMatters else { return column.label }
-        return "\(direction.savedNameWord) \(column.label)"
+    public static func playlistName(original: String, arrangement: Arrangement) -> String {
+        "\(original) ordered by \(arrangement.name)"
     }
 
-    public static func playlistName(original: String, column: SortColumn, direction: SortDirection) -> String {
-        "\(original) ordered by \(sortName(column: column, direction: direction))"
-    }
-
-    public static func playlistDescription(
-        original: String?,
-        column: SortColumn,
-        direction: SortDirection
-    ) -> String {
+    public static func playlistDescription(original: String?, arrangement: Arrangement) -> String {
         let prefix: String
         if let original, !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, original != "null" {
             prefix = original.trimmingCharacters(in: .whitespacesAndNewlines) + " - "
         } else {
             prefix = ""
         }
-        return "\(prefix)Sorted by \(sortName(column: column, direction: direction)) with Sortify"
+        return "\(prefix)Sorted by \(arrangement.name) with Sortify"
     }
 }

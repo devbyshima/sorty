@@ -155,64 +155,85 @@ struct TrackTableModelTests {
         #expect(model.phase == .empty)
     }
 
+    @Test("A freshly loaded playlist starts in its original order")
+    func launchesInOriginalOrder() async {
+        let (model, _) = await loadedModel()
+        #expect(model.arrangement == .originalOrder)
+        #expect(model.arrangedRows.map(\.originalIndex) == Array(0..<8))
+    }
+
     @Test("Save stays disabled until the arrangement actually changes")
     func saveGating() async {
         let (model, _) = await loadedModel()
         #expect(!model.canSave, "a freshly loaded playlist matches what's on Spotify")
 
-        model.selectColumn(.bpm)
+        model.apply(.attribute(.bpm, .ascending))
         #expect(model.canSave)
     }
 
     @Test("Returning to the original arrangement disables save again")
     func saveGatingRoundTrip() async {
         let (model, _) = await loadedModel()
-        model.selectColumn(.bpm)
+        model.apply(.attribute(.bpm, .ascending))
         #expect(model.canSave)
 
-        model.selectColumn(.order)
-        #expect(!model.canSave, "back to the original column and direction, so there's nothing to save")
+        model.apply(.originalOrder)
+        #expect(!model.canSave, "back to the arrangement that's on Spotify, so there's nothing to save")
     }
 
-    @Test("Tapping the active column flips direction; a new column starts ascending")
-    func columnSelection() async {
+    @Test("Tapping the active header reverses it; a different one starts ascending")
+    func headerSelection() async {
         let (model, _) = await loadedModel()
 
-        model.selectColumn(.bpm)
-        #expect(model.sortColumn == .bpm)
-        #expect(model.sortDirection == .ascending)
+        model.selectFromLegacyHeader(.attribute(.bpm))
+        #expect(model.arrangement == .attribute(.bpm, .ascending))
 
-        model.selectColumn(.bpm)
-        #expect(model.sortDirection == .descending)
+        model.selectFromLegacyHeader(.attribute(.bpm))
+        #expect(model.arrangement == .attribute(.bpm, .descending))
 
-        model.selectColumn(.energy)
-        #expect(model.sortColumn == .energy)
-        #expect(model.sortDirection == .ascending, "switching columns resets direction")
+        model.selectFromLegacyHeader(.attribute(.energy))
+        #expect(model.arrangement == .attribute(.energy, .ascending), "switching resets direction")
     }
 
-    @Test("Artist separation and random never toggle direction")
-    func directionlessColumns() async {
+    @Test("The position header still reverses the playlist on a second tap")
+    func originalOrderHeaderReverses() async {
         let (model, _) = await loadedModel()
-        for column in [SortColumn.asep, .rnd] {
-            model.selectColumn(column)
-            model.selectColumn(column)
-            #expect(model.sortDirection == .ascending, "\(column) has no meaningful direction")
+
+        model.selectFromLegacyHeader(.attribute(.bpm))
+        model.selectFromLegacyHeader(.originalOrder)
+        #expect(model.arrangement == .originalOrder)
+
+        model.selectFromLegacyHeader(.originalOrder)
+        #expect(model.arrangement == .attribute(.order, .descending))
+        #expect(model.arrangedRows.map(\.originalIndex) == Array((0..<8).reversed()))
+    }
+
+    @Test("Artist separation and Shuffle have no direction to toggle")
+    func directionlessArrangements() async {
+        let (model, _) = await loadedModel()
+        for basis in [Arrangement.Basis.artistSeparation, .shuffle] {
+            model.selectFromLegacyHeader(basis)
+            let once = model.arrangement
+            model.selectFromLegacyHeader(basis)
+
+            #expect(model.arrangement == once, "\(basis.name) has no direction to flip")
+            #expect(model.arrangement.direction == nil)
         }
     }
 
-    @Test("Re-tapping Random reshuffles the rows")
-    func randomReshuffles() async {
+    @Test("Re-selecting Shuffle reshuffles the rows")
+    func shuffleReshuffles() async {
         let (model, _) = await loadedModel(count: 40)
-        model.selectColumn(.rnd)
+        model.selectFromLegacyHeader(.shuffle)
         let first = model.arrangedRows.map(\.id)
-        model.selectColumn(.rnd)
+        model.selectFromLegacyHeader(.shuffle)
         #expect(model.arrangedRows.map(\.id) != first)
     }
 
-    @Test("Saving a new playlist names it after the sort and writes the visible order")
+    @Test("Saving a new playlist names it after the Arrangement and writes the visible order")
     func saveNewPlaylist() async {
         let (model, service) = await loadedModel()
-        model.selectColumn(.bpm)
+        model.apply(.attribute(.bpm, .ascending))
         await model.save(createNew: true)
 
         let created = await service.createdPlaylists
@@ -231,7 +252,7 @@ struct TrackTableModelTests {
         let (model, service) = await loadedModel()
         #expect(model.canOverwrite)
 
-        model.selectColumn(.energy)
+        model.apply(.attribute(.energy, .ascending))
         await model.save(createNew: false)
 
         #expect(await service.createdPlaylists.isEmpty)
@@ -247,12 +268,12 @@ struct TrackTableModelTests {
     @Test("A successful save re-arms the gate only after another change")
     func saveResetsDirtyState() async {
         let (model, _) = await loadedModel()
-        model.selectColumn(.bpm)
+        model.apply(.attribute(.bpm, .ascending))
         await model.save(createNew: true)
 
         #expect(!model.canSave, "what's on Spotify now matches what's on screen")
 
-        model.selectColumn(.valence)
+        model.apply(.attribute(.valence, .ascending))
         #expect(model.canSave)
     }
 
@@ -262,7 +283,7 @@ struct TrackTableModelTests {
         let service = RecordingService(items: items, failWrites: true)
         let (model, _) = await loadedModel(count: 4, service: service)
 
-        model.selectColumn(.bpm)
+        model.apply(.attribute(.bpm, .ascending))
         await model.save(createNew: false)
 
         guard case .failed(let message) = model.saveStatus else {

@@ -22,8 +22,8 @@ struct FAQView: View {
                 }
 
                 Section("The columns") {
-                    ForEach(SortColumn.allCases) { column in
-                        FAQItem(question: column.longLabel, answer: column.explanation)
+                    ForEach(Arrangement.Basis.allCases) { basis in
+                        FAQItem(question: basis.name, answer: basis.explanation)
                     }
                 }
 

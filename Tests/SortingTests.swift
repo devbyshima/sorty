@@ -47,10 +47,10 @@ private func makeRow(
     )
 }
 
-// MARK: - Column values
+// MARK: - Attribute values
 
-@Suite("Column values")
-struct ColumnValueTests {
+@Suite("Attribute values")
+struct AttributeValueTests {
 
     @Test("0–1 features are presented as 0–100")
     func normalizedFeaturesScale() {
@@ -69,7 +69,7 @@ struct ColumnValueTests {
         #expect(row.displayValue(for: .loud) == "-7")
     }
 
-    @Test("The order column displays 1-based even though it sorts 0-based")
+    @Test("Position displays 1-based even though it sorts 0-based")
     func orderIsOneBasedInDisplay() {
         let row = makeRow(index: 0)
         #expect(row.numericValue(for: .order) == 0)
@@ -94,9 +94,9 @@ struct ColumnValueTests {
     @Test("A missing feature yields nil, not zero — zero would sort as a real value")
     func missingFeaturesAreNil() {
         let row = makeRow(index: 0, hasFeatures: false)
-        for column in [SortColumn.bpm, .energy, .dance, .loud, .valence, .acoustic] {
-            #expect(row.numericValue(for: column) == nil, "\(column) should be nil")
-            #expect(row.displayValue(for: column).isEmpty, "\(column) should render empty")
+        for attribute in Attribute.allCases where attribute.isAudioFeature {
+            #expect(row.numericValue(for: attribute) == nil, "\(attribute) should be nil")
+            #expect(row.displayValue(for: attribute).isEmpty, "\(attribute) should render empty")
         }
     }
 
@@ -130,10 +130,10 @@ struct ColumnValueTests {
     }
 }
 
-// MARK: - Sorting
+// MARK: - Arranging
 
-@Suite("Sorting")
-struct SortingTests {
+@Suite("Arranging")
+struct ArrangingTests {
 
     @Test("Ascending and descending are mirror images")
     func directionReverses() {
@@ -142,8 +142,8 @@ struct SortingTests {
             makeRow(index: 1, tempo: 90),
             makeRow(index: 2, tempo: 150),
         ]
-        let ascending = PlaylistSorter.sorted(rows, by: .bpm, direction: .ascending)
-        let descending = PlaylistSorter.sorted(rows, by: .bpm, direction: .descending)
+        let ascending = PlaylistSorter.ordered(rows, by: .attribute(.bpm, .ascending))
+        let descending = PlaylistSorter.ordered(rows, by: .attribute(.bpm, .descending))
 
         #expect(ascending.map(\.originalIndex) == [1, 0, 2])
         #expect(descending.map(\.originalIndex) == [2, 0, 1])
@@ -157,32 +157,32 @@ struct SortingTests {
             makeRow(index: 2, tempo: 90),
         ]
 
-        let ascending = PlaylistSorter.sorted(rows, by: .bpm, direction: .ascending)
+        let ascending = PlaylistSorter.ordered(rows, by: .attribute(.bpm, .ascending))
         #expect(ascending.map(\.originalIndex) == [2, 0, 1])
 
-        let descending = PlaylistSorter.sorted(rows, by: .bpm, direction: .descending)
+        let descending = PlaylistSorter.ordered(rows, by: .attribute(.bpm, .descending))
         #expect(descending.last?.originalIndex == 1, "the featureless row must stay at the bottom")
     }
 
-    @Test("Ties fall back to original order, so sorting is stable and repeatable")
+    @Test("Ties fall back to original order, so arranging is stable and repeatable")
     func tiesAreStable() {
         let rows = (0..<6).map { makeRow(index: $0, tempo: 120) }
-        let sorted = PlaylistSorter.sorted(rows, by: .bpm, direction: .ascending)
-        #expect(sorted.map(\.originalIndex) == [0, 1, 2, 3, 4, 5])
+        let ordered = PlaylistSorter.ordered(rows, by: .attribute(.bpm, .ascending))
+        #expect(ordered.map(\.originalIndex) == [0, 1, 2, 3, 4, 5])
 
-        let resorted = PlaylistSorter.sorted(sorted.shuffled(), by: .bpm, direction: .ascending)
-        #expect(resorted.map(\.originalIndex) == [0, 1, 2, 3, 4, 5])
+        let rearranged = PlaylistSorter.ordered(ordered.shuffled(), by: .attribute(.bpm, .ascending))
+        #expect(rearranged.map(\.originalIndex) == [0, 1, 2, 3, 4, 5])
     }
 
-    @Test("Text columns sort with a natural, case-insensitive comparison")
+    @Test("Text attributes sort with a natural, case-insensitive comparison")
     func textSorting() {
         let rows = [
             makeRow(index: 0, title: "banana"),
             makeRow(index: 1, title: "Apple"),
             makeRow(index: 2, title: "cherry"),
         ]
-        let sorted = PlaylistSorter.sorted(rows, by: .title, direction: .ascending)
-        #expect(sorted.map(\.playable.name) == ["Apple", "banana", "cherry"])
+        let ordered = PlaylistSorter.ordered(rows, by: .attribute(.title, .ascending))
+        #expect(ordered.map(\.playable.name) == ["Apple", "banana", "cherry"])
     }
 
     @Test("ISO release dates sort chronologically as text")
@@ -192,31 +192,43 @@ struct SortingTests {
             makeRow(index: 1, releaseDate: "1999-12-31"),
             makeRow(index: 2, releaseDate: "2020-01-15"),
         ]
-        let sorted = PlaylistSorter.sorted(rows, by: .release, direction: .ascending)
-        #expect(sorted.map(\.albumReleaseDate) == ["1999-12-31", "2020-01-15", "2020-03-01"])
+        let ordered = PlaylistSorter.ordered(rows, by: .attribute(.release, .ascending))
+        #expect(ordered.map(\.albumReleaseDate) == ["1999-12-31", "2020-01-15", "2020-03-01"])
     }
 
-    @Test("Every column sorts without crashing on a mixed playlist", arguments: SortColumn.allCases)
-    func everyColumnSorts(column: SortColumn) {
+    @Test("Original order is the playlist as Spotify returned it")
+    func originalOrderRestoresThePlaylist() {
+        var rows = (0..<8).map { makeRow(index: $0, tempo: Double(200 - $0 * 7)) }
+        ArtistSeparation.assignIndices(to: &rows)
+        let scrambled = PlaylistSorter.ordered(rows, by: .attribute(.bpm, .ascending))
+
+        #expect(PlaylistSorter.ordered(scrambled, by: .originalOrder).map(\.originalIndex) == Array(0..<8))
+        #expect(
+            PlaylistSorter.ordered(rows, by: .originalOrder.reversed).map(\.originalIndex)
+                == Array((0..<8).reversed()),
+            "reversing original order flips the playlist, which is what a second # tap does"
+        )
+    }
+
+    @Test("Every Arrangement orders a mixed playlist without dropping a track", arguments: Arrangement.all)
+    func everyArrangementOrders(arrangement: Arrangement) {
         var rows = (0..<12).map {
             makeRow(index: $0, title: "T\($0)", tempo: Double(90 + $0 * 3), hasFeatures: $0 % 3 != 0)
         }
         rows.append(makeRow(index: 12, artist: nil, isEpisode: true, hasFeatures: false))
         ArtistSeparation.assignIndices(to: &rows)
 
-        for direction in [SortDirection.ascending, .descending] {
-            let sorted = PlaylistSorter.sorted(rows, by: column, direction: direction)
-            #expect(sorted.count == rows.count)
-            #expect(Set(sorted.map(\.id)) == Set(rows.map(\.id)))
-        }
+        let ordered = PlaylistSorter.ordered(rows, by: arrangement)
+        #expect(ordered.count == rows.count)
+        #expect(Set(ordered.map(\.id)) == Set(rows.map(\.id)))
     }
 
-    @Test("Re-rolling changes the random ordering")
+    @Test("Re-rolling changes the shuffled ordering")
     func rerollReshuffles() {
         var rows = (0..<40).map { makeRow(index: $0) }
-        let before = PlaylistSorter.sorted(rows, by: .rnd, direction: .ascending).map(\.id)
+        let before = PlaylistSorter.ordered(rows, by: .shuffle).map(\.id)
         PlaylistSorter.reroll(&rows)
-        let after = PlaylistSorter.sorted(rows, by: .rnd, direction: .ascending).map(\.id)
+        let after = PlaylistSorter.ordered(rows, by: .shuffle).map(\.id)
         #expect(before != after, "a reshuffle of 40 tracks reproducing the exact order is vanishingly unlikely")
     }
 }
@@ -272,20 +284,19 @@ struct BPMFilterTests {
         #expect(filter.accepts(makeRow(index: 1, isEpisode: true, hasFeatures: false)))
     }
 
-    @Test("Filtering happens after sorting, and preserves the sorted order")
-    func arrangeSortsThenFilters() {
+    @Test("Filtering happens after arranging, and preserves the arranged order")
+    func arrangeOrdersThenFilters() {
         let rows = [
             makeRow(index: 0, tempo: 150),
             makeRow(index: 1, tempo: 100),
             makeRow(index: 2, tempo: 200),
             makeRow(index: 3, tempo: 125),
         ]
-        let state = SortState(
-            column: .bpm,
-            direction: .ascending,
+        let arranged = PlaylistSorter.arrange(
+            rows,
+            by: .attribute(.bpm, .ascending),
             filter: BPMFilter(minBPM: 110, maxBPM: 160, includeDoubled: false)
         )
-        let arranged = PlaylistSorter.arrange(rows, state: state)
         #expect(arranged.map { Int($0.numericValue(for: .bpm)!) } == [125, 150])
     }
 
@@ -296,10 +307,10 @@ struct BPMFilterTests {
             makeRow(index: 1, tempo: 100),
             makeRow(index: 2, tempo: 125),
         ]
-        let state = SortState(column: .bpm, direction: .descending)
-        #expect(PlaylistSorter.saveURIs(for: rows, state: state) == [
-            "spotify:track:t0", "spotify:track:t2", "spotify:track:t1",
-        ])
+        let uris = PlaylistSorter.saveURIs(
+            for: rows, by: .attribute(.bpm, .descending), filter: BPMFilter()
+        )
+        #expect(uris == ["spotify:track:t0", "spotify:track:t2", "spotify:track:t1"])
     }
 }
 
@@ -325,7 +336,7 @@ struct ArtistSeparationTests {
         for index in 6..<12 { rows.append(makeRow(index: index, artist: "Other \(index)")) }
 
         ArtistSeparation.assignIndices(to: &rows)
-        let ordered = PlaylistSorter.sorted(rows, by: .asep, direction: .ascending)
+        let ordered = PlaylistSorter.ordered(rows, by: .artistSeparation)
         let artists = ordered.map { $0.playable.primaryArtistName ?? "" }
 
         var longestRun = 1
@@ -366,31 +377,52 @@ struct ArtistSeparationTests {
 @Suite("Save naming")
 struct SaveNamingTests {
 
-    @Test("Direction is spelled out for ordinary columns")
-    func directionalNames() {
-        #expect(SaveNaming.sortName(column: .bpm, direction: .ascending) == "increasing BPM")
-        #expect(SaveNaming.sortName(column: .energy, direction: .descending) == "decreasing Energy")
+    /// Naming used to read the *column header*, so a saved playlist came back
+    /// abbreviated: "ordered by increasing Dance", "…increasing Pop.". Those
+    /// abbreviations exist to fit a 60pt column and die with the table, so
+    /// naming now reads the Attribute's own name. This is a deliberate change
+    /// to what gets written to a real Spotify account; it is pinned here so it
+    /// stays a decision rather than a side effect.
+    @Test("Saved names spell the Attribute out rather than abbreviating it")
+    func namesAreNotColumnHeaders() {
+        let expected: [(Attribute, String)] = [
+            (.dance, "increasing Danceability"),
+            (.loud, "increasing Loudness"),
+            (.pop, "increasing Popularity"),
+            (.acoustic, "increasing Acousticness"),
+            (.release, "increasing Release date"),
+            (.added, "increasing Date added"),
+            (.order, "increasing Original order"),
+        ]
+        for (attribute, name) in expected {
+            #expect(Arrangement.attribute(attribute, .ascending).name == name)
+        }
     }
 
-    @Test("Artist separation and random omit direction, which is meaningless for them")
-    func directionlessNames() {
-        #expect(SaveNaming.sortName(column: .asep, direction: .ascending) == "A.Sep")
-        #expect(SaveNaming.sortName(column: .asep, direction: .descending) == "A.Sep")
-        #expect(SaveNaming.sortName(column: .rnd, direction: .descending) == "Rnd")
-    }
-
-    @Test("New playlists are named after the sort")
+    @Test("New playlists are named after the Arrangement")
     func playlistName() {
         #expect(
-            SaveNaming.playlistName(original: "Long Run", column: .bpm, direction: .ascending)
+            SaveNaming.playlistName(original: "Long Run", arrangement: .attribute(.bpm, .ascending))
                 == "Long Run ordered by increasing BPM"
+        )
+    }
+
+    @Test("A directionless Arrangement names the playlist without a direction")
+    func directionlessPlaylistName() {
+        #expect(
+            SaveNaming.playlistName(original: "Long Run", arrangement: .artistSeparation)
+                == "Long Run ordered by Artist separation"
+        )
+        #expect(
+            SaveNaming.playlistName(original: "Long Run", arrangement: .shuffle)
+                == "Long Run ordered by Shuffle"
         )
     }
 
     @Test("An existing description is preserved ahead of the Sortify note")
     func descriptionKeepsOriginal() {
         let description = SaveNaming.playlistDescription(
-            original: "Steady tempo", column: .bpm, direction: .descending
+            original: "Steady tempo", arrangement: .attribute(.bpm, .descending)
         )
         #expect(description == "Steady tempo - Sorted by decreasing BPM with Sortify")
     }
@@ -399,7 +431,7 @@ struct SaveNamingTests {
     func descriptionHandlesEmptyValues() {
         for original in [nil, "", "   ", "null"] as [String?] {
             let description = SaveNaming.playlistDescription(
-                original: original, column: .valence, direction: .ascending
+                original: original, arrangement: .attribute(.valence, .ascending)
             )
             #expect(description == "Sorted by increasing Valence with Sortify", "failed for \(String(describing: original))")
         }

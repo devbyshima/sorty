@@ -54,11 +54,8 @@ struct TrackTableView: View {
         }
         .task {
             await model.load()
-            if let column = DebugLaunch.sortColumn {
-                model.selectColumn(column)
-                if let direction = DebugLaunch.sortDirection, model.sortDirection != direction {
-                    model.selectColumn(column)
-                }
+            if let arrangement = DebugLaunch.arrangement {
+                model.apply(arrangement)
             }
         }
     }
@@ -68,7 +65,7 @@ struct TrackTableView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Text(sortSummary)
+                Text(arrangementSummary)
                     .font(.subheadline.weight(.medium))
                 Spacer()
                 if model.filter.isActive {
@@ -91,10 +88,7 @@ struct TrackTableView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var sortSummary: String {
-        guard model.sortColumn.directionMatters else { return "Sorted by \(model.sortColumn.longLabel)" }
-        return "Sorted by \(model.sortDirection.savedNameWord) \(model.sortColumn.longLabel)"
-    }
+    private var arrangementSummary: String { "Sorted by \(model.arrangement.name)" }
 
     private var loadingState: some View {
         VStack(spacing: 14) {
@@ -125,7 +119,7 @@ struct TrackTableView: View {
                             TrackRowView(
                                 row: row,
                                 isAlternate: index.isMultiple(of: 2),
-                                activeColumn: model.sortColumn
+                                activeBasis: model.arrangement.basis
                             )
                             .swipeActions(edge: .trailing) {
                                 if let uri = row.playable.uri, let url = URL(string: uri) {
@@ -137,9 +131,8 @@ struct TrackTableView: View {
                         }
                     } header: {
                         TableHeaderRow(
-                            activeColumn: model.sortColumn,
-                            direction: model.sortDirection,
-                            onSelect: { model.selectColumn($0) }
+                            arrangement: model.arrangement,
+                            onSelect: { model.selectFromLegacyHeader($0) }
                         )
                     }
                 }
@@ -149,14 +142,14 @@ struct TrackTableView: View {
             .scrollBounceBehavior(.basedOnSize)
             // Fifteen columns are far wider than a phone. Sorting by a column
             // you then can't see is useless, so bring it into view.
-            .onChange(of: model.sortColumn) { _, column in
+            .onChange(of: model.arrangement.basis) { _, basis in
                 withAnimation(.snappy) {
-                    proxy.scrollTo(column, anchor: .center)
+                    proxy.scrollTo(basis, anchor: .center)
                 }
             }
             .task(id: model.phase) {
-                guard model.phase == .ready, model.sortColumn != .order else { return }
-                proxy.scrollTo(model.sortColumn, anchor: .center)
+                guard model.phase == .ready, model.arrangement.basis != .originalOrder else { return }
+                proxy.scrollTo(model.arrangement.basis, anchor: .center)
             }
         }
     }
@@ -208,35 +201,36 @@ struct TrackTableView: View {
 // MARK: - Header row
 
 private struct TableHeaderRow: View {
-    let activeColumn: SortColumn
-    let direction: SortDirection
-    let onSelect: (SortColumn) -> Void
+    let arrangement: Arrangement
+    let onSelect: (Arrangement.Basis) -> Void
+
+    private var activeBasis: Arrangement.Basis { arrangement.basis }
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(SortColumn.allCases) { column in
+            ForEach(Arrangement.Basis.allCases) { basis in
                 Button {
-                    onSelect(column)
+                    onSelect(basis)
                 } label: {
                     HStack(spacing: 3) {
-                        Text(column.label)
-                            .font(.caption.weight(activeColumn == column ? .bold : .semibold))
+                        Text(basis.legacyLabel)
+                            .font(.caption.weight(activeBasis == basis ? .bold : .semibold))
                             .lineLimit(1)
-                        if activeColumn == column {
-                            Image(systemName: indicator(for: column))
+                        if activeBasis == basis {
+                            Image(systemName: indicator)
                                 .font(.system(size: 8, weight: .bold))
                         }
                     }
-                    .foregroundStyle(activeColumn == column ? SortifyTheme.accent : .primary)
-                    .frame(width: column.width, height: SortifyTheme.tableHeaderHeight, alignment: alignment(for: column))
+                    .foregroundStyle(activeBasis == basis ? SortifyTheme.accent : .primary)
+                    .frame(width: basis.legacyWidth, height: SortifyTheme.tableHeaderHeight, alignment: basis.legacyAlignment)
                     .padding(.horizontal, 6)
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .id(column)
-                .accessibilityLabel(column.longLabel)
-                .accessibilityHint(accessibilityHint(for: column))
-                .accessibilityAddTraits(activeColumn == column ? [.isButton, .isSelected] : .isButton)
+                .id(basis)
+                .accessibilityLabel(basis.name)
+                .accessibilityHint(accessibilityHint(for: basis))
+                .accessibilityAddTraits(activeBasis == basis ? [.isButton, .isSelected] : .isButton)
             }
         }
         .frame(height: SortifyTheme.tableHeaderHeight)
@@ -246,20 +240,24 @@ private struct TableHeaderRow: View {
         }
     }
 
-    private func indicator(for column: SortColumn) -> String {
-        guard column.directionMatters else { return "circle.fill" }
-        return direction == .ascending ? "chevron.up" : "chevron.down"
+    /// A directionless Arrangement has no arrow to draw — the Optional makes
+    /// that a case the compiler insists on rather than a flag to remember.
+    private var indicator: String {
+        switch arrangement.direction {
+        case .ascending: "chevron.up"
+        case .descending: "chevron.down"
+        case nil: "circle.fill"
+        }
     }
 
-    private func alignment(for column: SortColumn) -> Alignment {
-        column.isNumeric && column != .order ? .trailing : .leading
-    }
-
-    private func accessibilityHint(for column: SortColumn) -> String {
-        guard activeColumn == column else { return "Sorts by \(column.longLabel)." }
-        if column == .rnd { return "Reshuffles." }
-        guard column.directionMatters else { return "Already sorted by \(column.longLabel)." }
-        return direction == .ascending ? "Sorted ascending. Activates descending." : "Sorted descending. Activates ascending."
+    private func accessibilityHint(for basis: Arrangement.Basis) -> String {
+        guard activeBasis == basis else { return "Sorts by \(basis.name)." }
+        if basis == .shuffle { return "Reshuffles." }
+        switch arrangement.direction {
+        case .ascending: return "Sorted ascending. Activates descending."
+        case .descending: return "Sorted descending. Activates ascending."
+        case nil: return "Already sorted by \(basis.name)."
+        }
     }
 }
 
@@ -268,21 +266,21 @@ private struct TableHeaderRow: View {
 private struct TrackRowView: View {
     let row: TrackRow
     let isAlternate: Bool
-    let activeColumn: SortColumn
+    let activeBasis: Arrangement.Basis
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(SortColumn.allCases) { column in
-                let value = row.displayValue(for: column)
+            ForEach(Arrangement.Basis.allCases) { basis in
+                let value = row.legacyCellText(for: basis)
                 Text(value.isEmpty ? "—" : value)
-                    .font(font(for: column))
-                    .foregroundStyle(foreground(for: column, isEmpty: value.isEmpty))
+                    .font(font(for: basis))
+                    .foregroundStyle(foreground(for: basis, isEmpty: value.isEmpty))
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .tabularNumbers()
-                    .frame(width: column.width, height: SortifyTheme.tableRowHeight, alignment: alignment(for: column))
+                    .frame(width: basis.legacyWidth, height: SortifyTheme.tableRowHeight, alignment: basis.legacyAlignment)
                     .padding(.horizontal, 6)
-                    .background(activeColumn == column ? SortifyTheme.accent.opacity(0.09) : .clear)
+                    .background(activeBasis == basis ? SortifyTheme.accent.opacity(0.09) : .clear)
             }
         }
         .frame(height: SortifyTheme.tableRowHeight)
@@ -292,24 +290,20 @@ private struct TrackRowView: View {
         .accessibilityLabel(accessibilityLabel)
     }
 
-    private func font(for column: SortColumn) -> Font {
-        if column == .title { return .footnote.weight(row.playable.isEpisode ? .regular : .medium) }
+    private func font(for basis: Arrangement.Basis) -> Font {
+        if basis == .attribute(.title) { return .footnote.weight(row.playable.isEpisode ? .regular : .medium) }
         return .footnote
     }
 
-    private func foreground(for column: SortColumn, isEmpty: Bool) -> Color {
+    private func foreground(for basis: Arrangement.Basis, isEmpty: Bool) -> Color {
         if isEmpty { return .secondary.opacity(0.5) }
-        if row.playable.isEpisode && (column == .title || column == .artist) { return .secondary }
-        return column == activeColumn ? .primary : .primary.opacity(0.85)
+        if row.playable.isEpisode && (basis == .attribute(.title) || basis == .attribute(.artist)) { return .secondary }
+        return basis == activeBasis ? .primary : .primary.opacity(0.85)
     }
 
-    private func alignment(for column: SortColumn) -> Alignment {
-        column.isNumeric && column != .order ? .trailing : .leading
-    }
-
-    /// One spoken sentence per row: position, what it is, and the value of the
-    /// column actually being sorted by — reading all fifteen cells aloud would
-    /// be unusable.
+    /// One spoken sentence per row: position, what it is, and the value the
+    /// active Arrangement ordered by — reading all fifteen cells aloud would be
+    /// unusable.
     private var accessibilityLabel: String {
         var parts = ["\(row.originalIndex + 1).", row.playable.name]
         if let artist = row.playable.primaryArtistName {
@@ -317,9 +311,11 @@ private struct TrackRowView: View {
         } else if row.playable.isEpisode {
             parts.append("podcast episode")
         }
-        if activeColumn != .order, activeColumn != .title, activeColumn != .artist {
-            let value = row.displayValue(for: activeColumn)
-            parts.append("\(activeColumn.longLabel) \(value.isEmpty ? "unavailable" : value)")
+        // Position, title and artist are already spoken above, so repeating
+        // them as "the value sorted by" would say the same thing twice.
+        if activeBasis != .attribute(.order), activeBasis != .attribute(.title), activeBasis != .attribute(.artist) {
+            let value = row.legacyCellText(for: activeBasis)
+            parts.append("\(activeBasis.name) \(value.isEmpty ? "unavailable" : value)")
         }
         return parts.joined(separator: " ")
     }
