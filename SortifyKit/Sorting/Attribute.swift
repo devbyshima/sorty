@@ -45,6 +45,21 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
         }
     }
 
+    /// Whether this Attribute has a magnitude — somewhere a value can sit on a
+    /// line, which is what a position bar draws.
+    ///
+    /// Not the same question as `isNumeric`, which is about how two values
+    /// *compare*. A date compares as text but is genuinely earlier or later, so
+    /// it has a range; a title compares as text and has none, because
+    /// alphabetical order is a sequence rather than a scale and "how far
+    /// through the alphabet" measures nothing.
+    public var isPlottable: Bool {
+        switch self {
+        case .title, .artist: false
+        default: true
+        }
+    }
+
     /// True when the value comes from the audio-feature provider rather than
     /// from Spotify's own track metadata — so it can legitimately be missing.
     public var isAudioFeature: Bool {

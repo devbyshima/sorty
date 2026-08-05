@@ -1,114 +1,6 @@
 import Foundation
 import Testing
 
-/// Records what was written back, so save behaviour can be asserted without a
-/// network or a Spotify account.
-private actor RecordingService: MusicService {
-    nonisolated let canWriteBack = true
-
-    private(set) var createdPlaylists: [(name: String, isPublic: Bool, description: String)] = []
-    private(set) var writes: [(playlistID: String, uris: [String])] = []
-
-    private let items: [PlaylistItem]
-    private let failWrites: Bool
-
-    init(items: [PlaylistItem], failWrites: Bool = false) {
-        self.items = items
-        self.failWrites = failWrites
-    }
-
-    func currentUser() async throws -> SpotifyUser { SpotifyUser(id: "me", displayName: "Me") }
-
-    func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist] { [] }
-
-    func playlistItems(
-        playlistID: String,
-        ownerID: String,
-        onPage: @Sendable ([PlaylistItem], Int) async -> Void
-    ) async throws -> [PlaylistItem] {
-        await onPage(items, items.count)
-        return items
-    }
-
-    func albums(ids: [String]) async throws -> [TrackAlbum] {
-        ids.map { TrackAlbum(id: $0, name: "Album \($0)", releaseDate: "2019-05-0\(($0.count % 9) + 1)") }
-    }
-
-    func createPlaylist(userID: String, name: String, isPublic: Bool, description: String) async throws -> Playlist {
-        createdPlaylists.append((name, isPublic, description))
-        return Playlist(
-            id: "new-playlist", name: name, uri: "spotify:playlist:new",
-            owner: PlaylistOwner(id: userID), tracks: PlaylistTrackCount(total: 0)
-        )
-    }
-
-    func replaceTracks(playlistID: String, uris: [String]) async throws {
-        if failWrites { throw SpotifyAPIError.http(status: 403, message: "Forbidden") }
-        writes.append((playlistID, uris))
-    }
-}
-
-private struct StubFeatureProvider: AudioFeatureProviding {
-    let displayName = "Stub"
-    let table: [String: AudioFeatures]
-    let reason: String?
-
-    init(table: [String: AudioFeatures] = [:], reason: String? = nil) {
-        self.table = table
-        self.reason = reason
-    }
-
-    var unavailabilityReason: String? { get async { reason } }
-
-    func features(forTrackIDs trackIDs: [String]) async throws -> [String: AudioFeatures] {
-        table.filter { trackIDs.contains($0.key) }
-    }
-}
-
-private func sampleItems(count: Int, tempoStart: Double = 100) -> [PlaylistItem] {
-    (0..<count).map { index in
-        PlaylistItem(
-            addedAt: "2024-0\((index % 9) + 1)-01T00:00:00Z",
-            isLocal: false,
-            track: Playable(
-                id: "t\(index)",
-                name: "Track \(index)",
-                uri: "spotify:track:t\(index)",
-                durationMS: 180_000 + index * 1_000,
-                popularity: 40 + index,
-                artists: [TrackArtist(name: "Artist \(index % 3)")],
-                album: TrackAlbum(id: "alb\(index % 4)"),
-                type: .track
-            )
-        )
-    }
-}
-
-private func sampleFeatures(count: Int) -> [String: AudioFeatures] {
-    var table: [String: AudioFeatures] = [:]
-    for index in 0..<count {
-        table["t\(index)"] = AudioFeatures(
-            id: "t\(index)",
-            tempo: Double(180 - index * 5),
-            energy: Double(index) / Double(count),
-            danceability: 0.5,
-            loudness: -6,
-            valence: 0.4,
-            acousticness: 0.2
-        )
-    }
-    return table
-}
-
-private func makePlaylist(ownerID: String = "me", isPublic: Bool = false, description: String? = "Original") -> Playlist {
-    Playlist(
-        id: "p1", name: "Test Playlist", uri: "spotify:playlist:p1",
-        owner: PlaylistOwner(id: ownerID, displayName: "Owner"),
-        tracks: PlaylistTrackCount(total: 8),
-        isPublic: isPublic, rawDescription: description
-    )
-}
-
 @Suite("Track list model")
 @MainActor
 struct TrackListModelTests {
@@ -116,13 +8,13 @@ struct TrackListModelTests {
     private func loadedModel(
         count: Int = 8,
         ownerID: String = "me",
-        service: RecordingService? = nil,
+        service: RecordingMusicService? = nil,
         provider: (any AudioFeatureProviding)? = nil
-    ) async -> (TrackListModel, RecordingService) {
+    ) async -> (TrackListModel, RecordingMusicService) {
         let items = sampleItems(count: count)
-        let resolvedService = service ?? RecordingService(items: items)
+        let resolvedService = service ?? RecordingMusicService(items: items)
         let model = TrackListModel(
-            playlist: makePlaylist(ownerID: ownerID),
+            playlist: samplePlaylist(ownerID: ownerID),
             service: resolvedService,
             featureProvider: provider ?? StubFeatureProvider(table: sampleFeatures(count: count)),
             currentUserID: "me"
@@ -146,8 +38,8 @@ struct TrackListModelTests {
     @Test("An empty playlist reports the empty phase rather than ready")
     func emptyPlaylist() async {
         let model = TrackListModel(
-            playlist: makePlaylist(),
-            service: RecordingService(items: []),
+            playlist: samplePlaylist(),
+            service: RecordingMusicService(items: []),
             featureProvider: StubFeatureProvider(),
             currentUserID: "me"
         )
@@ -326,7 +218,7 @@ struct TrackListModelTests {
     @Test("A 403 on write is reported as a permissions problem, not a generic failure")
     func forbiddenWriteExplained() async {
         let items = sampleItems(count: 4)
-        let service = RecordingService(items: items, failWrites: true)
+        let service = RecordingMusicService(items: items, failWrites: true)
         let (model, _) = await loadedModel(count: 4, service: service)
 
         model.apply(.attribute(.bpm, .ascending))

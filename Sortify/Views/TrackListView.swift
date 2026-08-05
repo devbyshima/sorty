@@ -182,7 +182,8 @@ struct TrackListView: View {
                     TrackListRow(
                         row: row,
                         position: position + 1,
-                        arrangement: model.arrangement
+                        arrangement: model.arrangement,
+                        range: model.positionRange
                     )
                     .contentShape(.rect)
                     .swipeActions(edge: .trailing) {
@@ -241,6 +242,9 @@ private struct TrackListRow: View {
     let row: TrackRow
     let position: Int
     let arrangement: Arrangement
+    /// The playlist's span for the active Attribute, or nil when this
+    /// Arrangement has no bar to draw.
+    let range: AttributeRange?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -321,14 +325,23 @@ private struct TrackListRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    /// The value, and under it the bar placing that value among the others.
+    /// A track the provider had nothing for gets neither — an absent
+    /// measurement must not look like a low one.
     @ViewBuilder
     private var valueLabel: some View {
         if let value = text.value {
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(SortifyTheme.accent)
-                .lineLimit(1)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(SortifyTheme.accent)
+                    .lineLimit(1)
+
+                if let fraction = range?.fraction(for: row) {
+                    PositionBar(fraction: fraction)
+                }
+            }
         }
     }
 }

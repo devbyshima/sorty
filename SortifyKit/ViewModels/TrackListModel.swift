@@ -14,7 +14,11 @@ public final class TrackListModel {
     }
 
     public let playlist: Playlist
-    public private(set) var rows: [TrackRow] = []
+    /// Invalidates on write rather than at each call site: `enrich()` mutates
+    /// rows and then suspends before it could invalidate by hand, and a render
+    /// landing in that window would read a range resolved from rows that had no
+    /// features yet.
+    public private(set) var rows: [TrackRow] = [] { didSet { invalidateArrangement() } }
     public private(set) var phase: LoadPhase = .idle
     /// Explains blank audio features when the feature source can't serve them.
     public private(set) var featureNotice: String?
@@ -53,7 +57,19 @@ public final class TrackListModel {
         var filter: BPMFilter
     }
     private var saved: Saved?
+
+    /// Both caches are read on every row of a long list, so they are memoized
+    /// rather than recomputed — without this, resolving the range per row would
+    /// make drawing the list O(n²).
+    ///
+    /// Both are observation-tracked stored properties, and on a cache hit the
+    /// getter touches neither `rows` nor `arrangement`. The cache *write* is
+    /// what registers the dependency, so marking either `@ObservationIgnored`
+    /// would stop the list redrawing when the arrangement changes.
     private var arrangementCache: [TrackRow]?
+    /// Doubly optional on purpose: the outer nil is "not computed", the inner
+    /// is "computed, and this Arrangement has no bars".
+    private var rangeCache: AttributeRange??
 
     public init(
         playlist: Playlist,
@@ -81,6 +97,31 @@ public final class TrackListModel {
 
     public var hiddenRowCount: Int { rows.count - arrangedRows.count }
 
+    /// The span the rows' bars are drawn against, or nil when there should be
+    /// no bars at all.
+    ///
+    /// Resolved from `rows` rather than `arrangedRows`: a track hidden by the
+    /// filter is still part of the playlist the others are being compared
+    /// against, and letting the filter move the range would make the same track
+    /// change length depending on what else was on screen.
+    public var positionRange: AttributeRange? {
+        if let cached = rangeCache { return cached }
+        let resolved = resolvePositionRange()
+        rangeCache = .some(resolved)
+        return resolved
+    }
+
+    private func resolvePositionRange() -> AttributeRange? {
+        guard let attribute = arrangement.rankingAttribute,
+              // A bar under a value the row doesn't print would be a bar under
+              // nothing, and a bar for position is a ramp down a list already
+              // in that order.
+              !TrackRowText.isAlreadyVisible(attribute)
+        else { return nil }
+        return AttributeRange(attribute: attribute, rows: rows)
+    }
+
+
     /// Save is offered only once something actually differs from what's on
     /// Spotify — matching the reference, where an untouched playlist can't be
     /// re-saved into a pointless duplicate.
@@ -96,7 +137,10 @@ public final class TrackListModel {
 
     public var canWriteBack: Bool { service.canWriteBack }
 
-    private func invalidateArrangement() { arrangementCache = nil }
+    private func invalidateArrangement() {
+        arrangementCache = nil
+        rangeCache = nil
+    }
 
     // MARK: - Loading
 
