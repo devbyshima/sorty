@@ -42,8 +42,7 @@ private func makeRow(
                 durationMS: durationMS
             )
             : nil,
-        albumReleaseDate: releaseDate,
-        randomValue: index
+        albumReleaseDate: releaseDate
     )
 }
 
@@ -223,13 +222,34 @@ struct ArrangingTests {
         #expect(Set(ordered.map(\.id)) == Set(rows.map(\.id)))
     }
 
-    @Test("Re-rolling changes the shuffled ordering")
-    func rerollReshuffles() {
-        var rows = (0..<40).map { makeRow(index: $0) }
-        let before = PlaylistSorter.ordered(rows, by: .shuffle).map(\.id)
-        PlaylistSorter.reroll(&rows)
-        let after = PlaylistSorter.ordered(rows, by: .shuffle).map(\.id)
-        #expect(before != after, "a reshuffle of 40 tracks reproducing the exact order is vanishingly unlikely")
+    @Test("A different seed is a different shuffle")
+    func seedsProduceDifferentShuffles() {
+        let rows = (0..<40).map { makeRow(index: $0) }
+        let before = PlaylistSorter.ordered(rows, by: .shuffle(seed: 1)).map(\.id)
+        let after = PlaylistSorter.ordered(rows, by: .shuffle(seed: 2)).map(\.id)
+        #expect(before != after, "40 tracks reproducing the exact order is vanishingly unlikely")
+        #expect(Set(before) == Set(after), "a shuffle keeps every track")
+    }
+
+    /// The seed has to determine the order completely, and identically on every
+    /// launch — otherwise a shuffled screenshot could never be reproduced, and
+    /// `canSave` could not tell one shuffle from another.
+    @Test("The same seed is the same shuffle, every time and in every process")
+    func shufflesAreReproducible() {
+        let rows = (0..<40).map { makeRow(index: $0) }
+        let first = PlaylistSorter.ordered(rows, by: .shuffle(seed: 99)).map(\.id)
+        let second = PlaylistSorter.ordered(rows.shuffled(), by: .shuffle(seed: 99)).map(\.id)
+        #expect(first == second)
+
+        // Pinned against a literal: this is what catches anyone swapping the
+        // mixer for `Hasher`, which is seeded per process.
+        #expect(Array(first.prefix(6)) == [11, 23, 30, 34, 15, 35])
+    }
+
+    @Test("Shuffle ignores direction — it has none to ignore")
+    func shuffleHasNoDirection() {
+        #expect(Arrangement.shuffle(seed: 7).direction == nil)
+        #expect(Arrangement.shuffle(seed: 7).reversed == .shuffle(seed: 7))
     }
 }
 
@@ -414,7 +434,7 @@ struct SaveNamingTests {
                 == "Long Run ordered by Artist separation"
         )
         #expect(
-            SaveNaming.playlistName(original: "Long Run", arrangement: .shuffle)
+            SaveNaming.playlistName(original: "Long Run", arrangement: .shuffled)
                 == "Long Run ordered by Shuffle"
         )
     }

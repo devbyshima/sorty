@@ -109,19 +109,19 @@ private func makePlaylist(ownerID: String = "me", isPublic: Bool = false, descri
     )
 }
 
-@Suite("Track table model")
+@Suite("Track list model")
 @MainActor
-struct TrackTableModelTests {
+struct TrackListModelTests {
 
     private func loadedModel(
         count: Int = 8,
         ownerID: String = "me",
         service: RecordingService? = nil,
         provider: (any AudioFeatureProviding)? = nil
-    ) async -> (TrackTableModel, RecordingService) {
+    ) async -> (TrackListModel, RecordingService) {
         let items = sampleItems(count: count)
         let resolvedService = service ?? RecordingService(items: items)
-        let model = TrackTableModel(
+        let model = TrackListModel(
             playlist: makePlaylist(ownerID: ownerID),
             service: resolvedService,
             featureProvider: provider ?? StubFeatureProvider(table: sampleFeatures(count: count)),
@@ -145,7 +145,7 @@ struct TrackTableModelTests {
 
     @Test("An empty playlist reports the empty phase rather than ready")
     func emptyPlaylist() async {
-        let model = TrackTableModel(
+        let model = TrackListModel(
             playlist: makePlaylist(),
             service: RecordingService(items: []),
             featureProvider: StubFeatureProvider(),
@@ -181,53 +181,99 @@ struct TrackTableModelTests {
         #expect(!model.canSave, "back to the arrangement that's on Spotify, so there's nothing to save")
     }
 
-    @Test("Tapping the active header reverses it; a different one starts ascending")
-    func headerSelection() async {
+    /// Drives the model the way the screen does — through the chip row — so the
+    /// composition in `ArrangementChip` and its effect on the playlist are
+    /// asserted together rather than separately.
+    private func tap(_ basis: Arrangement.Basis, on model: TrackListModel) {
+        guard let chip = ArrangementChip.row(for: model.arrangement).first(where: { $0.basis == basis })
+        else {
+            Issue.record("no chip for \(basis.name)")
+            return
+        }
+        model.apply(chip.tapped)
+    }
+
+    @Test("Tapping the active chip reverses it; a different one starts ascending")
+    func chipSelection() async {
         let (model, _) = await loadedModel()
 
-        model.selectFromLegacyHeader(.attribute(.bpm))
+        tap(.attribute(.bpm), on: model)
         #expect(model.arrangement == .attribute(.bpm, .ascending))
 
-        model.selectFromLegacyHeader(.attribute(.bpm))
+        tap(.attribute(.bpm), on: model)
         #expect(model.arrangement == .attribute(.bpm, .descending))
 
-        model.selectFromLegacyHeader(.attribute(.energy))
+        tap(.attribute(.energy), on: model)
         #expect(model.arrangement == .attribute(.energy, .ascending), "switching resets direction")
     }
 
-    @Test("The position header still reverses the playlist on a second tap")
-    func originalOrderHeaderReverses() async {
+    @Test("The Original order chip reverses the playlist on a second tap")
+    func originalOrderChipReverses() async {
         let (model, _) = await loadedModel()
 
-        model.selectFromLegacyHeader(.attribute(.bpm))
-        model.selectFromLegacyHeader(.originalOrder)
+        tap(.attribute(.bpm), on: model)
+        tap(.originalOrder, on: model)
         #expect(model.arrangement == .originalOrder)
+        #expect(model.arrangedRows.map(\.originalIndex) == Array(0..<8))
 
-        model.selectFromLegacyHeader(.originalOrder)
+        tap(.originalOrder, on: model)
         #expect(model.arrangement == .attribute(.order, .descending))
         #expect(model.arrangedRows.map(\.originalIndex) == Array((0..<8).reversed()))
     }
 
-    @Test("Artist separation and Shuffle have no direction to toggle")
-    func directionlessArrangements() async {
-        let (model, _) = await loadedModel()
-        for basis in [Arrangement.Basis.artistSeparation, .shuffle] {
-            model.selectFromLegacyHeader(basis)
-            let once = model.arrangement
-            model.selectFromLegacyHeader(basis)
+    @Test("Tapping Artist separation or Shuffle twice never means two things")
+    func directionlessChipsDoNotToggle() async {
+        let (model, _) = await loadedModel(count: 40)
 
-            #expect(model.arrangement == once, "\(basis.name) has no direction to flip")
+        for basis in [Arrangement.Basis.artistSeparation, .shuffle] {
+            tap(basis, on: model)
+            let arrangement = model.arrangement
+            let order = model.arrangedRows.map(\.id)
+
+            tap(basis, on: model)
+            #expect(model.arrangement == arrangement, "\(basis.name) has no direction to flip")
             #expect(model.arrangement.direction == nil)
+            #expect(model.arrangedRows.map(\.id) == order, "\(basis.name) must not re-order on a second tap")
         }
     }
 
-    @Test("Re-selecting Shuffle reshuffles the rows")
-    func shuffleReshuffles() async {
+    @Test("Re-rolling is what reshuffles, and it is a control of its own")
+    func rerollReshuffles() async {
         let (model, _) = await loadedModel(count: 40)
-        model.selectFromLegacyHeader(.shuffle)
+
+        model.reroll()
+        #expect(model.arrangement.basis == .shuffle)
         let first = model.arrangedRows.map(\.id)
-        model.selectFromLegacyHeader(.shuffle)
+
+        model.reroll()
         #expect(model.arrangedRows.map(\.id) != first)
+    }
+
+    @Test("Re-rolling from another Arrangement applies Shuffle")
+    func rerollAppliesShuffle() async {
+        let (model, _) = await loadedModel()
+        model.apply(.attribute(.bpm, .descending))
+
+        model.reroll()
+        #expect(model.arrangement.basis == .shuffle)
+    }
+
+    /// The bug the seed exists to fix: before it, one Arrangement value stood
+    /// for whichever random order was loaded, so after saving a shuffle the
+    /// listener could re-roll, watch the list change, and find Save still
+    /// greyed out.
+    @Test("Re-rolling after a save re-arms Save")
+    func rerollAfterSavingReArmsSave() async {
+        let (model, _) = await loadedModel(count: 40)
+
+        model.reroll()
+        await model.save(createNew: true)
+        #expect(!model.canSave, "what's on Spotify now matches what's on screen")
+
+        let before = model.arrangedRows.map(\.id)
+        model.reroll()
+        #expect(model.arrangedRows.map(\.id) != before, "the order changed")
+        #expect(model.canSave, "so Save has to notice")
     }
 
     @Test("Saving a new playlist names it after the Arrangement and writes the visible order")

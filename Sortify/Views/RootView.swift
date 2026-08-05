@@ -23,7 +23,7 @@ struct RootView: View {
                 NavigationStack(path: $path) {
                     PlaylistsView(onSelect: { path.append($0) })
                         .navigationDestination(for: Playlist.self) { playlist in
-                            TrackTableView(model: session.makeTrackTableModel(for: playlist))
+                            TrackListView(model: session.makeTrackListModel(for: playlist))
                         }
                         .toolbar { navigationToolbar }
                 }

@@ -16,8 +16,6 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
     public var albumReleaseDate: String?
     /// Position assigned by the artist-separation pass.
     public var artistSeparationIndex: Int?
-    /// Re-rolled every time the shuffle Arrangement is chosen.
-    public var randomValue: Int
 
     public init(
         originalIndex: Int,
@@ -25,8 +23,7 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         addedAt: String? = nil,
         features: AudioFeatures? = nil,
         albumReleaseDate: String? = nil,
-        artistSeparationIndex: Int? = nil,
-        randomValue: Int = 0
+        artistSeparationIndex: Int? = nil
     ) {
         self.id = originalIndex
         self.originalIndex = originalIndex
@@ -35,7 +32,6 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         self.features = features
         self.albumReleaseDate = albumReleaseDate
         self.artistSeparationIndex = artistSeparationIndex
-        self.randomValue = randomValue
     }
 
     // MARK: - Attribute values

@@ -9,11 +9,11 @@ struct FAQView: View {
                 Section {
                     FAQItem(
                         question: "How does it work?",
-                        answer: "Connect Spotify, pick a playlist, tap any column header to sort by it, then save the new order back."
+                        answer: "Connect Spotify, pick a playlist, tap an arrangement to reorder it, then save the new order back."
                     )
                     FAQItem(
                         question: "Does it overwrite my playlist?",
-                        answer: "Only if you choose “Overwrite This Playlist”. The default saves a new playlist named after the sort you applied, and that option only appears for playlists you own."
+                        answer: "Only if you choose “Overwrite This Playlist”. The default saves a new playlist named after the arrangement you applied, and that option only appears for playlists you own."
                     )
                     FAQItem(
                         question: "Is my data safe?",
@@ -21,7 +21,7 @@ struct FAQView: View {
                     )
                 }
 
-                Section("The columns") {
+                Section("The arrangements") {
                     ForEach(Arrangement.Basis.allCases) { basis in
                         FAQItem(question: basis.name, answer: basis.explanation)
                     }

@@ -4,20 +4,21 @@ import Foundation
 /// Attribute-derived orderings carry the Attribute and a direction; artist
 /// separation and shuffle are peers that compute their own order.
 ///
-/// FAITHFULNESS INVARIANT: no two values denote the same ordering. `canSave`
-/// compares the applied Arrangement against the saved one, so a second spelling
-/// of an existing ordering would make it quietly wrong. In particular
-/// **Original order is `.attribute(.order, .ascending)` — a name, not a
-/// case**; adding a case for it would give one ordering two unequal values.
+/// FAITHFULNESS INVARIANT: an Arrangement value *is* an ordering — no two
+/// values denote the same one, and each determines the order completely.
+/// `canSave` compares the applied Arrangement against the saved one, so either
+/// half failing makes it quietly wrong. In particular **Original order is
+/// `.attribute(.order, .ascending)` — a name, not a case**; adding a case for
+/// it would give one ordering two unequal values.
 ///
-/// The converse does not hold for `.shuffle`, which is one value standing for
-/// whichever order the current random values produce. That is why re-rolling
-/// does not re-arm Save today. Ticket 03 gives shuffle its own control and
-/// should give it a seed payload at the same time, which closes the gap.
+/// Shuffle carries its seed for the other half of the same invariant. Without
+/// it, one value stood for whichever random order happened to be loaded, so
+/// re-rolling after a save left Save disabled on an order the listener could
+/// see had changed.
 public enum Arrangement: Sendable, Hashable {
     case attribute(Attribute, Direction)
     case artistSeparation
-    case shuffle
+    case shuffle(seed: UInt64)
 
     /// Reachable only as a payload of `.attribute`, so an Arrangement that has
     /// no meaningful direction has nowhere to put one.
@@ -37,6 +38,13 @@ public enum Arrangement: Sendable, Hashable {
     /// The playlist as Spotify returned it. A constant, not a case — see the
     /// faithfulness invariant above.
     public static let originalOrder = Arrangement.attribute(.order, .ascending)
+
+    /// The seed the screenshot harness and the tests use, so a shuffled screen
+    /// is the same shuffled screen every run.
+    public static let fixedShuffleSeed: UInt64 = 0x5044_1F59
+
+    /// A shuffle nobody has re-rolled yet.
+    public static let shuffled = Arrangement.shuffle(seed: fixedShuffleSeed)
 
     /// One value per distinct ordering. Derived by value equality, so the
     /// directionless Arrangements contribute one entry each without anyone
@@ -61,6 +69,11 @@ public enum Arrangement: Sendable, Hashable {
     public var direction: Direction? {
         if case .attribute(_, let direction) = self { direction } else { nil }
     }
+
+    /// The Attribute this Arrangement ranks by, or nil when it computes its own
+    /// order. A row shows this Attribute's value; where there is none, there is
+    /// no per-track number that would mean anything.
+    public var rankingAttribute: Attribute? { basis.attribute }
 
     /// Total — the directionless Arrangements reverse to themselves, so callers
     /// need no guard.
@@ -126,6 +139,13 @@ extension Arrangement {
 
         public var id: String { rawValue }
 
+        /// The Attribute this Basis orders by, or nil for the computed
+        /// orderings. The picker and the track row both read it to decide
+        /// whether there is a per-track value to show.
+        public var attribute: Attribute? {
+            if case .attribute(let attribute) = self { attribute } else { nil }
+        }
+
         public var name: String {
             switch self {
             case .attribute(let attribute): attribute.name
@@ -143,14 +163,7 @@ extension Arrangement {
             case .artistSeparation:
                 "Not an attribute of the music — Sortify computes this. It rearranges the playlist so tracks by the same artist land as far apart as possible."
             case .shuffle:
-                "A random value per track. Tap the column again to reshuffle."
-            }
-        }
-
-        public var isNumeric: Bool {
-            switch self {
-            case .attribute(let attribute): attribute.isNumeric
-            case .artistSeparation, .shuffle: true
+                "A random order. Re-roll from the chip for a different one."
             }
         }
 
@@ -163,7 +176,7 @@ extension Arrangement {
             switch self {
             case .attribute(let attribute): .attribute(attribute, direction)
             case .artistSeparation: .artistSeparation
-            case .shuffle: .shuffle
+            case .shuffle: Arrangement.shuffled
             }
         }
     }
@@ -176,6 +189,9 @@ extension Arrangement {
     /// launch argument and the view's element identity are one spelling rather
     /// than two.
     public var argument: String {
+        if case .shuffle(let seed) = self {
+            return seed == Self.fixedShuffleSeed ? basis.rawValue : "shuffle-\(seed)"
+        }
         guard let direction else { return basis.rawValue }
         return "\(basis.rawValue)-\(direction.rawValue)"
     }
@@ -189,6 +205,12 @@ extension Arrangement {
     public init?(argument: String) {
         if let basis = Basis(rawValue: argument) {
             self = basis.arrangement()
+            return
+        }
+        // `shuffle-<seed>` names one particular shuffle, so a screenshot of a
+        // re-rolled order can be reproduced.
+        if argument.hasPrefix("shuffle-"), let seed = UInt64(argument.dropFirst("shuffle-".count)) {
+            self = .shuffle(seed: seed)
             return
         }
         guard let dash = argument.lastIndex(of: "-"),

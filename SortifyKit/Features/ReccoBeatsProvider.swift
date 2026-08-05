@@ -42,9 +42,9 @@ public actor ReccoBeatsAudioFeatureProvider: AudioFeatureProviding {
         }
         let missing = lastRequested - lastReturned
         return """
-            ReccoBeats had no acoustic data for \(missing) of \(lastRequested) tracks — their \
-            BPM, Energy, Dance, Loud, Valence and Acoustic cells are blank and sort last. \
-            Coverage is thinnest on releases from 2025 onward.
+            ReccoBeats had no acoustic data for \(missing) of \(lastRequested) tracks — they \
+            have no BPM, Energy, Danceability, Loudness, Valence or Acousticness, so those \
+            arrangements can't rank them. Coverage is thinnest on releases from 2025 onward.
             """
     }
 

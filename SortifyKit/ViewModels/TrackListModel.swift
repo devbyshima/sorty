@@ -4,7 +4,7 @@ import Observation
 /// Drives one playlist: loading, arranging, filtering, saving.
 @MainActor
 @Observable
-public final class TrackTableModel {
+public final class TrackListModel {
     public enum LoadPhase: Equatable {
         case idle
         case loading(loaded: Int, total: Int)
@@ -124,8 +124,7 @@ public final class TrackTableModel {
                     TrackRow(
                         originalIndex: index,
                         playable: playable,
-                        addedAt: item.addedAt,
-                        randomValue: Int.random(in: 0..<10_000)
+                        addedAt: item.addedAt
                     )
                 )
                 index += 1
@@ -158,7 +157,7 @@ public final class TrackTableModel {
     }
 
     /// Fills in audio features and album release dates. Neither is fatal — the
-    /// table is useful without them, and on a post-2024 Spotify app the feature
+    /// list is useful without them, and on a post-2024 Spotify app the feature
     /// call will simply come back empty.
     private func enrich() async {
         let trackIDs = rows.compactMap { row -> String? in
@@ -204,22 +203,19 @@ public final class TrackTableModel {
         self.arrangement = arrangement
     }
 
-    /// The fifteen-column header's single tap gesture, which means three
-    /// different things depending on the column tapped — the exact conflation
-    /// ADR-0001 removes. The redesign gives the three meanings three separate
-    /// controls (apply, reverse, re-roll) and deletes this; it is named so it
-    /// cannot quietly calcify into the supported API in the meantime.
-    public func selectFromLegacyHeader(_ basis: Arrangement.Basis) {
-        // Reversing a directionless Arrangement is a no-op, so the two cases
-        // the old `directionMatters` guard separated now need no guard.
-        apply(basis == arrangement.basis ? arrangement.reversed : basis.arrangement())
-
-        if basis == .shuffle {
-            var mutableRows = rows
-            PlaylistSorter.reroll(&mutableRows)
-            rows = mutableRows
-        }
-        invalidateArrangement()
+    /// Draws a new shuffle.
+    ///
+    /// Its own control, deliberately: the old table re-rolled when you tapped
+    /// the Random column a second time, which is the same gesture that flipped
+    /// direction everywhere else — one gesture meaning two things depending on
+    /// where it landed (ADR-0001).
+    ///
+    /// The new seed is part of the Arrangement, so a re-roll is a change like
+    /// any other and Save notices it.
+    public func reroll() {
+        var seed = UInt64.random(in: .min ... .max)
+        if case .shuffle(let current) = arrangement, seed == current { seed &+= 1 }
+        apply(.shuffle(seed: seed))
     }
 
     // MARK: - Saving

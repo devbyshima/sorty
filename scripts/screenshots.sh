@@ -45,8 +45,21 @@ shoot 02-playlists      -screen playlists
 shoot 03-tracks-order   -screen tracks -playlist demo-longrun
 shoot 04-tracks-bpm     -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 05-tracks-asep    -screen tracks -playlist demo-mixed -arrangement artist-separation
-shoot 06-settings       -screen settings
-shoot 07-faq            -screen faq
+# Shuffle is the one chip that carries a second control, so it gets its own shot.
+shoot 06-tracks-shuffle -screen tracks -playlist demo-longrun -arrangement shuffle
+# An Arrangement outside the pinned five: it should trail the row and be
+# scrolled into view, or picking it would select a chip nobody can see.
+shoot 07-tracks-offpiste -screen tracks -playlist demo-longrun -arrangement valence-descending
+shoot 08-arrangements   -screen tracks -playlist demo-longrun -sheet arrangements
+shoot 09-settings       -screen settings
+shoot 10-faq            -screen faq
+
+# The list has to hold when the text is as large as iOS will make it — the old
+# table simply clipped, which is the failure this redesign exists to end.
+echo "==> 11-tracks-large-text (accessibility text size)"
+xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
+shoot 11-tracks-large-text -screen tracks -playlist demo-longrun -arrangement bpm-descending
+xcrun simctl ui "$UDID" content_size medium
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 echo "==> Wrote screenshots to $OUT"

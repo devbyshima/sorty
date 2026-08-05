@@ -67,7 +67,11 @@ peers. A chip is a `Basis`; `Basis.attribute(.order)` is a peer of
 `.artistSeparation` and `.shuffle` there, so the spec's intent survives at the
 layer it was actually about.
 
-The faithfulness invariant holds in one direction only. `.shuffle` is a single
-value standing for whichever order the current random values happen to produce,
-which is why re-rolling does not re-arm Save. Ticket 03 gives shuffle its own
-re-roll control and should give it a seed payload at the same time.
+**Amended by ticket 03.** When this was written the invariant held in one
+direction only: `.shuffle` was a single value standing for whichever order the
+current random values happened to produce, so re-rolling did not re-arm Save.
+Ticket 03 gave it the seed payload — `case shuffle(seed: UInt64)`, keyed through
+SplitMix64 rather than `Hasher`, which is seeded per process and would make a
+shuffled screenshot unreproducible. The invariant now holds both ways: no two
+values denote the same ordering, and every value determines its ordering
+completely.

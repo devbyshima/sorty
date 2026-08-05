@@ -41,7 +41,7 @@ public actor SpotifyAudioFeatureProvider: AudioFeatureProviding {
                     Spotify no longer serves audio features to this app. The endpoint was \
                     restricted in November 2024 for all apps registered after that date, and \
                     Spotify has published no replacement. Pick a different source in Settings, \
-                    or sort by the columns that don't need it.
+                    or use an arrangement that doesn't need it.
                     """
                 return result
             }

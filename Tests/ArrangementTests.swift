@@ -30,7 +30,7 @@ struct ArrangementTests {
 
     @Test("Artist separation and Shuffle carry no direction to reverse")
     func computedArrangementsAreDirectionless() {
-        for arrangement in [Arrangement.artistSeparation, .shuffle] {
+        for arrangement in [Arrangement.artistSeparation, .shuffled] {
             #expect(arrangement.direction == nil)
             #expect(arrangement.reversed == arrangement)
         }
@@ -49,7 +49,7 @@ struct ArrangementTests {
         #expect(Arrangement.attribute(.bpm, .ascending).basis == .attribute(.bpm))
         #expect(Arrangement.attribute(.bpm, .descending).basis == .attribute(.bpm))
         #expect(Arrangement.artistSeparation.basis == .artistSeparation)
-        #expect(Arrangement.shuffle.basis == .shuffle)
+        #expect(Arrangement.shuffled.basis == .shuffle)
     }
 
     @Test("The fifteen choosable orderings keep the order the table presented them in")
@@ -84,7 +84,7 @@ struct ArrangementTests {
     func bareArgumentIsAscending() {
         #expect(Arrangement(argument: "bpm") == .attribute(.bpm, .ascending))
         #expect(Arrangement(argument: "artist-separation") == .artistSeparation)
-        #expect(Arrangement(argument: "shuffle") == .shuffle)
+        #expect(Arrangement(argument: "shuffle") == .shuffled)
     }
 
     @Test("A direction is rejected where no direction can be carried")
@@ -113,6 +113,6 @@ struct ArrangementTests {
     @Test("The directionless Arrangements name themselves without one")
     func directionlessNames() {
         #expect(Arrangement.artistSeparation.name == "Artist separation")
-        #expect(Arrangement.shuffle.name == "Shuffle")
+        #expect(Arrangement.shuffled.name == "Shuffle")
     }
 }

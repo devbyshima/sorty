@@ -41,7 +41,7 @@ public enum FeatureSourceMode: String, Sendable, CaseIterable, Hashable {
         case .spotify:
             "Spotify restricted this endpoint in November 2024. It works only if your Client ID was granted extended quota before then — otherwise every request returns 403."
         case .none:
-            "BPM, Energy, Dance, Loud, Valence and Acoustic stay empty. The other nine columns sort normally."
+            "BPM, Energy, Danceability, Loudness, Valence and Acousticness stay empty. Every other arrangement works normally."
         }
     }
 

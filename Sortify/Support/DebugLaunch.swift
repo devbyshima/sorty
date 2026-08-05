@@ -12,6 +12,10 @@ enum DebugLaunch {
         case landing, playlists, tracks, faq, settings
     }
 
+    enum Sheet: String {
+        case arrangements, filter
+    }
+
     #if DEBUG
     /// `-screen tracks`
     static var screen: Screen? {
@@ -30,11 +34,18 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "arrangement").flatMap(Arrangement.init(argument:))
     }
 
+    /// `-sheet arrangements` — a sheet can only be reached by tapping, and the
+    /// harness never touches the simulator, so it has to arrive presented.
+    static var sheet: Sheet? {
+        UserDefaults.standard.string(forKey: "sheet").flatMap(Sheet.init)
+    }
+
     static var isActive: Bool { screen != nil }
     #else
     static var screen: Screen? { nil }
     static var playlistID: String? { nil }
     static var arrangement: Arrangement? { nil }
+    static var sheet: Sheet? { nil }
     static var isActive: Bool { false }
     #endif
 }

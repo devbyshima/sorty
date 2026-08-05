@@ -212,8 +212,8 @@ public final class SessionModel {
         }.count
     }
 
-    public func makeTrackTableModel(for playlist: Playlist) -> TrackTableModel {
-        TrackTableModel(
+    public func makeTrackListModel(for playlist: Playlist) -> TrackListModel {
+        TrackListModel(
             playlist: playlist,
             service: service,
             featureProvider: featureProvider,

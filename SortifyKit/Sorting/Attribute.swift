@@ -60,11 +60,11 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
     public var explanation: String {
         switch self {
         case .order:
-            "The track's position in the playlist as Spotify returned it. Sort by this to get back to where you started."
+            "The track's position in the playlist as Spotify returned it. Arrange by this to get back to where you started."
         case .title:
-            "The track title, sorted alphabetically."
+            "The track title, in alphabetical order."
         case .artist:
-            "The first credited artist, sorted alphabetically."
+            "The first credited artist, in alphabetical order."
         case .release:
             "The release date of the album the track appears on."
         case .added:

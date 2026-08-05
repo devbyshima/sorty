@@ -54,9 +54,25 @@ public enum PlaylistSorter {
             ranked(rows, .ascending, key: { $0.artistSeparationIndex.map(Double.init) },
                    compare: compareNumbers)
 
-        case .shuffle:
-            ranked(rows, .ascending, key: { Double($0.randomValue) }, compare: compareNumbers)
+        case .shuffle(let seed):
+            ranked(rows, .ascending, key: { shuffleKey(originalIndex: $0.originalIndex, seed: seed) },
+                   compare: { $0 == $1 ? .orderedSame : ($0 < $1 ? .orderedAscending : .orderedDescending) })
         }
+    }
+
+    /// A track's place in a shuffle, derived from the seed rather than stored.
+    ///
+    /// Deliberately SplitMix64 and not `Hasher`/`hashValue`: those are seeded
+    /// per process, so the "same" shuffle would come out differently on every
+    /// launch and a screenshot of one could never be reproduced.
+    static func shuffleKey(originalIndex: Int, seed: UInt64) -> UInt64 {
+        func mix(_ value: UInt64) -> UInt64 {
+            var z = value &+ 0x9E37_79B9_7F4A_7C15
+            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+            return z ^ (z >> 31)
+        }
+        return mix(seed ^ mix(UInt64(bitPattern: Int64(originalIndex))))
     }
 
     private static func compareNumbers(_ a: Double, _ b: Double) -> ComparisonResult {
@@ -103,13 +119,6 @@ public enum PlaylistSorter {
         arrange(rows, by: arrangement, filter: filter).compactMap(\.savableURI)
     }
 
-    /// Fresh random values for every row — called each time the shuffle
-    /// Arrangement is re-selected, so choosing it repeatedly reshuffles.
-    public static func reroll(_ rows: inout [TrackRow]) {
-        for index in rows.indices {
-            rows[index].randomValue = Int.random(in: 0..<10_000)
-        }
-    }
 }
 
 // MARK: - Naming a saved playlist

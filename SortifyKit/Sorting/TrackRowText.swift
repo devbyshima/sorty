@@ -1,0 +1,57 @@
+import Foundation
+
+/// Everything a track row says, resolved once from the row and the applied
+/// Arrangement.
+///
+/// This is not layout — it is the set of decisions about *what words appear*,
+/// and every one of them is a rule: identity is never dropped, an Attribute the
+/// row already shows is not printed twice, a missing measurement is absent
+/// rather than zero, and VoiceOver gets one sentence instead of a reading of
+/// every cell. Those belong where they can be tested.
+public struct TrackRowText: Equatable, Sendable {
+    /// 1-based position in the *current* arrangement, not the original order.
+    public let position: String
+    public let title: String
+    /// Artist, or what the entry is when there isn't one.
+    public let subtitle: String
+    /// The active Arrangement's value, or nil when there is nothing worth
+    /// showing — see `isAlreadyVisible`.
+    public let value: String?
+    /// The whole row as one spoken sentence.
+    public let spoken: String
+
+    public init(row: TrackRow, position: Int, arrangement: Arrangement) {
+        self.position = String(position)
+        self.title = row.playable.name
+        self.subtitle = Self.subtitle(for: row)
+
+        let attribute = arrangement.rankingAttribute
+        let shown = attribute.flatMap { attribute -> String? in
+            guard !Self.isAlreadyVisible(attribute) else { return nil }
+            let text = row.displayValue(for: attribute)
+            return text.isEmpty ? nil : text
+        }
+        self.value = shown
+
+        var sentence = "\(position). \(title) by \(subtitle)."
+        if let attribute, !Self.isAlreadyVisible(attribute) {
+            sentence += " \(attribute.name) \(shown ?? "unavailable")."
+        }
+        self.spoken = sentence
+    }
+
+    /// Position, title and artist are on every row already. Repeating one in
+    /// the value slot puts the same number on both ends of the row, and makes
+    /// VoiceOver say it twice in a sentence that is meant to be read quickly.
+    static func isAlreadyVisible(_ attribute: Attribute) -> Bool {
+        switch attribute {
+        case .order, .title, .artist: true
+        default: false
+        }
+    }
+
+    private static func subtitle(for row: TrackRow) -> String {
+        if let artist = row.playable.primaryArtistName, !artist.isEmpty { return artist }
+        return row.playable.isEpisode ? "Podcast episode" : "Unknown artist"
+    }
+}

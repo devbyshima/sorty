@@ -20,7 +20,7 @@ struct SettingsView: View {
                     Text("Source")
                 } footer: {
                     Text(session.configuration.serviceMode == .demo
-                         ? "Demo Mode serves a built-in sample catalogue. Every column is populated and every sort works, but nothing can be saved back."
+                         ? "Demo Mode serves a built-in sample catalogue. Every arrangement works, but nothing can be saved back."
                          : "Sortify talks to your Spotify account with your own Client ID.")
                 }
 
