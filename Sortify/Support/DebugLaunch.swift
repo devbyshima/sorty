@@ -40,12 +40,23 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "sheet").flatMap(Sheet.init)
     }
 
+    /// `-filter 300-400` — a tempo range, so a screen can be reached that would
+    /// otherwise need scrolling. Tracks with no BPM always pass the filter, so
+    /// a range nothing matches leaves exactly the unrankable ones on screen.
+    static var filter: BPMFilter? {
+        guard let raw = UserDefaults.standard.string(forKey: "filter") else { return nil }
+        let bounds = raw.split(separator: "-").map { Int($0) }
+        guard bounds.count == 2, let low = bounds[0], let high = bounds[1] else { return nil }
+        return BPMFilter(minBPM: low, maxBPM: high, includeDoubled: false)
+    }
+
     static var isActive: Bool { screen != nil }
     #else
     static var screen: Screen? { nil }
     static var playlistID: String? { nil }
     static var arrangement: Arrangement? { nil }
     static var sheet: Sheet? { nil }
+    static var filter: BPMFilter? { nil }
     static var isActive: Bool { false }
     #endif
 }

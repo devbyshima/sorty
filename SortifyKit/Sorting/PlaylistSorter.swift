@@ -109,6 +109,29 @@ public enum PlaylistSorter {
         }
     }
 
+    /// Splits an arranged playlist into what the Arrangement could place and
+    /// what it couldn't, each part in arrangement order.
+    ///
+    /// The unrankable ones already sank to the bottom — nil sinks in both
+    /// directions — but they did it silently, showing a dash. Naming them is
+    /// what turns a run of blank rows from "the app is broken" into "the
+    /// provider had nothing for these".
+    public static func partition(
+        _ rows: [TrackRow], by arrangement: Arrangement
+    ) -> (ranked: [TrackRow], unrankable: [TrackRow]) {
+        let ordered = ordered(rows, by: arrangement)
+        guard let attribute = arrangement.rankingAttribute else {
+            // Artist separation and shuffle place every track by construction.
+            return (ordered, [])
+        }
+        var ranked: [TrackRow] = []
+        var unrankable: [TrackRow] = []
+        for row in ordered {
+            if row.canBeRanked(by: attribute) { ranked.append(row) } else { unrankable.append(row) }
+        }
+        return (ranked, unrankable)
+    }
+
     /// Rows in the exact order and membership that a save-as-new would write.
     public static func arrange(_ rows: [TrackRow], by arrangement: Arrangement, filter: BPMFilter) -> [TrackRow] {
         ordered(rows, by: arrangement).filter { filter.accepts($0) }

@@ -20,8 +20,12 @@ public final class TrackListModel {
     /// features yet.
     public private(set) var rows: [TrackRow] = [] { didSet { invalidateArrangement() } }
     public private(set) var phase: LoadPhase = .idle
-    /// Explains blank audio features when the feature source can't serve them.
-    public private(set) var featureNotice: String?
+    /// The audio-feature source's own account of why it came up short, carried
+    /// into whichever unrankable group it explains.
+    ///
+    /// It used to be a notice above the list, shown only when *every* track
+    /// failed — so in the common case, where some did, nothing said anything.
+    private var providerNote: String?
     /// Oldest `added_at` in the playlist — the closest thing Spotify offers to a
     /// creation date.
     public private(set) var oldestAddedAt: String?
@@ -66,7 +70,7 @@ public final class TrackListModel {
     /// getter touches neither `rows` nor `arrangement`. The cache *write* is
     /// what registers the dependency, so marking either `@ObservationIgnored`
     /// would stop the list redrawing when the arrangement changes.
-    private var arrangementCache: [TrackRow]?
+    private var arrangementCache: (ranked: [TrackRow], groups: [UnrankableGroup])?
     /// Doubly optional on purpose: the outer nil is "not computed", the inner
     /// is "computed, and this Arrangement has no bars".
     private var rangeCache: AttributeRange??
@@ -87,12 +91,43 @@ public final class TrackListModel {
 
     private var current: Saved { Saved(arrangement: arrangement, filter: filter) }
 
-    /// Rows in display order, after filtering.
+    /// Every visible row, in exactly the order they appear on screen: what the
+    /// Arrangement ranked, then each unrankable group in the order its header
+    /// is shown.
+    ///
+    /// The unrankable ones are deliberately part of this. A track the provider
+    /// had nothing for is still written back — appended at the end rather than
+    /// dropped — because using Sortify must never cost a listener tracks.
+    ///
+    /// Display order and write order are the same list on purpose: a listener
+    /// who can see the order should be able to trust that it is what gets
+    /// saved. (What that order is *filtered* to is a separate question, and
+    /// ADR-0002 splits it per save path in ticket 07.)
     public var arrangedRows: [TrackRow] {
+        let split = arranged
+        return split.ranked + split.groups.flatMap(\.rows)
+    }
+
+    /// What the Arrangement placed, which is what the list shows before the
+    /// group headers.
+    public var rankedRows: [TrackRow] { arranged.ranked }
+
+    /// What it couldn't, gathered under headers that say how many and why.
+    /// Empty whenever everything ranked, so no header appears.
+    public var unrankableGroups: [UnrankableGroup] { arranged.groups }
+
+    private var arranged: (ranked: [TrackRow], groups: [UnrankableGroup]) {
         if let arrangementCache { return arrangementCache }
-        let arranged = PlaylistSorter.arrange(rows, by: arrangement, filter: filter)
-        arrangementCache = arranged
-        return arranged
+
+        let filtered = rows.filter { filter.accepts($0) }
+        let split = PlaylistSorter.partition(filtered, by: arrangement)
+        let groups = arrangement.rankingAttribute.map {
+            UnrankableGroup.groups(for: split.unrankable, attribute: $0, providerNote: providerNote)
+        } ?? []
+
+        let resolved = (ranked: split.ranked, groups: groups)
+        arrangementCache = resolved
+        return resolved
     }
 
     public var hiddenRowCount: Int { rows.count - arrangedRows.count }
@@ -235,7 +270,13 @@ public final class TrackListModel {
             }
         }
 
-        featureNotice = resolvedFeatures.isEmpty ? await featureProvider.unavailabilityReason : nil
+        // Asked for whenever the source fell short of the tracks it was given,
+        // not only when it returned nothing at all. Deduplicated first: a
+        // playlist may legitimately hold the same track twice, and the features
+        // come back keyed by id, so a duplicate would look like a miss.
+        providerNote = resolvedFeatures.count < Set(trackIDs).count
+            ? await featureProvider.unavailabilityReason
+            : nil
         invalidateArrangement()
     }
 

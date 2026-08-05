@@ -50,15 +50,20 @@ shoot 06-tracks-shuffle -screen tracks -playlist demo-longrun -arrangement shuff
 # An Arrangement outside the pinned five: it should trail the row and be
 # scrolled into view, or picking it would select a chip nobody can see.
 shoot 07-tracks-offpiste -screen tracks -playlist demo-longrun -arrangement valence-descending
-shoot 08-arrangements   -screen tracks -playlist demo-longrun -sheet arrangements
-shoot 09-settings       -screen settings
-shoot 10-faq            -screen faq
+# Tracks the Arrangement can't place. The tempo range is chosen to leave a few
+# ranked tracks on screen as well: the case worth seeing is the common one,
+# where *some* tracks were placed and some weren't — the case the old
+# all-or-nothing notice never fired for.
+shoot 08-tracks-unrankable -screen tracks -playlist demo-mixed -arrangement bpm-ascending -filter 140-160
+shoot 09-arrangements   -screen tracks -playlist demo-longrun -sheet arrangements
+shoot 10-settings       -screen settings
+shoot 11-faq            -screen faq
 
 # The list has to hold when the text is as large as iOS will make it — the old
 # table simply clipped, which is the failure this redesign exists to end.
-echo "==> 11-tracks-large-text (accessibility text size)"
+echo "==> 12-tracks-large-text (accessibility text size)"
 xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
-shoot 11-tracks-large-text -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 12-tracks-large-text -screen tracks -playlist demo-longrun -arrangement bpm-descending
 xcrun simctl ui "$UDID" content_size medium
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true

@@ -10,7 +10,9 @@ import Foundation
 /// every cell. Those belong where they can be tested.
 public struct TrackRowText: Equatable, Sendable {
     /// 1-based position in the *current* arrangement, not the original order.
-    public let position: String
+    /// Nil for a track the Arrangement couldn't place — numbering it would
+    /// imply a rank it doesn't have.
+    public let position: String?
     public let title: String
     /// Artist, or what the entry is when there isn't one.
     public let subtitle: String
@@ -20,10 +22,13 @@ public struct TrackRowText: Equatable, Sendable {
     /// The whole row as one spoken sentence.
     public let spoken: String
 
-    public init(row: TrackRow, position: Int, arrangement: Arrangement) {
-        self.position = String(position)
-        self.title = row.playable.name
-        self.subtitle = Self.subtitle(for: row)
+    public init(row: TrackRow, position: Int?, arrangement: Arrangement) {
+        let title = row.playable.name
+        let subtitle = Self.subtitle(for: row)
+
+        self.position = position.map(String.init)
+        self.title = title
+        self.subtitle = subtitle
 
         let attribute = arrangement.rankingAttribute
         let shown = attribute.flatMap { attribute -> String? in
@@ -33,7 +38,9 @@ public struct TrackRowText: Equatable, Sendable {
         }
         self.value = shown
 
-        var sentence = "\(position). \(title) by \(subtitle)."
+        // A track the Arrangement couldn't place has no position to announce.
+        let identity = "\(title) by \(subtitle)."
+        var sentence = position.map { "\($0). \(identity)" } ?? identity
         if let attribute, !Self.isAlreadyVisible(attribute) {
             sentence += " \(attribute.name) \(shown ?? "unavailable")."
         }

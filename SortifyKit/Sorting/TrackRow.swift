@@ -61,11 +61,22 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
     public func textValue(for attribute: Attribute) -> String? {
         switch attribute {
         case .title: playable.name
-        case .artist: playable.primaryArtistName ?? ""
+        // Nil rather than "": a podcast episode has no artist, and an empty
+        // string would sort it to the front of the alphabet as though it did.
+        case .artist: playable.primaryArtistName
         case .release: albumReleaseDate
         case .added: validAddedAt(addedAt).map { String($0.prefix(10)) }
         default: nil
         }
+    }
+
+    /// Whether an Arrangement by this Attribute can place the track at all.
+    /// False is what puts a track in the unrankable group rather than at the
+    /// silent bottom of the list.
+    public func canBeRanked(by attribute: Attribute) -> Bool {
+        attribute.isNumeric
+            ? numericValue(for: attribute) != nil
+            : textValue(for: attribute) != nil
     }
 
     /// Where a value sits on a line, for the position bar.

@@ -257,14 +257,74 @@ struct TrackListModelTests {
         #expect(model.hiddenRowCount == model.rows.count - model.arrangedRows.count)
     }
 
-    @Test("When no features come back, the reason is surfaced instead of silently blank columns")
-    func featureNoticeSurfaced() async {
+    /// The provider's explanation used to be a notice above the list that only
+    /// appeared when *every* track failed. It now travels to the group that
+    /// actually holds the tracks it explains.
+    @Test("When features are missing, the provider's reason reaches the group")
+    func providerReasonReachesTheGroup() async {
         let (model, _) = await loadedModel(
             provider: StubFeatureProvider(table: [:], reason: "Nothing found for this playlist.")
         )
-        #expect(model.featureNotice == "Nothing found for this playlist.")
+        model.apply(.attribute(.bpm, .ascending))
+
         #expect(model.rows.allSatisfy { $0.features == nil })
-        #expect(model.phase == .ready, "the table still works without acoustic data")
+        #expect(model.phase == .ready, "the list still works without acoustic data")
+
+        #expect(model.rankedRows.isEmpty)
+        let group = model.unrankableGroups.first { $0.reason == .notMeasured }
+        #expect(group?.count == 8)
+        #expect(group?.detail.hasPrefix("Nothing found for this playlist.") == true)
+    }
+
+    @Test("Nothing unrankable means no group headers at all")
+    func noGroupsWhenEverythingRanks() async {
+        let (model, _) = await loadedModel()
+        model.apply(.attribute(.bpm, .ascending))
+
+        #expect(model.rankedRows.count == 8)
+        #expect(model.unrankableGroups.isEmpty)
+    }
+
+    /// The invariant behind the whole group: using Sortify must never cost a
+    /// listener tracks, so a track the provider had nothing for is still
+    /// written back — appended at the end, not dropped.
+    @Test("Unrankable tracks are saved too, appended after the ranked ones")
+    func unrankableTracksAreStillSaved() async {
+        var table = sampleFeatures(count: 8)
+        table["t3"] = nil
+        table["t6"] = nil
+
+        let (model, service) = await loadedModel(provider: StubFeatureProvider(table: table))
+        model.apply(.attribute(.bpm, .ascending))
+
+        #expect(model.unrankableGroups.map(\.count).reduce(0, +) == 2)
+
+        await model.save(createNew: true)
+        let written = await service.writes.first?.uris
+
+        #expect(written?.count == 8, "every track is written, including the two it couldn't rank")
+        #expect(Set(written ?? []).count == 8)
+        #expect(
+            Set(written?.suffix(2) ?? []) == ["spotify:track:t3", "spotify:track:t6"],
+            "the unrankable ones go at the end"
+        )
+    }
+
+    /// A listener who can see the order should be able to trust it is the order
+    /// that gets written. The groups are shown in a particular sequence, so the
+    /// saved list has to follow the same one.
+    @Test("What gets written is what the screen shows, in that order")
+    func saveOrderMatchesScreenOrder() async {
+        var table = sampleFeatures(count: 8)
+        table["t2"] = nil
+        table["t5"] = nil
+
+        let (model, _) = await loadedModel(provider: StubFeatureProvider(table: table))
+        model.apply(.attribute(.bpm, .descending))
+
+        let onScreen = model.rankedRows + model.unrankableGroups.flatMap(\.rows)
+        #expect(model.arrangedRows.map(\.id) == onScreen.map(\.id))
+        #expect(model.arrangedRows.count == 8)
     }
 }
 

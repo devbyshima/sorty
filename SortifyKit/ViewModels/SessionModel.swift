@@ -16,7 +16,6 @@ public final class SessionModel {
     public private(set) var user: SpotifyUser?
     public private(set) var playlists: [Playlist] = []
     public private(set) var playlistLoad: PlaylistLoad = .idle
-    public private(set) var featureSourceNotice: String?
 
     public enum PlaylistLoad: Equatable {
         case idle
@@ -139,7 +138,6 @@ public final class SessionModel {
         do {
             user = try await service.currentUser()
             stage = .signedIn
-            featureSourceNotice = await featureProvider.unavailabilityReason
             await loadPlaylists()
         } catch {
             stage = .failed(error.localizedDescription)

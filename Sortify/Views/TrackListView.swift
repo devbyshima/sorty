@@ -89,6 +89,9 @@ struct TrackListView: View {
             if let arrangement = DebugLaunch.arrangement {
                 model.apply(arrangement)
             }
+            if let filter = DebugLaunch.filter {
+                model.filter = filter
+            }
             switch DebugLaunch.sheet {
             case .arrangements: showingPicker = true
             case .filter: showingFilter = true
@@ -118,10 +121,6 @@ struct TrackListView: View {
                 filterButton
             }
             .padding(.horizontal, 16)
-
-            if let notice = model.featureNotice {
-                DisclosureNotice(text: notice).padding(.horizontal, 16)
-            }
 
             if !model.canWriteBack {
                 DisclosureNotice(text: "Demo Mode is read-only — connect a Spotify account to save an arrangement.")
@@ -178,20 +177,17 @@ struct TrackListView: View {
             LazyVStack(spacing: 0) {
                 listHeader
 
-                ForEach(Array(model.arrangedRows.enumerated()), id: \.element.id) { position, row in
-                    TrackListRow(
-                        row: row,
-                        position: position + 1,
-                        arrangement: model.arrangement,
-                        range: model.positionRange
-                    )
-                    .contentShape(.rect)
-                    .swipeActions(edge: .trailing) {
-                        if let uri = row.playable.uri, let url = URL(string: uri) {
-                            Button("Open in Spotify", systemImage: "arrow.up.forward.app") {
-                                openURL(url)
-                            }
-                        }
+                ForEach(Array(model.rankedRows.enumerated()), id: \.element.id) { position, row in
+                    trackRow(row, position: position + 1)
+                }
+
+                // What the Arrangement couldn't place, said out loud. These
+                // used to sink here anyway, showing a dash and no reason.
+                ForEach(model.unrankableGroups) { group in
+                    UnrankableGroupHeader(group: group)
+
+                    ForEach(group.rows) { row in
+                        trackRow(row, position: nil)
                     }
                 }
             }
@@ -199,6 +195,25 @@ struct TrackListView: View {
             .swipeActionsContainer()
         }
         .scrollBounceBehavior(.basedOnSize)
+    }
+
+    /// Unrankable rows are passed no position: they have no place in the
+    /// arrangement, and numbering them would imply one.
+    private func trackRow(_ row: TrackRow, position: Int?) -> some View {
+        TrackListRow(
+            row: row,
+            position: position,
+            arrangement: model.arrangement,
+            range: model.positionRange
+        )
+        .contentShape(.rect)
+        .swipeActions(edge: .trailing) {
+            if let uri = row.playable.uri, let url = URL(string: uri) {
+                Button("Open in Spotify", systemImage: "arrow.up.forward.app") {
+                    openURL(url)
+                }
+            }
+        }
     }
 
     // MARK: - Toolbar
@@ -240,7 +255,7 @@ struct TrackListView: View {
 
 private struct TrackListRow: View {
     let row: TrackRow
-    let position: Int
+    let position: Int?
     let arrangement: Arrangement
     /// The playlist's span for the active Attribute, or nil when this
     /// Arrangement has no bar to draw.
@@ -292,8 +307,10 @@ private struct TrackListRow: View {
         .accessibilityLabel(text.spoken)
     }
 
+    /// Keeps its width when there is no number, so artwork and titles stay in
+    /// one column across the ranked tracks and the groups below them.
     private var positionLabel: some View {
-        Text(text.position)
+        Text(text.position ?? "")
             .font(.caption)
             .monospacedDigit()
             .foregroundStyle(.tertiary)
