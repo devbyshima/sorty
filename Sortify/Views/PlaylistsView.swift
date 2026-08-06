@@ -1,37 +1,22 @@
 import SwiftUI
 
+/// Pick a playlist.
+///
+/// Was a two-up grid of artwork tiles: four playlists per screen, most of each
+/// one empty square, and a six-segment category picker whose last four labels
+/// truncated to fragments. Rows fit more than twice as many, and the categories
+/// move into one control that shows which is active instead of showing all six
+/// badly.
 struct PlaylistsView: View {
     @Environment(SessionModel.self) private var session
     let onSelect: (Playlist) -> Void
-
-    private let columns = [GridItem(.adaptive(minimum: 148, maximum: 220), spacing: 16)]
 
     var body: some View {
         @Bindable var session = session
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // iOS 27's tabs picker style — reads as a segmented row of
-                // categories without the cramped look of .segmented at six items.
-                Picker("Show", selection: $session.categoryFilter) {
-                    ForEach(PlaylistFilter.allCases) { filter in
-                        Text("\(filter.label) (\(session.count(for: filter)))").tag(filter)
-                    }
-                }
-                .pickerStyle(.tabs)
-                .padding(.horizontal, 16)
-
-                if case .loading(let loaded, let total) = session.playlistLoad {
-                    LoadProgressRow(loaded: loaded, total: total, noun: "playlists")
-                        .padding(.horizontal, 16)
-                }
-
-                if case .failed(let message) = session.playlistLoad {
-                    ErrorRow(message: message) {
-                        Task { await session.loadPlaylists() }
-                    }
-                    .padding(.horizontal, 16)
-                }
+            LazyVStack(spacing: 0) {
+                header
 
                 if session.filteredPlaylists.isEmpty, case .ready = session.playlistLoad {
                     ContentUnavailableView(
@@ -41,19 +26,22 @@ struct PlaylistsView: View {
                     )
                     .padding(.top, 40)
                 } else {
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(session.filteredPlaylists) { playlist in
-                            PlaylistCard(
-                                playlist: playlist,
-                                category: playlist.category(currentUserID: session.user?.id)
+                    ForEach(session.filteredPlaylists) { playlist in
+                        Button {
+                            onSelect(playlist)
+                        } label: {
+                            PlaylistRow(
+                                text: PlaylistRowText(
+                                    playlist: playlist, currentUserID: session.user?.id
+                                ),
+                                artworkURL: playlist.cardImageURL
                             )
-                            .onTapGesture { onSelect(playlist) }
+                            .contentShape(.rect)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 16)
                 }
             }
-            .padding(.vertical, 12)
         }
         .background(SortifyTheme.background)
         .navigationTitle("Pick a playlist")
@@ -61,41 +49,136 @@ struct PlaylistsView: View {
         .searchable(text: $session.searchText, prompt: "Filter by name")
         .refreshable { await session.loadPlaylists() }
     }
-}
 
-private struct PlaylistCard: View {
-    let playlist: Playlist
-    let category: PlaylistCategory
+    /// Scrolls with the list rather than pinning, for the reason the tracks
+    /// screen records: at the largest text sizes a fixed header taller than the
+    /// screen pushes the list itself out of reach.
+    @ViewBuilder
+    private var header: some View {
+        @Bindable var session = session
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            CoverImage(url: playlist.cardImageURL)
-                .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 12))
+        VStack(alignment: .leading, spacing: 10) {
+            categoryFilter
 
-            Text(playlist.name)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2, reservesSpace: true)
-                .multilineTextAlignment(.leading)
+            // A partial list must never read as a complete one.
+            if case .loading(let loaded, let total) = session.playlistLoad {
+                LoadProgressRow(loaded: loaded, total: total, noun: "playlists")
+            }
 
-            HStack(spacing: 6) {
-                Text("\(playlist.tracks.total) tracks")
-                if playlist.collaborative {
-                    Image(systemName: "person.2.fill")
-                        .accessibilityLabel("Collaborative")
+            if case .failed(let message) = session.playlistLoad {
+                ErrorRow(message: message) {
+                    Task { await session.loadPlaylists() }
                 }
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
-        .padding(10)
-        .background(SortifyTheme.surface, in: .rect(cornerRadius: 16))
-        .contentShape(.rect)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(playlist.name), \(playlist.tracks.total) tracks, \(category.label)")
-        .accessibilityAddTraits(.isButton)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// One control naming the active category, not six competing for a line
+    /// that fits two. A menu also gives each label the width it needs, so
+    /// "Personalized" and "Collaborative" stop arriving as "Person…" and
+    /// "Collab…" at every text size above the default.
+    private var categoryFilter: some View {
+        @Bindable var session = session
+
+        return Menu {
+            Picker("Category", selection: $session.categoryFilter) {
+                ForEach(PlaylistFilter.allCases) { filter in
+                    Text("\(filter.label) (\(session.count(for: filter)))").tag(filter)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                Text(session.categoryFilter.label)
+                    .fixedSize(horizontal: false, vertical: true)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .font(.subheadline.weight(.medium))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(SortifyTheme.surface, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Category")
+        .accessibilityValue(session.categoryFilter.label)
+        .accessibilityHint("Narrows the list to one kind of playlist.")
     }
 }
+
+// MARK: - Row
+
+private struct PlaylistRow: View {
+    let text: PlaylistRowText
+    let artworkURL: URL?
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.displayScale) private var displayScale
+
+    private var isAccessibilitySize: Bool { dynamicTypeSize.isAccessibilitySize }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            CoverImage(url: artworkURL)
+                .frame(width: isAccessibilitySize ? 72 : 52, height: isAccessibilitySize ? 72 : 52)
+                .clipShape(.rect(cornerRadius: 8))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(text.name)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(isAccessibilitySize ? 4 : 2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Wraps rather than clipping: the badges are the answer to "why
+                // can't I overwrite this one", so they must survive the text
+                // size at which the question gets asked.
+                detailLayout {
+                    Text(text.trackCount)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    ForEach(text.badges) { badge in
+                        Label(badge.label, systemImage: badge.symbolName)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .labelStyle(.titleAndIcon)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(minHeight: 68)
+        .overlay(alignment: .bottom) {
+            // Spelled out rather than `Divider()` — this row is inside a Button,
+            // and a Divider takes its orientation from the stack it finds
+            // itself in. See the note on the track row.
+            Rectangle()
+                .fill(Color(.separator))
+                .frame(height: 1 / displayScale)
+                .padding(.leading, 16)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text.spoken)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    private var detailLayout: AnyLayout {
+        isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 3))
+            : AnyLayout(HStackLayout(spacing: 8))
+    }
+}
+
+// MARK: - Shared rows
 
 struct LoadProgressRow: View {
     let loaded: Int

@@ -73,6 +73,9 @@ echo "==> large text (accessibility text size)"
 xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
 shoot 14-tracks-large-text -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 15-track-detail-large-text -screen tracks -playlist demo-longrun -sheet track -track 0
+# The badges are the answer to "why can't I overwrite this one", so they have to
+# survive the text size at which the question gets asked.
+shoot 17-playlists-large-text -screen playlists
 
 # One step into the accessibility sizes rather than at the top of them. The
 # sheet stacks its rows from here on, and this is the only size where the
@@ -80,6 +83,9 @@ shoot 15-track-detail-large-text -screen tracks -playlist demo-longrun -sheet tr
 # fills it, and the harness can't scroll.
 xcrun simctl ui "$UDID" content_size accessibility-large
 shoot 16-track-detail-stacked -screen tracks -playlist demo-longrun -sheet track -track 0
+# Same reason: at the maximum no badged row is on screen, and the harness can't
+# scroll to one. Here the badge sits on its own line under the track count.
+shoot 18-playlists-stacked -screen playlists
 xcrun simctl ui "$UDID" content_size medium
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
