@@ -5,15 +5,33 @@ import Observation
 @MainActor
 @Observable
 public final class SessionModel {
+    /// There is no signed-out stage, by decision.
+    ///
+    /// ADR-0003 makes Demo Mode the front door: the app opens into a live
+    /// session against the sample catalogue, so a first-run listener is
+    /// arranging a real-looking playlist before anything is asked of them.
+    /// Signing out, a cancelled authorisation and a failed one all land back
+    /// there rather than on a wall. A `signedOut` case would be a state nothing
+    /// could reach and a screen nobody could see.
     public enum Stage: Equatable {
-        case signedOut
+        /// Building a session — signing in, or standing up Demo Mode.
         case connecting
-        case signedIn
-        case failed(String)
+        /// A session is live. Demo Mode or a real account; `isDemo` says which.
+        case ready
     }
 
-    public private(set) var stage: Stage = .signedOut
+    public private(set) var stage: Stage = .connecting
     public private(set) var user: SpotifyUser?
+
+    /// Why the last attempt to connect didn't, or nil.
+    ///
+    /// Carried rather than staged: a failed connection drops back into Demo
+    /// Mode with the session intact, and this is what the connect flow shows
+    /// when it is next opened. Cleared by starting another attempt.
+    public private(set) var connectFailure: String?
+
+    /// Whether the live session is the sample catalogue rather than an account.
+    public var isDemo: Bool { configuration.serviceMode == .demo }
     public private(set) var playlists: [Playlist] = []
     public private(set) var playlistLoad: PlaylistLoad = .idle
 
@@ -89,6 +107,13 @@ public final class SessionModel {
     // MARK: - Session lifecycle
 
     /// Restores an existing session, or drops straight into Demo Mode.
+    /// What happens on launch: a session, always.
+    ///
+    /// A remembered connection is resumed, so setup stays a one-time cost. Any
+    /// other outcome — never connected, tokens gone, connection now refused —
+    /// is Demo Mode rather than a landing screen, because the alternative is
+    /// meeting a wall on launch and ADR-0003 is that the product should
+    /// demonstrate itself first.
     public func restore() async {
         switch configuration.serviceMode {
         case .demo:
@@ -96,7 +121,7 @@ public final class SessionModel {
 
         case .spotify:
             guard let authenticator, await authenticator.isSignedIn else {
-                stage = .signedOut
+                await enterDemo()
                 return
             }
             await completeSignIn()
@@ -114,6 +139,12 @@ public final class SessionModel {
         await authenticator?.makeAuthorizationURL()
     }
 
+    /// Clears whatever the last attempt failed with, so a retry doesn't open
+    /// under an error it has already moved past.
+    public func beginConnecting() {
+        connectFailure = nil
+    }
+
     public func handleAuthCallback(url: URL) async {
         guard let authenticator else { return }
         stage = .connecting
@@ -121,29 +152,46 @@ public final class SessionModel {
             try await authenticator.handleCallback(url: url)
             await completeSignIn()
         } catch {
-            stage = .failed(error.localizedDescription)
+            await failToConnect(error.localizedDescription)
         }
     }
 
-    public func signInFailed(_ error: any Error) {
+    /// A cancelled sheet is not a failure — the listener simply changed their
+    /// mind, and lands back where they were with nothing to explain.
+    public func signInFailed(_ error: any Error) async {
         if let authError = error as? SpotifyAuthError, authError == .cancelled {
-            stage = .signedOut
+            await enterDemo()
         } else {
-            stage = .failed(error.localizedDescription)
+            await failToConnect(error.localizedDescription)
         }
+    }
+
+    private func failToConnect(_ message: String) async {
+        await enterDemo()
+        // After `enterDemo`, which clears nothing else — the session is live
+        // and usable, and this is the only trace the attempt leaves.
+        connectFailure = message
     }
 
     private func completeSignIn() async {
         stage = .connecting
         do {
             user = try await service.currentUser()
-            stage = .signedIn
+            stage = .ready
             await loadPlaylists()
         } catch {
-            stage = .failed(error.localizedDescription)
+            // A configured account that can't be reached falls back rather than
+            // stranding the listener. In Demo Mode `currentUser` cannot throw,
+            // so this cannot recurse.
+            guard configuration.serviceMode != .demo else {
+                stage = .ready
+                return
+            }
+            await failToConnect(error.localizedDescription)
         }
     }
 
+    /// Returns to Demo Mode. There is nowhere else to go.
     public func signOut() async {
         loadTask?.cancel()
         await authenticator?.signOut()
@@ -152,7 +200,8 @@ public final class SessionModel {
         playlistLoad = .idle
         searchText = ""
         categoryFilter = .all
-        stage = .signedOut
+        connectFailure = nil
+        await enterDemo()
     }
 
     // MARK: - Playlists

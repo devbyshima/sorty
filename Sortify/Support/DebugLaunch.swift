@@ -10,7 +10,10 @@ import SwiftUI
 /// DEBUG-only: the parsing and every call site compile out of release builds.
 enum DebugLaunch {
     enum Screen: String {
-        case landing, playlists, tracks, faq, settings
+        case playlists, tracks, faq, settings
+        /// The guided connect flow of ticket 11, which a listener reaches by
+        /// tapping Save in Demo Mode — so the harness has to arrive at it.
+        case connect
         /// Not a screen a listener reaches — the reorder measurement of ticket
         /// 09, which drives the real list at a size the demo catalogue has no
         /// playlist for.
@@ -43,6 +46,16 @@ enum DebugLaunch {
     /// harness never touches the simulator, so it has to arrive presented.
     static var sheet: Sheet? {
         UserDefaults.standard.string(forKey: "sheet").flatMap(Sheet.init)
+    }
+
+    /// `-connectStep clientID` — which step of the guided connect flow to
+    /// arrive on. Steps are reached by tapping Continue, and the harness never
+    /// taps, so the interesting ones — the redirect URI to copy, the Client ID
+    /// field and its complaint — need naming directly.
+    static var connectStep: ConnectStep? {
+        UserDefaults.standard.string(forKey: "connectStep").flatMap { raw in
+            ConnectStep.allCases.first { "\($0)" == raw }
+        }
     }
 
     /// `-accent 5B4BE0` — overrides the identity colour for the length of one
@@ -97,6 +110,7 @@ enum DebugLaunch {
     static var sheet: Sheet? { nil }
     static var trackPosition: Int? { nil }
     static var profileCount: Int? { nil }
+    static var connectStep: ConnectStep? { nil }
     static var filter: BPMFilter? { nil }
     static var isActive: Bool { false }
     #endif

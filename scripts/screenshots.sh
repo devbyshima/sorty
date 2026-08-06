@@ -40,8 +40,14 @@ shoot() {
   xcrun simctl io "$UDID" screenshot --type=png "$OUT/$name.png" >/dev/null
 }
 
-shoot 01-landing        -screen landing
-shoot 02-playlists      -screen playlists
+# There is no landing screen any more — ADR-0003 makes Demo Mode the front
+# door, so the first thing a listener sees is a library they can work on.
+shoot 01-playlists      -screen playlists
+shoot 02-connect        -screen connect
+# The two steps that carry something to get wrong: the redirect URI, given
+# rather than described, and the Client ID with its complaint.
+shoot 02a-connect-app   -screen connect -connectStep createApp
+shoot 02b-connect-id    -screen connect -connectStep clientID
 shoot 03-tracks-order   -screen tracks -playlist demo-longrun
 shoot 04-tracks-bpm     -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 05-tracks-asep    -screen tracks -playlist demo-mixed -arrangement artist-separation
@@ -95,7 +101,7 @@ xcrun simctl ui "$UDID" appearance dark
 shoot 19-dark-playlists    -screen playlists
 shoot 20-dark-tracks       -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 21-dark-track-detail -screen tracks -playlist demo-longrun -sheet track -track 0
-shoot 22-dark-landing      -screen landing
+shoot 22-dark-connect      -screen connect
 xcrun simctl ui "$UDID" appearance light
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true

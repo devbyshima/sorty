@@ -10,6 +10,10 @@ import SwiftUI
 /// Arrangement actually ordered by.
 struct TrackListView: View {
     @State var model: TrackListModel
+    /// Reaching for Save in Demo Mode is the moment the Client ID requirement
+    /// finally has a motive attached to it, so it opens the connect flow rather
+    /// than meeting a disabled control (ADR-0003).
+    var onConnect: () -> Void = {}
     @Environment(SessionModel.self) private var session
     @Environment(\.openURL) private var openURL
 
@@ -275,6 +279,13 @@ struct TrackListView: View {
     @ToolbarContentBuilder
     private var saveButton: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
+            if !model.canWriteBack {
+                // Demo Mode. Not disabled and not an error — the way forward.
+                Button(action: onConnect) {
+                    Label("Save", systemImage: "square.and.arrow.down")
+                }
+                .accessibilityHint("Demo Mode can't save. Opens the steps for connecting a Spotify account.")
+            } else {
             Menu {
                 ForEach(model.saveActions) { action in
                     Button(
@@ -296,6 +307,7 @@ struct TrackListView: View {
                 }
             }
             .disabled(!model.canSave)
+            }
         }
     }
 
