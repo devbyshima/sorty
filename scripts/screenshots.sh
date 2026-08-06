@@ -55,15 +55,31 @@ shoot 07-tracks-offpiste -screen tracks -playlist demo-longrun -arrangement vale
 # where *some* tracks were placed and some weren't — the case the old
 # all-or-nothing notice never fired for.
 shoot 08-tracks-unrankable -screen tracks -playlist demo-mixed -arrangement bpm-ascending -filter 140-160
-shoot 09-arrangements   -screen tracks -playlist demo-longrun -sheet arrangements
-shoot 10-settings       -screen settings
-shoot 11-faq            -screen faq
+# Every Attribute across one track — the half of the old table the list can't
+# do, and the reason ADR-0001's trade was acceptable.
+shoot 09-track-detail   -screen tracks -playlist demo-longrun -sheet track -track 0
+# Position 22 of demo-mixed arranged by BPM is past the ranked tracks: a track
+# the feature source had nothing for. Every audio feature should read
+# "Unavailable" and draw no bar, while Spotify's own values still do.
+shoot 10-track-detail-missing -screen tracks -playlist demo-mixed -arrangement bpm-ascending -sheet track -track 22
+shoot 11-arrangements   -screen tracks -playlist demo-longrun -sheet arrangements
+shoot 12-settings       -screen settings
+shoot 13-faq            -screen faq
 
-# The list has to hold when the text is as large as iOS will make it — the old
-# table simply clipped, which is the failure this redesign exists to end.
-echo "==> 12-tracks-large-text (accessibility text size)"
+# The list and the sheet both have to hold when the text is as large as iOS will
+# make it — the old table simply clipped, which is the failure this redesign
+# exists to end.
+echo "==> large text (accessibility text size)"
 xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
-shoot 12-tracks-large-text -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 14-tracks-large-text -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 15-track-detail-large-text -screen tracks -playlist demo-longrun -sheet track -track 0
+
+# One step into the accessibility sizes rather than at the top of them. The
+# sheet stacks its rows from here on, and this is the only size where the
+# stacked rows are actually on screen — at the maximum the identity above them
+# fills it, and the harness can't scroll.
+xcrun simctl ui "$UDID" content_size accessibility-large
+shoot 16-track-detail-stacked -screen tracks -playlist demo-longrun -sheet track -track 0
 xcrun simctl ui "$UDID" content_size medium
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true

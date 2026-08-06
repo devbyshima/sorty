@@ -130,6 +130,14 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         return "\(totalSeconds / 60):\(String(format: "%02d", totalSeconds % 60))"
     }
 
+    /// The way out to Spotify — the row's swipe action and the detail sheet's
+    /// button are the same link, so they resolve it the same way.
+    ///
+    /// Deliberately not `savableURI`: this opens a track rather than writing
+    /// one, so a local file's `spotify:local:` URI is worth offering even
+    /// though it can never be saved.
+    public var spotifyURL: URL? { playable.uri.flatMap(URL.init(string:)) }
+
     /// Only real Spotify tracks and episodes can be written back. Local files
     /// have no server-side URI and are silently dropped on save, exactly as the
     /// reference app does.

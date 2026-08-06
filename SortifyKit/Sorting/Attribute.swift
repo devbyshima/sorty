@@ -72,14 +72,21 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
     /// THE source of explanation copy. The FAQ reads this today; the picker
     /// sheet and the track detail sheet read the same property rather than
     /// owning a second copy of the words.
+    ///
+    /// One sentence has to work in two places: beside a *choice* in the picker,
+    /// where the question is "what does arranging by this do", and beside a
+    /// *value* in the detail sheet, where it is "what am I looking at". So each
+    /// says what the Attribute is first, and only then what ordering by it
+    /// gets you — a sentence that opens with "in alphabetical order" explains
+    /// nothing at all when it is sitting under one track's title.
     public var explanation: String {
         switch self {
         case .order:
             "The track's position in the playlist as Spotify returned it. Arrange by this to get back to where you started."
         case .title:
-            "The track title, in alphabetical order."
+            "The track title. Arrange by this to put the playlist in alphabetical order."
         case .artist:
-            "The first credited artist, in alphabetical order."
+            "The first credited artist. Arrange by this to gather each artist's tracks together, alphabetically."
         case .release:
             "The release date of the album the track appears on."
         case .added:

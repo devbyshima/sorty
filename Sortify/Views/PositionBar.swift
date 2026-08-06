@@ -8,11 +8,20 @@ import SwiftUI
 /// distinguishable without relying on colour alone — and it is why there is no
 /// low-is-red, high-is-green gradient here.
 ///
-/// One component, used by the rows now and by the track detail sheet in ticket
-/// 06, so a value means the same thing in both places.
+/// One component, used by the rows and by the track detail sheet, so a value
+/// means the same thing in both places.
 struct PositionBar: View {
     /// 0 at the playlist's lowest value for this Attribute, 1 at its highest.
     let fraction: Double
+
+    /// Takes the width it is given instead of a fixed one.
+    ///
+    /// A row sits its bar beside a number in a column of its own, where a fixed
+    /// width is what keeps the bars aligned down the list. The detail sheet
+    /// gives each Attribute a line to itself, where a bar stopping short of the
+    /// margin would read as a shorter *value* rather than a narrower component.
+    /// Same bar, same meaning, measured against whatever line it is drawn on.
+    var fillsWidth: Bool = false
 
     var width: Double = 56
     var height: Double = 4
@@ -30,18 +39,33 @@ struct PositionBar: View {
     /// draw the same length, and the bar would stop tracking the number beside
     /// it. A track with no value renders no bar at all, so an empty-looking
     /// fill is never mistaken for missing data.
-    private var fillWidth: Double { max(scaledWidth * fraction, 2 * scale) }
+    private var minimumFill: Double { 2 * scale }
+
+    private func fillWidth(within available: Double) -> Double {
+        max(available * fraction, minimumFill)
+    }
 
     var body: some View {
         ZStack(alignment: .leading) {
-            Capsule()
-                .fill(.quaternary)
-                .frame(width: scaledWidth, height: scaledHeight)
+            Capsule().fill(.quaternary)
 
-            Capsule()
-                .fill(SortifyTheme.accent)
-                .frame(width: fillWidth, height: scaledHeight)
+            if fillsWidth {
+                // The fraction is of a width only the layout knows, so it has
+                // to be measured. The reader is a child of the ZStack rather
+                // than a wrapper around it, so the bar's own height still comes
+                // from the frame below and not from a greedy proposal.
+                GeometryReader { proxy in
+                    Capsule()
+                        .fill(SortifyTheme.accent)
+                        .frame(width: fillWidth(within: proxy.size.width))
+                }
+            } else {
+                Capsule()
+                    .fill(SortifyTheme.accent)
+                    .frame(width: fillWidth(within: scaledWidth))
+            }
         }
+        .frame(width: fillsWidth ? nil : scaledWidth, height: scaledHeight)
         .accessibilityHidden(true)
     }
 }

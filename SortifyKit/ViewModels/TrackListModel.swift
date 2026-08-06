@@ -157,6 +157,16 @@ public final class TrackListModel {
     }
 
 
+    /// One track in full, for the detail sheet.
+    ///
+    /// Resolved against `rows` — the whole loaded playlist — for the same
+    /// reason `positionRange` is: a track hidden by the filter is still one of
+    /// the others this one is being compared against. Not cached, because it is
+    /// computed once per tap rather than once per row.
+    public func detail(for row: TrackRow) -> TrackDetail {
+        TrackDetail(row: row, in: rows)
+    }
+
     /// Save is offered only once something actually differs from what's on
     /// Spotify — matching the reference, where an untouched playlist can't be
     /// re-saved into a pointless duplicate.

@@ -57,7 +57,10 @@ public struct TrackRowText: Equatable, Sendable {
         }
     }
 
-    private static func subtitle(for row: TrackRow) -> String {
+    /// Shared with the track detail sheet: opening a track must not rename it,
+    /// and "Podcast episode" standing in for a missing artist is a decision
+    /// rather than a fallback either surface should make for itself.
+    static func subtitle(for row: TrackRow) -> String {
         if let artist = row.playable.primaryArtistName, !artist.isEmpty { return artist }
         return row.playable.isEpisode ? "Podcast episode" : "Unknown artist"
     }

@@ -13,7 +13,7 @@ enum DebugLaunch {
     }
 
     enum Sheet: String {
-        case arrangements, filter
+        case arrangements, filter, track
     }
 
     #if DEBUG
@@ -40,6 +40,14 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "sheet").flatMap(Sheet.init)
     }
 
+    /// `-track 22` — which row `-sheet track` opens the detail sheet for,
+    /// counted down the list as it appears. Position on screen rather than
+    /// original index, so the harness can name a track from the unrankable
+    /// group as easily as a ranked one.
+    static var trackPosition: Int? {
+        UserDefaults.standard.string(forKey: "track").flatMap(Int.init)
+    }
+
     /// `-filter 300-400` — a tempo range, so a screen can be reached that would
     /// otherwise need scrolling. Tracks with no BPM always pass the filter, so
     /// a range nothing matches leaves exactly the unrankable ones on screen.
@@ -56,6 +64,7 @@ enum DebugLaunch {
     static var playlistID: String? { nil }
     static var arrangement: Arrangement? { nil }
     static var sheet: Sheet? { nil }
+    static var trackPosition: Int? { nil }
     static var filter: BPMFilter? { nil }
     static var isActive: Bool { false }
     #endif

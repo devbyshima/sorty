@@ -16,6 +16,10 @@ struct TrackListView: View {
     @State private var showingFilter = false
     @State private var showingPicker = false
     @State private var showingSaveResult = false
+    /// The track whose detail sheet is open. A `TrackRow` rather than an index:
+    /// the list it came from is rebuilt whenever the Arrangement changes, and
+    /// an index into it would then point at a different song.
+    @State private var inspecting: TrackRow?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -73,6 +77,9 @@ struct TrackListView: View {
             BPMFilterSheet(model: model)
                 .presentationDetents([.height(320)])
         }
+        .sheet(item: $inspecting) { row in
+            TrackDetailSheet(detail: model.detail(for: row))
+        }
         .alert("Save", isPresented: $showingSaveResult) {
             Button("OK") { model.clearSaveStatus() }
         } message: {
@@ -95,6 +102,13 @@ struct TrackListView: View {
             switch DebugLaunch.sheet {
             case .arrangements: showingPicker = true
             case .filter: showingFilter = true
+            case .track:
+                // Counted in what's on screen, so the harness can name the
+                // unrankable ones too — they sit past the ranked tracks in
+                // exactly this list.
+                let position = DebugLaunch.trackPosition ?? 0
+                let rows = model.arrangedRows
+                if rows.indices.contains(position) { inspecting = rows[position] }
             case nil: break
             }
         }
@@ -200,15 +214,23 @@ struct TrackListView: View {
     /// Unrankable rows are passed no position: they have no place in the
     /// arrangement, and numbering them would imply one.
     private func trackRow(_ row: TrackRow, position: Int?) -> some View {
-        TrackListRow(
-            row: row,
-            position: position,
-            arrangement: model.arrangement,
-            range: model.positionRange
-        )
-        .contentShape(.rect)
+        Button {
+            inspecting = row
+        } label: {
+            TrackListRow(
+                row: row,
+                position: position,
+                arrangement: model.arrangement,
+                range: model.positionRange
+            )
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        // The row already speaks as one sentence; this only says what happens
+        // if you activate it, which is the one thing the sentence can't cover.
+        .accessibilityHint("Opens every attribute for this track.")
         .swipeActions(edge: .trailing) {
-            if let uri = row.playable.uri, let url = URL(string: uri) {
+            if let url = row.spotifyURL {
                 Button("Open in Spotify", systemImage: "arrow.up.forward.app") {
                     openURL(url)
                 }
@@ -262,6 +284,7 @@ private struct TrackListRow: View {
     let range: AttributeRange?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.displayScale) private var displayScale
 
     /// Every word on the row, decided in SortifyKit where it is tested.
     private var text: TrackRowText {
@@ -301,7 +324,15 @@ private struct TrackListRow: View {
         .padding(.vertical, 8)
         .frame(minHeight: 60)
         .overlay(alignment: .bottom) {
-            Divider().opacity(0.4).padding(.leading, 16)
+            // Spelled out rather than `Divider()`, which takes its orientation
+            // from the stack it finds itself in. The row is a Button now, and a
+            // Button lays its label out horizontally, which silently turned
+            // every row separator into one continuous vertical line down the
+            // middle of the list.
+            Rectangle()
+                .fill(Color(.separator))
+                .frame(height: 1 / displayScale)
+                .padding(.leading, 16)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text.spoken)
