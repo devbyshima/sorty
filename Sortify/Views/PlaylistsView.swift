@@ -40,6 +40,8 @@ struct PlaylistsView: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    SpotifyAttribution()
                 }
             }
         }

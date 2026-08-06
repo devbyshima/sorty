@@ -96,7 +96,7 @@ private struct ChipView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .foregroundStyle(chip.isActive ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+        .foregroundStyle(chip.isActive ? AnyShapeStyle(SortifyTheme.onAccent) : AnyShapeStyle(.primary))
         .background(
             chip.isActive ? AnyShapeStyle(SortifyTheme.accent) : AnyShapeStyle(SortifyTheme.surface),
             in: .capsule

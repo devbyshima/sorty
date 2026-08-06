@@ -88,6 +88,16 @@ shoot 16-track-detail-stacked -screen tracks -playlist demo-longrun -sheet track
 shoot 18-playlists-stacked -screen playlists
 xcrun simctl ui "$UDID" content_size medium
 
+# Dark is first-class, not an afterthought — the accent has its own value there
+# (ADR-0006) and the position bars are drawn against a different surface.
+echo "==> dark appearance"
+xcrun simctl ui "$UDID" appearance dark
+shoot 19-dark-playlists    -screen playlists
+shoot 20-dark-tracks       -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 21-dark-track-detail -screen tracks -playlist demo-longrun -sheet track -track 0
+shoot 22-dark-landing      -screen landing
+xcrun simctl ui "$UDID" appearance light
+
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 echo "==> Wrote screenshots to $OUT"
 ls -1 "$OUT"

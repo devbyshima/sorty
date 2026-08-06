@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Launch-argument hooks for headless verification.
 ///
@@ -42,6 +43,25 @@ enum DebugLaunch {
     /// harness never touches the simulator, so it has to arrive presented.
     static var sheet: Sheet? {
         UserDefaults.standard.string(forKey: "sheet").flatMap(Sheet.init)
+    }
+
+    /// `-accent 5B4BE0` — overrides the identity colour for the length of one
+    /// launch.
+    ///
+    /// A colour cannot be judged in the abstract; it has to be seen against
+    /// real cover artwork at real size, in both appearances, beside the
+    /// position bars. This is what let the candidates be shot side by side from
+    /// one build instead of one build each.
+    static var accent: Color? {
+        guard let hex = UserDefaults.standard.string(forKey: "accent"),
+              hex.count == 6,
+              let value = UInt32(hex, radix: 16)
+        else { return nil }
+        return Color(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
     }
 
     /// `-count 400` — how many tracks `-screen profile` builds its playlist

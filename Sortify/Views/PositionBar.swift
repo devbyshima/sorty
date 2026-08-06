@@ -47,7 +47,7 @@ struct PositionBar: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            Capsule().fill(.quaternary)
+            Capsule().fill(SortifyTheme.accentTrack)
 
             if fillsWidth {
                 // The fraction is of a width only the layout knows, so it has

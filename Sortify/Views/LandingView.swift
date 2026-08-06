@@ -51,6 +51,11 @@ struct LandingView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glassProminent)
+                    // One of exactly two places Spotify's green is correct: the
+                    // affordance that reaches Spotify itself. Everywhere else
+                    // the accent is Sortify's, so the app stops reading as a
+                    // first-party feature — ADR-0006.
+                    .tint(SortifyTheme.spotifyGreen)
                     .controlSize(.large)
                     .disabled(isAuthenticating)
 

@@ -226,6 +226,10 @@ struct TrackListView: View {
                         trackRow(row, position: nil)
                     }
                 }
+
+                // Required wherever Spotify's metadata is shown, which every
+                // row above is.
+                SpotifyAttribution()
             }
             // iOS 27: swipe actions outside a List need an explicit container.
             .swipeActionsContainer()
