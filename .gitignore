@@ -7,3 +7,4 @@ build/
 *.xcuserstate
 xcuserdata/
 .DS_Store
+.build-device/
