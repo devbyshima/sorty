@@ -304,6 +304,10 @@ struct BPMFilterTests {
         #expect(filter.accepts(makeRow(index: 1, isEpisode: true, hasFeatures: false)))
     }
 
+    /// Was `arrangeOrdersThenFilters`, against a `PlaylistSorter.arrange` that
+    /// no longer exists — ADR-0002 wanted no filter-aware payload builder in
+    /// the shared layer. The behaviour it covered is the same, asserted where
+    /// it now lives.
     @Test("Filtering happens after arranging, and preserves the arranged order")
     func arrangeOrdersThenFilters() {
         let rows = [
@@ -312,25 +316,10 @@ struct BPMFilterTests {
             makeRow(index: 2, tempo: 200),
             makeRow(index: 3, tempo: 125),
         ]
-        let arranged = PlaylistSorter.arrange(
-            rows,
-            by: .attribute(.bpm, .ascending),
-            filter: BPMFilter(minBPM: 110, maxBPM: 160, includeDoubled: false)
-        )
+        let filter = BPMFilter(minBPM: 110, maxBPM: 160, includeDoubled: false)
+        let arranged = PlaylistSorter.ordered(rows, by: .attribute(.bpm, .ascending))
+            .filter { filter.accepts($0) }
         #expect(arranged.map { Int($0.numericValue(for: .bpm)!) } == [125, 150])
-    }
-
-    @Test("Save URIs follow the visible arrangement exactly")
-    func saveURIsMatchArrangement() {
-        let rows = [
-            makeRow(index: 0, tempo: 150),
-            makeRow(index: 1, tempo: 100),
-            makeRow(index: 2, tempo: 125),
-        ]
-        let uris = PlaylistSorter.saveURIs(
-            for: rows, by: .attribute(.bpm, .descending), filter: BPMFilter()
-        )
-        #expect(uris == ["spotify:track:t0", "spotify:track:t2", "spotify:track:t1"])
     }
 }
 

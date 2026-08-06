@@ -132,16 +132,12 @@ public enum PlaylistSorter {
         return (ranked, unrankable)
     }
 
-    /// Rows in the exact order and membership that a save-as-new would write.
-    public static func arrange(_ rows: [TrackRow], by arrangement: Arrangement, filter: BPMFilter) -> [TrackRow] {
-        ordered(rows, by: arrangement).filter { filter.accepts($0) }
-    }
-
-    /// Track/episode URIs for the current arrangement, ready to PUT to Spotify.
-    public static func saveURIs(for rows: [TrackRow], by arrangement: Arrangement, filter: BPMFilter) -> [String] {
-        arrange(rows, by: arrangement, filter: filter).compactMap(\.savableURI)
-    }
-
+    // There was a `saveURIs(for:by:filter:)` here, used by nothing but its own
+    // tests. It is deleted rather than kept, because ADR-0002 names precisely
+    // this shape as the hazard: a filter-consuming payload builder, sitting in
+    // the shared layer, called *save*. The next person to simplify overwrite
+    // would have found it and been right to think it was for them. Each save
+    // path now builds its own payload, and neither has a filter to pass.
 }
 
 // MARK: - Naming a saved playlist

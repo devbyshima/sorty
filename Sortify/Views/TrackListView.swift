@@ -242,17 +242,25 @@ struct TrackListView: View {
 
     /// Save, and nothing else. Everything the old toolbar also held has moved
     /// into the screen.
+    ///
+    /// Which actions appear, what they say and whether each is armed are all
+    /// `SaveAction` in SortifyKit — ADR-0002's split is a rule about what each
+    /// one may write, and a toolbar is no place to keep a rule like that.
     @ToolbarContentBuilder
     private var saveButton: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                Button("Save as New Playlist", systemImage: "plus.rectangle.on.folder") {
-                    Task { await model.save(createNew: true) }
-                }
-                if model.canOverwrite {
-                    Button("Overwrite This Playlist", systemImage: "square.and.arrow.down", role: .destructive) {
-                        Task { await model.save(createNew: false) }
+                ForEach(model.saveActions) { action in
+                    Button(
+                        action.title,
+                        systemImage: action.kind == .overwrite
+                            ? "square.and.arrow.down"
+                            : "plus.rectangle.on.folder",
+                        role: action.kind == .overwrite ? .destructive : nil
+                    ) {
+                        Task { await model.perform(action.kind) }
                     }
+                    .disabled(!action.isEnabled)
                 }
             } label: {
                 if model.saveStatus == .saving {

@@ -159,7 +159,7 @@ struct TrackListModelTests {
         let (model, _) = await loadedModel(count: 40)
 
         model.reroll()
-        await model.save(createNew: true)
+        await model.saveAsNewPlaylist()
         #expect(!model.canSave, "what's on Spotify now matches what's on screen")
 
         let before = model.arrangedRows.map(\.id)
@@ -172,7 +172,7 @@ struct TrackListModelTests {
     func saveNewPlaylist() async {
         let (model, service) = await loadedModel()
         model.apply(.attribute(.bpm, .ascending))
-        await model.save(createNew: true)
+        await model.saveAsNewPlaylist()
 
         let created = await service.createdPlaylists
         #expect(created.count == 1)
@@ -188,10 +188,10 @@ struct TrackListModelTests {
     @Test("Overwriting targets the original playlist and creates nothing")
     func overwrite() async {
         let (model, service) = await loadedModel()
-        #expect(model.canOverwrite)
+        #expect(model.mayOverwriteThisPlaylist)
 
         model.apply(.attribute(.energy, .ascending))
-        await model.save(createNew: false)
+        await model.overwrite()
 
         #expect(await service.createdPlaylists.isEmpty)
         #expect(await service.writes.first?.playlistID == "p1")
@@ -200,14 +200,19 @@ struct TrackListModelTests {
     @Test("Overwrite is not offered for a playlist owned by someone else")
     func overwriteHiddenForOthers() async {
         let (model, _) = await loadedModel(ownerID: "someone-else")
-        #expect(!model.canOverwrite)
+        #expect(!model.mayOverwriteThisPlaylist)
+        #expect(!model.saveActions.contains { $0.kind == .overwrite })
+        #expect(
+            model.saveActions.contains { $0.kind == .newPlaylist },
+            "a refusal has to come with a way forward"
+        )
     }
 
     @Test("A successful save re-arms the gate only after another change")
     func saveResetsDirtyState() async {
         let (model, _) = await loadedModel()
         model.apply(.attribute(.bpm, .ascending))
-        await model.save(createNew: true)
+        await model.saveAsNewPlaylist()
 
         #expect(!model.canSave, "what's on Spotify now matches what's on screen")
 
@@ -222,7 +227,7 @@ struct TrackListModelTests {
         let (model, _) = await loadedModel(count: 4, service: service)
 
         model.apply(.attribute(.bpm, .ascending))
-        await model.save(createNew: false)
+        await model.overwrite()
 
         guard case .failed(let message) = model.saveStatus else {
             Issue.record("expected a failure, got \(model.saveStatus)")
@@ -237,7 +242,7 @@ struct TrackListModelTests {
         model.filter = BPMFilter(minBPM: 5, maxBPM: 6, includeDoubled: false)
         #expect(model.arrangedRows.isEmpty)
 
-        await model.save(createNew: true)
+        await model.saveAsNewPlaylist()
 
         guard case .failed(let message) = model.saveStatus else {
             Issue.record("expected a refusal, got \(model.saveStatus)")
@@ -299,7 +304,7 @@ struct TrackListModelTests {
 
         #expect(model.unrankableGroups.map(\.count).reduce(0, +) == 2)
 
-        await model.save(createNew: true)
+        await model.saveAsNewPlaylist()
         let written = await service.writes.first?.uris
 
         #expect(written?.count == 8, "every track is written, including the two it couldn't rank")

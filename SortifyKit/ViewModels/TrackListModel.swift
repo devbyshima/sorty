@@ -118,16 +118,32 @@ public final class TrackListModel {
 
     private var arranged: (ranked: [TrackRow], groups: [UnrankableGroup]) {
         if let arrangementCache { return arrangementCache }
+        let resolved = order(rows.filter { filter.accepts($0) })
+        arrangementCache = resolved
+        return resolved
+    }
 
-        let filtered = rows.filter { filter.accepts($0) }
-        let split = PlaylistSorter.partition(filtered, by: arrangement)
+    /// Every track in the playlist, in Arrangement order — the filter not
+    /// consulted.
+    ///
+    /// This is the *only* thing overwrite is allowed to write (ADR-0002). It is
+    /// a separate list from `arrangedRows`, and deliberately so: the two save
+    /// paths differ in exactly one respect, which list they carry, so making
+    /// that one respect two named values is what stops the difference being
+    /// erased by someone passing a flag.
+    ///
+    /// Uncached. It is read when a save happens, not once per row.
+    public var fullOrder: [TrackRow] {
+        let resolved = order(rows)
+        return resolved.ranked + resolved.groups.flatMap(\.rows)
+    }
+
+    private func order(_ rows: [TrackRow]) -> (ranked: [TrackRow], groups: [UnrankableGroup]) {
+        let split = PlaylistSorter.partition(rows, by: arrangement)
         let groups = arrangement.rankingAttribute.map {
             UnrankableGroup.groups(for: split.unrankable, attribute: $0, providerNote: providerNote)
         } ?? []
-
-        let resolved = (ranked: split.ranked, groups: groups)
-        arrangementCache = resolved
-        return resolved
+        return (split.ranked, groups)
     }
 
     public var hiddenRowCount: Int { rows.count - arrangedRows.count }
@@ -167,17 +183,49 @@ public final class TrackListModel {
         TrackDetail(row: row, in: rows)
     }
 
-    /// Save is offered only once something actually differs from what's on
-    /// Spotify — matching the reference, where an untouched playlist can't be
-    /// re-saved into a pointless duplicate.
-    public var canSave: Bool {
-        guard case .ready = phase, saveStatus != .saving else { return false }
-        guard let saved else { return false }
+    /// What the toolbar offers, in the order it offers it.
+    public var saveActions: [SaveAction] {
+        SaveAction.actions(
+            writtenCount: newPlaylistURIs.count,
+            isFiltered: filter.isActive,
+            canCreate: canSaveAsNewPlaylist,
+            canOverwrite: canOverwrite,
+            mayOverwriteThisPlaylist: mayOverwriteThisPlaylist
+        )
+    }
+
+    /// Whether the Save control is worth reaching for at all.
+    public var canSave: Bool { saveActions.contains { $0.isEnabled } }
+
+    /// A new playlist is a duplicate unless *something* differs from what's on
+    /// Spotify — and the filter counts, because a filter is the whole reason
+    /// story 41 wants this path.
+    public var canSaveAsNewPlaylist: Bool {
+        guard isReadyToWrite, let saved else { return false }
         return saved != current && !arrangedRows.isEmpty
     }
 
+    /// Armed by a change of **Arrangement alone**.
+    ///
+    /// This is ADR-0002 showing up in the gate rather than only in the payload.
+    /// Overwrite never consults the filter, so narrowing the filter cannot
+    /// leave the playlist on Spotify stale — the order it holds is still the
+    /// order this screen would write. Offering it there would be offering a
+    /// write with nothing to write.
     public var canOverwrite: Bool {
+        guard isReadyToWrite, mayOverwriteThisPlaylist, let saved else { return false }
+        return saved.arrangement != arrangement
+    }
+
+    /// Whether this playlist is one Sortify may write over at all — a question
+    /// about the playlist, not about whether anything has changed.
+    public var mayOverwriteThisPlaylist: Bool {
         service.canWriteBack && playlist.isWritable(byUserID: currentUserID)
+    }
+
+    private var isReadyToWrite: Bool {
+        guard case .ready = phase, saveStatus != .saving else { return false }
+        return service.canWriteBack
     }
 
     public var canWriteBack: Bool { service.canWriteBack }
@@ -315,10 +363,40 @@ public final class TrackListModel {
 
     // MARK: - Saving
 
-    public func save(createNew: Bool) async {
-        let uris = arrangedRows.compactMap(\.savableURI)
+    /// Runs the action the toolbar was tapped on.
+    ///
+    /// A switch, not a parameter. `Kind` reaches exactly one of the two methods
+    /// below and neither of them ever learns which control was tapped, so there
+    /// is no value anywhere that could be threaded into the wrong payload.
+    public func perform(_ kind: SaveAction.Kind) async {
+        switch kind {
+        case .overwrite: await overwrite()
+        case .newPlaylist: await saveAsNewPlaylist()
+        }
+    }
+
+    /// What overwrite writes: the whole playlist, reordered.
+    private var overwriteURIs: [String] { fullOrder.compactMap(\.savableURI) }
+
+    /// What save-as-new writes: what is on screen, filter and all.
+    private var newPlaylistURIs: [String] { arrangedRows.compactMap(\.savableURI) }
+
+    /// Replaces the playlist's contents with **every one of its tracks**, in
+    /// Arrangement order.
+    ///
+    /// ADR-0002. The filter is a view onto the arrangement and is not consulted
+    /// here, so no sequence of taps in Sortify can remove a track from a
+    /// playlist the listener already has. The invariant is structural: this
+    /// method cannot be handed a shorter list, because it is not handed a list
+    /// at all.
+    ///
+    /// Kept a separate method from `saveAsNewPlaylist()` on purpose. Folding
+    /// the two back into one path with a flag reads as a tidy-up and is exactly
+    /// how a 68-track playlist becomes 20 with no undo.
+    public func overwrite() async {
+        let uris = overwriteURIs
         guard !uris.isEmpty else {
-            saveStatus = .failed("Nothing to save — the BPM filter is hiding every track.")
+            saveStatus = .failed("Nothing to save — none of these tracks can be written back to Spotify.")
             return
         }
 
@@ -326,37 +404,55 @@ public final class TrackListModel {
         let arrangementName = arrangement.name
 
         do {
-            let target: Playlist
-            if createNew {
-                guard let userID = currentUserID else {
-                    saveStatus = .failed("Sortify doesn't know which account to save to.")
-                    return
-                }
-                target = try await service.createPlaylist(
-                    userID: userID,
-                    name: SaveNaming.playlistName(original: playlist.name, arrangement: arrangement),
-                    isPublic: playlist.isPublic ?? false,
-                    description: SaveNaming.playlistDescription(
-                        original: playlist.cleanDescription, arrangement: arrangement
-                    )
-                )
-            } else {
-                target = playlist
-            }
+            try await service.replaceTracks(playlistID: playlist.id, uris: uris)
+            saved = current
+            saveStatus = .updated("Updated “\(playlist.name)” — \(uris.count) tracks by \(arrangementName).")
+        } catch {
+            saveStatus = .failed(Self.failureMessage(for: error))
+        }
+    }
 
-            try await service.replaceTracks(playlistID: target.id, uris: uris)
+    /// Creates a new playlist holding what is on screen — which may be a
+    /// subset, and is the only path that may be.
+    public func saveAsNewPlaylist() async {
+        let uris = newPlaylistURIs
+        guard !uris.isEmpty else {
+            saveStatus = .failed("Nothing to save — the BPM filter is hiding every track.")
+            return
+        }
+        guard let userID = currentUserID else {
+            saveStatus = .failed("Sortify doesn't know which account to save to.")
+            return
+        }
+
+        saveStatus = .saving
+        let arrangementName = arrangement.name
+
+        do {
+            let created = try await service.createPlaylist(
+                userID: userID,
+                name: SaveNaming.playlistName(original: playlist.name, arrangement: arrangement),
+                isPublic: playlist.isPublic ?? false,
+                description: SaveNaming.playlistDescription(
+                    original: playlist.cleanDescription, arrangement: arrangement
+                )
+            )
+            try await service.replaceTracks(playlistID: created.id, uris: uris)
 
             saved = current
-            saveStatus = createNew
-                ? .created("Created “\(target.name)” — \(uris.count) tracks by \(arrangementName).")
-                : .updated("Updated “\(playlist.name)” — \(uris.count) tracks by \(arrangementName).")
-        } catch let error as SpotifyAPIError where error.isNotWritable {
-            saveStatus = .failed(
-                "This playlist can't be modified — it may be owned by Spotify or another listener. Save a new playlist instead."
-            )
+            saveStatus = .created("Created “\(created.name)” — \(uris.count) tracks by \(arrangementName).")
         } catch {
-            saveStatus = .failed(error.localizedDescription)
+            saveStatus = .failed(Self.failureMessage(for: error))
         }
+    }
+
+    /// Shared because it is about the *error*, not about the payload — the one
+    /// thing the two paths may legitimately have in common.
+    private static func failureMessage(for error: any Error) -> String {
+        if let apiError = error as? SpotifyAPIError, apiError.isNotWritable {
+            return "This playlist can't be modified — it may be owned by Spotify or another listener. Save a new playlist instead."
+        }
+        return error.localizedDescription
     }
 
     public func clearSaveStatus() { saveStatus = .idle }
