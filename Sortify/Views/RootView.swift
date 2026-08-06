@@ -9,6 +9,32 @@ struct RootView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            // Short-circuits the whole session: the reorder measurement needs a
+            // playlist the demo catalogue has no equivalent of, so it brings
+            // its own service rather than signing in to anything.
+            if DebugLaunch.screen == .profile {
+                ReorderProfileView(count: DebugLaunch.profileCount ?? 200)
+            } else {
+                sessionContent
+            }
+            #else
+            sessionContent
+            #endif
+        }
+        .sheet(isPresented: $showingSettings) { SettingsView() }
+        .sheet(isPresented: $showingFAQ) { FAQView() }
+        .task {
+            guard !didRestore else { return }
+            didRestore = true
+            await session.restore()
+            await applyDebugLaunchIfNeeded()
+        }
+    }
+
+    @ViewBuilder
+    private var sessionContent: some View {
+        Group {
             switch session.stage {
             case .signedOut, .failed:
                 LandingView(
@@ -28,14 +54,6 @@ struct RootView: View {
                         .toolbar { navigationToolbar }
                 }
             }
-        }
-        .sheet(isPresented: $showingSettings) { SettingsView() }
-        .sheet(isPresented: $showingFAQ) { FAQView() }
-        .task {
-            guard !didRestore else { return }
-            didRestore = true
-            await session.restore()
-            await applyDebugLaunchIfNeeded()
         }
     }
 
@@ -57,6 +75,9 @@ struct RootView: View {
                 session.playlists.first { $0.id == id }
             } ?? session.playlists.first
             if let target { path = [target] }
+        case .profile:
+            // Handled above, before the session is consulted at all.
+            break
         }
     }
 

@@ -10,6 +10,10 @@ import Foundation
 enum DebugLaunch {
     enum Screen: String {
         case landing, playlists, tracks, faq, settings
+        /// Not a screen a listener reaches — the reorder measurement of ticket
+        /// 09, which drives the real list at a size the demo catalogue has no
+        /// playlist for.
+        case profile
     }
 
     enum Sheet: String {
@@ -40,6 +44,13 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "sheet").flatMap(Sheet.init)
     }
 
+    /// `-count 400` — how many tracks `-screen profile` builds its playlist
+    /// from. The reorder threshold is a measurement, so the size has to be an
+    /// input rather than whatever the demo catalogue happens to hold.
+    static var profileCount: Int? {
+        UserDefaults.standard.string(forKey: "count").flatMap(Int.init)
+    }
+
     /// `-track 22` — which row `-sheet track` opens the detail sheet for,
     /// counted down the list as it appears. Position on screen rather than
     /// original index, so the harness can name a track from the unrankable
@@ -65,6 +76,7 @@ enum DebugLaunch {
     static var arrangement: Arrangement? { nil }
     static var sheet: Sheet? { nil }
     static var trackPosition: Int? { nil }
+    static var profileCount: Int? { nil }
     static var filter: BPMFilter? { nil }
     static var isActive: Bool { false }
     #endif

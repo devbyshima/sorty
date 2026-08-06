@@ -22,6 +22,26 @@ struct TrackListView: View {
     @State private var inspecting: TrackRow?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Applying an Arrangement, watched rather than merely arrived at.
+    ///
+    /// The one place ordering state changes, so it is the one place the
+    /// animation is decided. Whether to animate at all is
+    /// `ReorderAnimation.animates` in SortifyKit — a measured row limit and the
+    /// Reduced Motion rule, neither of which is a layout question.
+    ///
+    /// `withAnimation` around the mutation rather than `.animation()` on the
+    /// list: a spring started this way retargets when a second Arrangement
+    /// lands mid-flight, so tapping four chips quickly runs one animation that
+    /// keeps changing its mind rather than four that queue.
+    private func rearrange(_ change: () -> Void) {
+        guard ReorderAnimation.animates(rowCount: model.rows.count, reduceMotion: reduceMotion) else {
+            change()
+            return
+        }
+        withAnimation(.snappy) { change() }
+    }
 
     /// Side by side normally; stacked once the text is large enough that both
     /// would otherwise truncate.
@@ -39,8 +59,8 @@ struct TrackListView: View {
             // push the list itself out of reach entirely.
             ArrangementChipRow(
                 arrangement: model.arrangement,
-                onApply: { model.apply($0) },
-                onReroll: { model.reroll() },
+                onApply: { arrangement in rearrange { model.apply(arrangement) } },
+                onReroll: { rearrange { model.reroll() } },
                 onMore: { showingPicker = true }
             )
             .padding(.vertical, 10)
@@ -71,7 +91,9 @@ struct TrackListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { saveButton }
         .sheet(isPresented: $showingPicker) {
-            ArrangementPickerSheet(applied: model.arrangement) { model.apply($0) }
+            ArrangementPickerSheet(applied: model.arrangement) { arrangement in
+                rearrange { model.apply(arrangement) }
+            }
         }
         .sheet(isPresented: $showingFilter) {
             BPMFilterSheet(model: model)
