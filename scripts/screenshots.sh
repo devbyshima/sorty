@@ -1,19 +1,35 @@
 #!/bin/bash
-# Headless screenshots of every screen on the iOS 27 simulator.
+# Headless screenshots of every screen, on the iOS 27 simulator.
 #
-# Deliberately never drives the simulator GUI — each screen is reached from a
-# cold launch via the DebugLaunch arguments, then captured with `simctl io
-# screenshot`. That keeps this runnable while the Mac is being used for
-# something else, and keeps it reproducible.
+# Deliberately never drives the simulator GUI. Every screen is reached from a
+# *cold launch* through the `DebugLaunch` arguments and captured with `simctl io
+# screenshot`, which is what keeps this runnable while the Mac is being used for
+# something else, and what keeps it reproducible: the demo catalogue is
+# generated from a fixed seed, so the same run produces the same pixels.
+#
+# That constraint is also why the arguments look the way they do. A sheet opens
+# on a tap and the harness never taps, so it has to be able to *arrive*
+# presented — hence `-sheet`, `-track`, `-connectStep`. An Arrangement is named
+# as one thing (`-arrangement bpm-descending`) rather than as a column plus a
+# direction, because a column and a direction could name a combination that
+# doesn't exist.
+#
+#   ./scripts/screenshots.sh          # the whole set
+#   SETTLE=6 ./scripts/screenshots.sh # slower machine
+#   DEVICE="iPhone 17" OS=27.0 ./scripts/screenshots.sh
 set -euo pipefail
 
 DEVICE="${DEVICE:-iPhone 17 Pro}"
 OS="${OS:-27.0}"
 BUNDLE_ID="com.fulltimestudio.sortify"
-OUT="${OUT:-$(cd "$(dirname "$0")/.." && pwd)/screenshots}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUT="${OUT:-$ROOT/screenshots}"
 
-mkdir -p "$OUT"
+# Staged, then swapped in. A screen that no longer exists must not leave its
+# screenshot behind pretending it does — replacing the whole directory at the
+# end rather than writing over it makes that structural instead of a chore.
+STAGE="$(mktemp -d)"
+trap 'rm -rf "$STAGE"' EXIT
 
 echo "==> Building"
 xcodebuild -project "$ROOT/Sortify.xcodeproj" -scheme Sortify \
@@ -37,73 +53,83 @@ shoot() {
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
   xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@" >/dev/null
   sleep "${SETTLE:-4}"
-  xcrun simctl io "$UDID" screenshot --type=png "$OUT/$name.png" >/dev/null
+  xcrun simctl io "$UDID" screenshot --type=png "$STAGE/$name.png" >/dev/null
 }
 
-# There is no landing screen any more — ADR-0003 makes Demo Mode the front
-# door, so the first thing a listener sees is a library they can work on.
-shoot 01-playlists      -screen playlists
-shoot 02-connect        -screen connect
-# The two steps that carry something to get wrong: the redirect URI, given
-# rather than described, and the Client ID with its complaint.
-shoot 02a-connect-app   -screen connect -connectStep createApp
-shoot 02b-connect-id    -screen connect -connectStep clientID
-shoot 03-tracks-order   -screen tracks -playlist demo-longrun
-shoot 04-tracks-bpm     -screen tracks -playlist demo-longrun -arrangement bpm-descending
-shoot 05-tracks-asep    -screen tracks -playlist demo-mixed -arrangement artist-separation
-# Shuffle is the one chip that carries a second control, so it gets its own shot.
-shoot 06-tracks-shuffle -screen tracks -playlist demo-longrun -arrangement shuffle
+# ─── Light, default text size ────────────────────────────────────────────────
+
+# There is no landing screen. ADR-0003 makes Demo Mode the front door, so the
+# first thing a listener sees is a library they can already work on.
+shoot 01-playlists         -screen playlists
+shoot 02-tracks-order      -screen tracks -playlist demo-longrun
+shoot 03-tracks-bpm        -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 04-tracks-asep       -screen tracks -playlist demo-mixed -arrangement artist-separation
+# Shuffle is the one chip carrying a second control, so it gets its own shot.
+shoot 05-tracks-shuffle    -screen tracks -playlist demo-longrun -arrangement shuffle
 # An Arrangement outside the pinned five: it should trail the row and be
 # scrolled into view, or picking it would select a chip nobody can see.
-shoot 07-tracks-offpiste -screen tracks -playlist demo-longrun -arrangement valence-descending
-# Tracks the Arrangement can't place. The tempo range is chosen to leave a few
-# ranked tracks on screen as well: the case worth seeing is the common one,
-# where *some* tracks were placed and some weren't — the case the old
-# all-or-nothing notice never fired for.
-shoot 08-tracks-unrankable -screen tracks -playlist demo-mixed -arrangement bpm-ascending -filter 140-160
+shoot 06-tracks-offpiste   -screen tracks -playlist demo-longrun -arrangement valence-descending
+# Tracks the Arrangement can't place. The tempo range leaves a few ranked tracks
+# on screen as well, because the case worth seeing is the common one — where
+# *some* tracks were placed and some weren't, which the old all-or-nothing
+# notice never fired for.
+shoot 07-tracks-unrankable -screen tracks -playlist demo-mixed -arrangement bpm-ascending -filter 140-160
+
 # Every Attribute across one track — the half of the old table the list can't
 # do, and the reason ADR-0001's trade was acceptable.
-shoot 09-track-detail   -screen tracks -playlist demo-longrun -sheet track -track 0
-# Position 22 of demo-mixed arranged by BPM is past the ranked tracks: a track
-# the feature source had nothing for. Every audio feature should read
-# "Unavailable" and draw no bar, while Spotify's own values still do.
-shoot 10-track-detail-missing -screen tracks -playlist demo-mixed -arrangement bpm-ascending -sheet track -track 22
-shoot 11-arrangements   -screen tracks -playlist demo-longrun -sheet arrangements
-shoot 12-settings       -screen settings
-shoot 13-faq            -screen faq
+shoot 08-track-detail      -screen tracks -playlist demo-longrun -sheet track -track 0
+# Position 22 of demo-mixed by BPM is past the ranked tracks: one the feature
+# source had nothing for. Every audio feature should read "Unavailable" and draw
+# no bar, while Spotify's own values still do.
+shoot 09-track-detail-missing -screen tracks -playlist demo-mixed -arrangement bpm-ascending -sheet track -track 22
+shoot 10-arrangements      -screen tracks -playlist demo-longrun -sheet arrangements
 
-# The list and the sheet both have to hold when the text is as large as iOS will
-# make it — the old table simply clipped, which is the failure this redesign
-# exists to end.
-echo "==> large text (accessibility text size)"
+# The guided connect flow. Later steps are reached by tapping Continue, so the
+# two carrying something to get wrong — the redirect URI and the Client ID —
+# have to be nameable directly.
+shoot 11-connect-why       -screen connect
+shoot 12-connect-app       -screen connect -connectStep createApp
+shoot 13-connect-id        -screen connect -connectStep clientID
+
+shoot 14-settings          -screen settings
+shoot 15-faq               -screen faq
+
+# ─── Largest text size ───────────────────────────────────────────────────────
+# The old table simply clipped here, which is the failure the redesign exists to
+# end. Nothing may truncate; everything may wrap.
+echo "==> largest text size"
 xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
-shoot 14-tracks-large-text -screen tracks -playlist demo-longrun -arrangement bpm-descending
-shoot 15-track-detail-large-text -screen tracks -playlist demo-longrun -sheet track -track 0
-# The badges are the answer to "why can't I overwrite this one", so they have to
-# survive the text size at which the question gets asked.
-shoot 17-playlists-large-text -screen playlists
+shoot 16-tracks-large-text       -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 17-track-detail-large-text -screen tracks -playlist demo-longrun -sheet track -track 0
+shoot 18-playlists-large-text    -screen playlists
 
-# One step into the accessibility sizes rather than at the top of them. The
-# sheet stacks its rows from here on, and this is the only size where the
-# stacked rows are actually on screen — at the maximum the identity above them
-# fills it, and the harness can't scroll.
+# ─── One step into the accessibility sizes ───────────────────────────────────
+# Both screens take their stacked layout from here on, and this is the smallest
+# size at which the stacked content is actually on screen: at the maximum the
+# header fills it, and the harness can't scroll.
+echo "==> accessibility-large"
 xcrun simctl ui "$UDID" content_size accessibility-large
-shoot 16-track-detail-stacked -screen tracks -playlist demo-longrun -sheet track -track 0
-# Same reason: at the maximum no badged row is on screen, and the harness can't
-# scroll to one. Here the badge sits on its own line under the track count.
-shoot 18-playlists-stacked -screen playlists
+shoot 19-track-detail-stacked -screen tracks -playlist demo-longrun -sheet track -track 0
+shoot 20-playlists-stacked    -screen playlists
 xcrun simctl ui "$UDID" content_size medium
 
-# Dark is first-class, not an afterthought — the accent has its own value there
-# (ADR-0006) and the position bars are drawn against a different surface.
+# ─── Dark ────────────────────────────────────────────────────────────────────
+# First-class, not an afterthought: the accent has its own value there
+# (ADR-0006) and the bars are drawn against a different surface.
 echo "==> dark appearance"
 xcrun simctl ui "$UDID" appearance dark
-shoot 19-dark-playlists    -screen playlists
-shoot 20-dark-tracks       -screen tracks -playlist demo-longrun -arrangement bpm-descending
-shoot 21-dark-track-detail -screen tracks -playlist demo-longrun -sheet track -track 0
-shoot 22-dark-connect      -screen connect
+shoot 21-dark-playlists    -screen playlists
+shoot 22-dark-tracks       -screen tracks -playlist demo-longrun -arrangement bpm-descending
+shoot 23-dark-track-detail -screen tracks -playlist demo-longrun -sheet track -track 0
+shoot 24-dark-connect      -screen connect -connectStep createApp
 xcrun simctl ui "$UDID" appearance light
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-echo "==> Wrote screenshots to $OUT"
+
+# The swap. Everything this run produced replaces everything that was there.
+rm -rf "$OUT"
+mkdir -p "$OUT"
+mv "$STAGE"/*.png "$OUT/"
+
+echo "==> Wrote $(ls -1 "$OUT" | wc -l | tr -d ' ') screenshots to $OUT"
 ls -1 "$OUT"
