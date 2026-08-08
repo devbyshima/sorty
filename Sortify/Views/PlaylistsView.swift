@@ -177,7 +177,20 @@ struct PlaylistsView: View {
         // content still lets go at one rate across the app; only the strength
         // differs, and only on the screen that needed it.
         .background(alignment: .top) {
-            TopBlur(height: headerHeight, maxBlur: 1.5)
+            // Eight points shorter than the header that owns it, which is the
+            // one number here not derived from a measurement.
+            //
+            // The solid region used to run the header's full height, so the band
+            // ended level with the bottom of the header's own padding and read
+            // taller than the chrome it was backing. Trimming it lets the fade
+            // start just under the chips instead. Eight and not more: the
+            // header's bottom padding is ten, so this leaves two points of solid
+            // below the chip row, and anything larger would put the chips
+            // themselves over a fading backdrop with rows showing through them.
+            //
+            // It only makes the content below *more* clear of the ramp, so the
+            // grid's own top padding still lands the fade in the gap.
+            TopBlur(height: max(0, headerHeight - 8), maxBlur: 1.5)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
         // No background. The progressive blur behind this *is* the background,
