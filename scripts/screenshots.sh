@@ -83,6 +83,20 @@ xcrun simctl status_bar "$UDID" override \
   --time "9:41" --batteryState charged --batteryLevel 100 \
   --cellularBars 4 --wifiBars 3 --dataNetwork wifi >/dev/null 2>&1 || true
 
+# Change a simulator-wide UI setting and wait for it to land.
+#
+# `simctl ui` returns as soon as the request is *sent*, not once the system has
+# applied it, and `shoot` terminates and relaunches the app immediately. That
+# race silently produced a wrong screenshot: `20-track-detail-stacked` is meant
+# to be at accessibility-large and was captured still at the
+# accessibility-extra-extra-extra-large left over from the shot before it, so the
+# set carried a picture of the wrong text size and looked like a real change in
+# the next diff. Always go through this rather than calling `simctl ui` directly.
+ui() {
+  xcrun simctl ui "$UDID" "$@"
+  sleep "${UI_SETTLE:-2}"
+}
+
 shoot() {
   local name="$1"; shift
   echo "==> $name"
@@ -150,7 +164,7 @@ shoot 16-faq               -demo -screen faq
 # The old table simply clipped here, which is the failure the redesign exists to
 # end. Nothing may truncate; everything may wrap.
 echo "==> largest text size"
-xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
+ui content_size accessibility-extra-extra-extra-large
 shoot 17-tracks-large-text       -demo -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 18-track-detail-large-text -demo -screen tracks -playlist demo-longrun -sheet track -track 0
 shoot 19-playlists-large-text    -demo -screen playlists -layout grid2
@@ -160,21 +174,21 @@ shoot 19-playlists-large-text    -demo -screen playlists -layout grid2
 # size at which the stacked content is actually on screen: at the maximum the
 # header fills it, and the harness can't scroll.
 echo "==> accessibility-large"
-xcrun simctl ui "$UDID" content_size accessibility-large
+ui content_size accessibility-large
 shoot 20-track-detail-stacked -demo -screen tracks -playlist demo-longrun -sheet track -track 0
 shoot 21-playlists-stacked    -demo -screen playlists -layout grid2
-xcrun simctl ui "$UDID" content_size medium
+ui content_size medium
 
 # ─── Dark ────────────────────────────────────────────────────────────────────
 # First-class, not an afterthought: the accent has its own value there
 # (ADR-0006) and the bars are drawn against a different surface.
 echo "==> dark appearance"
-xcrun simctl ui "$UDID" appearance dark
+ui appearance dark
 shoot 22-dark-playlists    -demo -screen playlists -layout grid2
 shoot 23-dark-tracks       -demo -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 24-dark-track-detail -demo -screen tracks -playlist demo-longrun -sheet track -track 0
 shoot 25-dark-connect      -demo -screen connect -connectStep createApp
-xcrun simctl ui "$UDID" appearance light
+ui appearance light
 
 # ─── Scrolled ────────────────────────────────────────────────────────────────
 # The progressive blur exists only where content passes *under* a header, so
@@ -197,9 +211,9 @@ echo "==> scrolled"
 shoot 26-tracks-scrolled -demo -screen tracks -playlist demo-longrun -scrolled 240
 shoot 27-tracks-pinned -demo -screen tracks -playlist demo-longrun -scrolled 700
 shoot 28-track-detail-scrolled -demo -screen tracks -playlist demo-longrun -sheet track -track 0 -scrolled 120
-xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
+ui content_size accessibility-extra-extra-extra-large
 shoot 29-playlists-scrolled -demo -screen playlists -layout grid2 -scrolled 420
-xcrun simctl ui "$UDID" content_size medium
+ui content_size medium
 
 # ─── Withheld ────────────────────────────────────────────────────────────────
 # Another listener's playlist, which Spotify names but never opens (ADR-0008).

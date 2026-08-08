@@ -40,6 +40,27 @@ struct ArrangementChipRow: View {
                 .padding(.horizontal, 16)
             }
             .scrollIndicators(.hidden)
+            // **Without this the chips are shaved top and bottom.**
+            //
+            // A horizontal `ScrollView` clips to its own bounds, and this one is
+            // exactly as tall as its content: the capsules are a hard 38pt, so
+            // the scroll view is 38pt and the clip lands precisely on the chip's
+            // edge. Everything a capsule draws at or just past that edge - the
+            // glass material's specular highlight, the `glassEdge` stroke, the
+            // accent capsule as the selection spring settles into it - is cut,
+            // and it shows most on the chip that has just become active because
+            // that is the one drawing the most at its own boundary.
+            //
+            // `LibraryBar` has carried this since it was written, which is why
+            // the same control one screen back never had the problem. The two
+            // rows are meant to be the same thing doing the same job on
+            // different nouns, and this was the last place they disagreed.
+            //
+            // Nothing escapes horizontally that a listener can see: the row is
+            // full width, so a chip drawn past either end is off-screen. The
+            // room it needs vertically is the `.padding(.vertical, 10)` the
+            // playlist screen already wraps this in.
+            .scrollClipDisabled()
             // The same spring `LibraryBar` gives its category chips, so applying
             // an Arrangement settles exactly the way choosing a category does.
             // Without it the accent snapped between capsules while the row one
