@@ -166,8 +166,18 @@ struct PlaylistsView: View {
         // lands on the gap below the chips instead of on artwork. At the
         // default 60 the smear reached a third of the way down the first row
         // of covers.
+        // Lighter here than anywhere else, which is the one place the app breaks
+        // its own "every screen blurs alike" rule and does it knowingly.
+        //
+        // This header has more passing under it than any other: a grid of large
+        // covers, edge to edge, moving fast. Everywhere else the bar backs a
+        // single cover and some text. The same radius that reads as separation
+        // on the playlist screen reads as a smear across artwork here, because
+        // there is simply more artwork to smear. The *fade* is still shared, so
+        // content still lets go at one rate across the app; only the strength
+        // differs, and only on the screen that needed it.
         .background(alignment: .top) {
-            TopBlur(height: headerHeight)
+            TopBlur(height: headerHeight, maxBlur: 1.5)
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
         // No background. The progressive blur behind this *is* the background,

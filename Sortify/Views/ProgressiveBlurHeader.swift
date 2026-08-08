@@ -12,12 +12,17 @@ import SwiftUI
 /// changes - `makeVariableBlurFilter` returns nil and the view is simply a
 /// plain effect view with its tint hidden.
 struct VariableBlurView: UIViewRepresentable {
-    /// Deliberately low. The backdrop samples at the screen's own scale (see
-    /// `didMoveToWindow`), so this is applied against a 3x grid on a 3x device,
-    /// and a Gaussian's visible smear runs about three times its radius - a
-    /// nominal 6 read as roughly 20pt of smear across the covers and was the
-    /// "too strong" everyone kept seeing.
-    var maxBlurRadius: CGFloat = 3
+    /// Deliberately low, and lowered again on device.
+    ///
+    /// The backdrop samples at the screen's own scale (see `didMoveToWindow`),
+    /// so this is applied against a 3x grid on a 3x device, and a Gaussian's
+    /// visible smear runs about three times its radius. A nominal 6 read as
+    /// roughly 20pt of smear across the covers and was the "too strong" everyone
+    /// kept seeing; 3 was the first correction and still read heavy on hardware,
+    /// where artwork passing under the bar smeared further than it does in a
+    /// simulator screenshot. 2 is about 7pt of smear, which is enough to
+    /// separate the chrome from what scrolls under it without dissolving it.
+    var maxBlurRadius: CGFloat = 2
     /// Points at the **bottom** over which the blur ramps out. Everything above
     /// it is solid.
     ///
@@ -197,7 +202,10 @@ struct TopBlur: View {
     /// the header's own height, not zero: everything above `height` is solid
     /// and the fade happens entirely below it.
     var height: CGFloat
-    var maxBlur: CGFloat = 3
+    /// Softer than it was. See `VariableBlurView.maxBlurRadius` for the
+    /// measurement behind the number; this default is the only place any screen
+    /// gets it from, so changing it here changes every blur in the app at once.
+    var maxBlur: CGFloat = 2
     /// How far past `height` the blur takes to reach nothing.
     ///
     /// **The same on every screen, deliberately.** This is the distance over
