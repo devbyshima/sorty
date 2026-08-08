@@ -433,6 +433,11 @@ struct TrackListView: View {
                 : .regular.interactive(),
             in: .circle
         )
+        // Edged like every other glass surface. It matters most in the unarmed
+        // state, which is clear glass on a near-white field and had no outline
+        // at all in light; armed, the accent is already carrying the shape and
+        // the edge is barely visible against it.
+        .glassEdge(in: .circle)
         .contentShape(.circle)
     }
 
@@ -572,6 +577,7 @@ struct TrackListView: View {
                 .font(.headline)
                 .frame(width: TopBarMetrics.clamped(scaledMenuSide), height: TopBarMetrics.clamped(scaledMenuSide))
                 .glassEffect(.regular.interactive(), in: .circle)
+                .glassEdge(in: .circle)
                 .contentShape(.circle)
         }
         // Without this the menu takes the automatic style, which tints its own

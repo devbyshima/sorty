@@ -15,14 +15,19 @@ from the menu (`LibraryLayout`). This records why, because the repo rule is that
 reference designs are matched exactly and a deviation has to be argued rather
 than shipped quietly.
 
-The ticket also instructs that "the first redesign removed a two-up grid for
-measured reasons" and that "ADR-0001's reasoning should be read and then
-explicitly answered rather than ignored". **That reasoning does not exist.**
-ADR-0001 is about removing the fifteen-column *track table*; it says nothing
-about the library's layout, and neither does `.scratch/ui-redesign/spec.md`. So
-there is no prior decision to answer and no measurement to overturn. The choice
-is made here on its own merits, and the ticket's premise is corrected rather
-than deferred to.
+The ticket instructs that "the first redesign removed a two-up grid for measured
+reasons" and that "ADR-0001's reasoning should be read and then explicitly
+answered rather than ignored". Half of that is right and the pointer is wrong,
+which is worth stating because it sent one reading of this decision astray
+before the code was checked.
+
+**ADR-0001 says nothing about the library.** It removes the fifteen-column
+*track table*, and `.scratch/ui-redesign/spec.md` does not discuss a grid
+either. **The measurement is real, and it lives in a code comment**, at
+`SortifyKit/Models/LibraryView.swift:61-68`: the first redesign removed a two-up
+grid because a list showed about seven playlists per screen against the grid's
+four. So there *is* a prior finding to answer, it is about **density**, and it
+is answered below rather than ignored.
 
 What the two layouts actually are, at a 402pt screen with the shipped 16pt
 margins and 12pt gutters:
@@ -51,10 +56,15 @@ name the thing the layout has to protect.
 which after ADR-0008 may have to say *Can't open* - has less room still. At
 179pt both fit.
 
-**Density buys less here.** Spotify's library can hold hundreds of saved items,
-so fitting a third more per screen is real. A Sortify library is one listener's
-own playlists, which is tens. The scroll saved is not worth the legibility
-spent.
+**Density buys less here, which is the answer to the seven-against-four
+measurement.** That count is correct and it is the case *for* the list, which is
+why the list survives as a layout and why anyone who wants density has it. It is
+not a case for three-up: three-up pays the legibility cost of a small cover
+*and* still shows fewer playlists per screen than the list it lost to. The
+density argument, followed honestly, ends at the list rather than at a tighter
+grid. Beyond that, Spotify's library can hold hundreds of saved items, where a
+Sortify library is one listener's own playlists, which is tens - so the scroll
+being saved is small in absolute terms whichever grid wins.
 
 ## Consequences
 

@@ -30,6 +30,7 @@ struct ArrangementChipRow: View {
                             .padding(.horizontal, 14)
                             .frame(height: 38)
                             .glassEffect(.regular.interactive(), in: .capsule)
+                            .glassEdge(in: .capsule)
                             .contentShape(.capsule)
                     }
                     .buttonStyle(.plain)
@@ -111,6 +112,7 @@ private struct ChipView: View {
         // doing the same job on different nouns, so they read as one thing.
         .background(chip.isActive ? AnyShapeStyle(SortifyTheme.accent) : AnyShapeStyle(.clear), in: .capsule)
         .glassEffect(.regular.interactive(), in: .capsule)
+        .glassEdge(in: .capsule)
         .contentShape(.capsule)
         // The tap goes here, on the same view that carries the interactive
         // glass, which is what `LibraryBar` does and is the whole difference in

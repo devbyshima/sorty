@@ -454,6 +454,7 @@ struct LibraryMenu: View {
                 .foregroundStyle(.primary)
                 .frame(width: 44, height: 44)
                 .glassEffect(.regular.interactive(), in: .circle)
+                .glassEdge(in: .circle)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("More")

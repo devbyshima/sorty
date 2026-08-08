@@ -86,6 +86,7 @@ struct LibraryBar: View {
                 Image(systemName: "circle.grid.2x2.fill")
                     .frame(width: roundWidth, height: capsuleHeight)
                     .glassEffect(.regular.interactive(), in: .capsule)
+                    .glassEdge(in: .capsule)
                     .contentShape(.capsule)
                     .onTapGesture {
                         isKeyboardActive = false
@@ -102,6 +103,7 @@ struct LibraryBar: View {
                     .foregroundStyle(isSelected ? SortifyTheme.onAccent : .primary)
                     .background(isSelected ? AnyShapeStyle(SortifyTheme.accent) : AnyShapeStyle(.clear), in: .capsule)
                     .glassEffect(.regular.interactive(!isSearchExpanded), in: .capsule)
+                    .glassEdge(in: .capsule)
                     .contentShape(.capsule)
                     .onTapGesture {
                         // Tapping the active chip clears back to All, so there
@@ -140,6 +142,7 @@ struct LibraryBar: View {
             .frame(height: capsuleHeight)
             .clipShape(.capsule)
             .glassEffect(.regular.interactive(), in: .capsule)
+            .glassEdge(in: .capsule)
             .contentShape(.capsule)
             .gesture(
                 TapGesture().onEnded {
@@ -158,6 +161,7 @@ struct LibraryBar: View {
                 Image(systemName: "xmark")
                     .frame(width: capsuleHeight, height: capsuleHeight)
                     .glassEffect(.regular.interactive(), in: .circle)
+                    .glassEdge(in: .circle)
                     .contentShape(.circle)
             }
             .buttonStyle(.plain)

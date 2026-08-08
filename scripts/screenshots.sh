@@ -4,8 +4,28 @@
 # Deliberately never drives the simulator GUI. Every screen is reached from a
 # *cold launch* through the `DebugLaunch` arguments and captured with `simctl io
 # screenshot`, which is what keeps this runnable while the Mac is being used for
-# something else, and what keeps it reproducible: the demo catalogue is
-# generated from a fixed seed, so the same run produces the same pixels.
+# something else.
+#
+# **What reproduces, and what does not.** The app is deterministic: the demo
+# catalogue is generated from a fixed seed, the install is fresh so nothing
+# persisted by the previous run survives, and two launches of the same shot
+# produce identical pixels. The *screenshots* are not byte-identical between
+# runs, and chasing that is not worth it - measured, the residue is two things,
+# neither of them Sortify:
+#
+#   - The Dynamic Island region, 378x112px at (414,41), flips wholesale between
+#     runs. A simulator artifact.
+#   - Antialiasing noise in artwork and text, a handful of channel steps over
+#     ~1,500 pixels. Two shots in the set differ by nothing above 3.
+#
+# So review this set by looking at it, not by hashing it. What *must* never
+# change without intent is content, and that is what the two guards below are
+# for: the fresh install, and every library shot naming its layout. Before them,
+# `-layout` wrote through to a stored preference and the set silently showed
+# whatever layout the *last* run ended on - which is how `01-playlists` changed
+# from a grid to a list inside a commit about the playlist header. It went
+# unnoticed because the clock made every shot differ every run anyway, so a real
+# change looked like more of the same noise. Hence the frozen status bar.
 #
 # That constraint is also why the arguments look the way they do. A sheet opens
 # on a tap and the harness never taps, so it has to be able to *arrive*
@@ -45,7 +65,23 @@ echo "==> Booting $DEVICE ($UDID)"
 xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b >/dev/null
 
+# Uninstall before installing, every time. The app persists library preferences,
+# and `-layout` writes through to that store rather than overriding it for one
+# launch - so the last layout any shot asked for became the layout every
+# *unqualified* shot in the next run started from. That is how `01-playlists`
+# silently changed from a grid to a list between two commits that had nothing to
+# do with the library. A run must not inherit anything from the run before it.
+xcrun simctl uninstall "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 xcrun simctl install "$UDID" "$APP"
+
+# Freeze the status bar. Every shot includes it, and the clock reads wall time,
+# so without this no two runs can ever produce the same pixels no matter how
+# deterministic the app is - which is what hid the layout bug above: the whole
+# set changed on every run anyway, so one screen quietly changing layout looked
+# like more of the same noise. 9:41 is Apple's own convention.
+xcrun simctl status_bar "$UDID" override \
+  --time "9:41" --batteryState charged --batteryLevel 100 \
+  --cellularBars 4 --wifiBars 3 --dataNetwork wifi >/dev/null 2>&1 || true
 
 shoot() {
   local name="$1"; shift
@@ -97,9 +133,14 @@ shoot 11-connect-why       -demo -screen connect
 shoot 12-connect-app       -demo -screen connect -connectStep createApp
 shoot 13-connect-id        -demo -screen connect -connectStep clientID
 
-# The library has three layouts and only its default is shot above. The two-up
-# is the one worth a second look: it is the density the first redesign measured
-# and rejected, kept as an option.
+# The library has three layouts. `01-playlists` above is the only shot that
+# passes no `-layout` at all, which is deliberate: it is the one that proves what
+# the default resolves to (two-up, ADR-0009). Every other library shot names its
+# layout, so no shot's appearance depends on the order the set is taken in.
+#
+# This one is now the same layout as `01` and is kept because it is the only
+# place the pair can be compared once the others start varying text size and
+# Appearance.
 shoot 14-playlists-two-up  -demo -screen playlists -layout grid2
 
 shoot 15-settings          -demo -screen settings
@@ -112,7 +153,7 @@ echo "==> largest text size"
 xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
 shoot 17-tracks-large-text       -demo -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 18-track-detail-large-text -demo -screen tracks -playlist demo-longrun -sheet track -track 0
-shoot 19-playlists-large-text    -demo -screen playlists
+shoot 19-playlists-large-text    -demo -screen playlists -layout grid2
 
 # ─── One step into the accessibility sizes ───────────────────────────────────
 # Both screens take their stacked layout from here on, and this is the smallest
@@ -121,7 +162,7 @@ shoot 19-playlists-large-text    -demo -screen playlists
 echo "==> accessibility-large"
 xcrun simctl ui "$UDID" content_size accessibility-large
 shoot 20-track-detail-stacked -demo -screen tracks -playlist demo-longrun -sheet track -track 0
-shoot 21-playlists-stacked    -demo -screen playlists
+shoot 21-playlists-stacked    -demo -screen playlists -layout grid2
 xcrun simctl ui "$UDID" content_size medium
 
 # ─── Dark ────────────────────────────────────────────────────────────────────
@@ -129,7 +170,7 @@ xcrun simctl ui "$UDID" content_size medium
 # (ADR-0006) and the bars are drawn against a different surface.
 echo "==> dark appearance"
 xcrun simctl ui "$UDID" appearance dark
-shoot 22-dark-playlists    -demo -screen playlists
+shoot 22-dark-playlists    -demo -screen playlists -layout grid2
 shoot 23-dark-tracks       -demo -screen tracks -playlist demo-longrun -arrangement bpm-descending
 shoot 24-dark-track-detail -demo -screen tracks -playlist demo-longrun -sheet track -track 0
 shoot 25-dark-connect      -demo -screen connect -connectStep createApp
@@ -157,7 +198,7 @@ shoot 26-tracks-scrolled -demo -screen tracks -playlist demo-longrun -scrolled 2
 shoot 27-tracks-pinned -demo -screen tracks -playlist demo-longrun -scrolled 700
 shoot 28-track-detail-scrolled -demo -screen tracks -playlist demo-longrun -sheet track -track 0 -scrolled 120
 xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
-shoot 29-playlists-scrolled -demo -screen playlists -scrolled 420
+shoot 29-playlists-scrolled -demo -screen playlists -layout grid2 -scrolled 420
 xcrun simctl ui "$UDID" content_size medium
 
 # ─── Withheld ────────────────────────────────────────────────────────────────

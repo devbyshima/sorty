@@ -124,6 +124,7 @@ struct TopBarButton: View {
                 .font(.headline)
                 .frame(width: side, height: side)
                 .glassEffect(.regular.interactive(), in: .circle)
+                .glassEdge(in: .circle)
                 .contentShape(.circle)
         }
         .buttonStyle(.plain)

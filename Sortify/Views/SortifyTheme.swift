@@ -87,6 +87,45 @@ enum SortifyTheme {
     }
 
     static var separator: Color { hairline }
+
+    /// The edge a glass surface needs in light and barely needs in dark.
+    ///
+    /// **Measured, from the harness set.** A chip at rest composites to
+    /// L\* 97.3 on a light field of L\* 96.3, and to L\* 15.2 on a dark field of
+    /// L\* 3.6: one step of separation in light against about twelve in dark.
+    /// Liquid Glass lifts off its background by *lightening*, and a near-white
+    /// field gives it nowhere to lift to, so in light the capsules read as
+    /// floating labels rather than as things to press.
+    ///
+    /// This is the rule the rest of this file already states - light carries
+    /// elevation with edges where dark carries it with luminance - applied to
+    /// the one family of surfaces that never got one. It is deliberately not
+    /// the 3:1 boundary WCAG 1.4.11 would ask of a control identified *by* its
+    /// outline: these are identified by their label, which clears AA, and by an
+    /// accent fill when applied, which is unmistakable in both Appearances. The
+    /// edge is here to make a capsule read as an object, not to carry meaning,
+    /// and an outline heavy enough for 3:1 would turn a delicate row of chips
+    /// into a row of bordered buttons.
+    static var glassEdge: Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(white: 1, alpha: 0.06)
+                : UIColor(white: 0, alpha: 0.12)
+        })
+    }
+}
+
+extension View {
+    /// Draws `SortifyTheme.glassEdge` around a glass surface.
+    ///
+    /// Every `.glassEffect` in the app is followed by one of these, in the same
+    /// shape, so that a capsule and a circle are edged the same way and no
+    /// call site decides how much edge it wants. `strokeBorder` rather than
+    /// `stroke`: an inset border stays inside the material instead of
+    /// straddling it and reading a pixel wider than the shape it traces.
+    func glassEdge(in shape: some InsettableShape) -> some View {
+        overlay(shape.strokeBorder(SortifyTheme.glassEdge, lineWidth: 1))
+    }
 }
 
 /// The Appearance the user has chosen, which may be "whatever the device says".
