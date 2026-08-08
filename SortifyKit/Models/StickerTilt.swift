@@ -6,27 +6,24 @@ import Foundation
 /// The brief was that the cover should behave like a sticker: something
 /// physical sitting on the surface that presses in under a fingertip, tips away
 /// from it, and springs flat when released. That is a geometry problem rather
-/// than a rendering one - where the finger is, how far the thing leans, and
-/// where the light lands - so it is resolved here where it can be asserted, and
-/// the view only applies the numbers.
+/// than a rendering one - where the finger is and how far the thing leans - so
+/// it is resolved here where it can be asserted, and the view only applies the
+/// numbers.
+///
+/// It used to carry a third number, the point the highlight travelled to. The
+/// highlight was an overlay on Spotify's artwork and ADR-0012 removed it, so the
+/// number went with it rather than staying as a value nothing reads.
 public struct StickerTilt: Equatable, Sendable {
     /// Degrees about the horizontal axis. Positive tips the top away.
     public let pitch: Double
     /// Degrees about the vertical axis. Positive tips the right edge away.
     public let yaw: Double
-    /// Where the highlight sits, as a unit point across the cover. Travels
-    /// opposite the lean, the way a sheen on a real surface stays put while the
-    /// surface turns under it.
-    public let sheen: CGPoint
+    /// Flat. What Reduce Motion gets, and what a released cover springs back to.
+    public static let resting = StickerTilt(pitch: 0, yaw: 0)
 
-    /// Flat, lit from the middle. What Reduce Motion gets, and what a released
-    /// cover springs back to.
-    public static let resting = StickerTilt(pitch: 0, yaw: 0, sheen: CGPoint(x: 0.5, y: 0.5))
-
-    public init(pitch: Double, yaw: Double, sheen: CGPoint) {
+    public init(pitch: Double, yaw: Double) {
         self.pitch = pitch
         self.yaw = yaw
-        self.sheen = sheen
     }
 
     /// The lean produced by a touch at `point` within a cover of `size`.
@@ -49,8 +46,7 @@ public struct StickerTilt: Equatable, Sendable {
             // Pressing the top of a sticker pushes the top *away*, so the sign
             // is inverted against the vertical axis.
             pitch: -v * 2 * maxAngle,
-            yaw: u * 2 * maxAngle,
-            sheen: CGPoint(x: 0.5 - u, y: 0.5 - v)
+            yaw: u * 2 * maxAngle
         )
     }
 

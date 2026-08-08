@@ -72,12 +72,11 @@ struct StickerTiltTests {
 
     private let size = CGSize(width: 300, height: 300)
 
-    @Test("The centre is flat and lit from the middle")
+    @Test("The centre is flat")
     func centreIsResting() {
         let tilt = StickerTilt.at(point: CGPoint(x: 150, y: 150), in: size)
         #expect(abs(tilt.pitch) < 0.001)
         #expect(abs(tilt.yaw) < 0.001)
-        #expect(abs(tilt.sheen.x - 0.5) < 0.001)
     }
 
     /// Pressing the top of a sticker pushes the top away, not towards you. The
@@ -97,15 +96,6 @@ struct StickerTiltTests {
         let left = StickerTilt.at(point: CGPoint(x: 0, y: 150), in: size)
         #expect(right.yaw > 0)
         #expect(left.yaw < 0)
-    }
-
-    /// The sheen stays where the light is while the surface turns under it, so
-    /// it travels opposite the finger.
-    @Test("The sheen moves opposite the touch")
-    func sheenOpposesTheTouch() {
-        let topLeft = StickerTilt.at(point: CGPoint(x: 0, y: 0), in: size)
-        #expect(topLeft.sheen.x > 0.5)
-        #expect(topLeft.sheen.y > 0.5)
     }
 
     /// A drag that continues past the edge must not wind up to an angle the

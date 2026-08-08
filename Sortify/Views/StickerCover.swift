@@ -2,10 +2,16 @@ import SwiftUI
 
 /// A cover that behaves like a sticker.
 ///
-/// It presses in where the finger lands, leans away from it, carries a sheen
-/// that stays put while the surface turns under it, and springs flat with a
-/// little overshoot when released. The geometry is `StickerTilt` in SortifyKit;
-/// this applies it.
+/// It presses in where the finger lands, leans away from it, and springs flat
+/// with a little overshoot when released. The geometry is `StickerTilt` in
+/// SortifyKit; this applies it.
+///
+/// **There is no sheen, and that is a compliance decision rather than a taste
+/// one.** It used to carry a radial highlight that stayed put while the surface
+/// turned under it, which is what made the lean read as a physical surface.
+/// Spotify's design guidelines say artwork "must be kept in its original form"
+/// and that this "includes applying overlays", and a highlight blended over the
+/// cover is an overlay. ADR-0012 removed it and kept the lean.
 ///
 /// **Why a gesture recogniser rather than `DragGesture`.** `DragGesture`
 /// defaults to a `minimumDistance` of 10, so a finger placed and held without
@@ -27,13 +33,6 @@ struct StickerCover: View {
         GeometryReader { proxy in
             CoverImage(images: images)
                 .clipShape(.rect(cornerRadius: cornerRadius))
-                .overlay {
-                    if !reduceMotion {
-                        sheen
-                            .clipShape(.rect(cornerRadius: cornerRadius))
-                            .allowsHitTesting(false)
-                    }
-                }
                 // Applied in this order on purpose: the press scales the whole
                 // thing, then the lean turns it. Reversed, the scale would be
                 // measured in the rotated frame and the cover would appear to
@@ -44,19 +43,6 @@ struct StickerCover: View {
                 .gesture(touch(in: proxy.size), isEnabled: !reduceMotion)
         }
         .aspectRatio(1, contentMode: .fit)
-    }
-
-    /// A soft highlight rather than a graphic. It reads as the material the
-    /// cover is printed on catching the light, which is what makes the lean
-    /// feel like a physical surface rather than a rotated rectangle.
-    private var sheen: some View {
-        RadialGradient(
-            colors: [.white.opacity(isPressed ? 0.28 : 0), .clear],
-            center: UnitPoint(x: tilt.sheen.x, y: tilt.sheen.y),
-            startRadius: 0,
-            endRadius: 260
-        )
-        .blendMode(.plusLighter)
     }
 
     private func touch(in size: CGSize) -> some Gesture {
