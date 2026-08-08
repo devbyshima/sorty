@@ -208,7 +208,7 @@ struct PlaylistsView: View {
                     )
                     .contentShape(.rect)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressableRow)
             }
         }
         .padding(.horizontal, 16)
@@ -226,7 +226,7 @@ struct PlaylistsView: View {
                     )
                     .contentShape(.rect)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressableRow)
             }
         }
     }

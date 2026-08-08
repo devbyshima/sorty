@@ -205,6 +205,29 @@ struct TrackListView: View {
         return true
     }
 
+    /// Which branch of `content` is on screen, as something `.animation` can
+    /// compare.
+    ///
+    /// `TrackListModel.Phase` is not `Equatable`, and making it so would not be
+    /// enough anyway: `.loading(loaded:total:)` carries a progress count that
+    /// changes with every page, so animating on the phase itself would re-run
+    /// the cross-fade all the way through a load. Applying an Arrangement stays
+    /// `.ready` throughout and so triggers nothing here, which is the point -
+    /// the reorder has its own spring and must not be faded over.
+    private enum ContentKind: Equatable {
+        case loading, failed, empty, unavailable, ready
+    }
+
+    private var contentKind: ContentKind {
+        switch model.phase {
+        case .idle, .loading: .loading
+        case .failed: .failed
+        case .empty: .empty
+        case .unavailable: .unavailable
+        case .ready: .ready
+        }
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             cover
@@ -398,6 +421,17 @@ struct TrackListView: View {
         }
     }
 
+    /// How the save circle's contents come and go.
+    ///
+    /// Never `scale(0)`: nothing in the real world appears from nothing, so the
+    /// glyph and the spinner arrive at 0.92 rather than from a point. Under
+    /// Reduce Motion the scale is dropped and the cross-fade kept, because
+    /// opacity is not movement and taking the feedback away entirely would be
+    /// worse than the animation was.
+    private var saveGlyphTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92))
+    }
+
     /// **Why this glyph.** `square.and.arrow.down`, the obvious choice, does not
     /// sit right in a circle: the arrow's tail extends above the square, so the
     /// symbol's layout box is taller than its ink. SwiftUI centres the box, which
@@ -412,19 +446,29 @@ struct TrackListView: View {
     /// diameter, so the material goes on directly.
     ///
     /// The spinner is swapped in place, so the circle keeps its size while
-    /// saving and nothing on the screen shifts.
+    /// saving and nothing on the screen shifts. The swap itself is bridged: the
+    /// two are different shapes at different weights, and cutting between them
+    /// inside a fixed circle reads as the button being replaced rather than as
+    /// the same button working.
     private func saveGlyph(isArmed: Bool) -> some View {
         ZStack {
             if model.saveStatus == .saving {
-                ProgressView().controlSize(.small)
+                ProgressView()
+                    .controlSize(.small)
+                    .transition(saveGlyphTransition)
             } else {
                 Image(systemName: "arrow.down.to.line")
                     .font(.title3.weight(.semibold))
                     // On tinted glass the mark is the accent's foreground; on
                     // clear glass there is nothing to sit on, so it stays quiet.
                     .foregroundStyle(isArmed ? AnyShapeStyle(SortifyTheme.onAccent) : AnyShapeStyle(.secondary))
+                    .transition(saveGlyphTransition)
             }
         }
+        // Compared as a Bool rather than on `saveStatus` itself: `.created`,
+        // `.updated` and `.failed` carry messages and all three mean the same
+        // thing to this circle, which is "not spinning".
+        .animation(.easeOut(duration: 0.2), value: model.saveStatus == .saving)
         // Square, so the capsule the glass is drawn in is a true circle.
         .frame(width: saveDiameter, height: saveDiameter)
         .glassEffect(
@@ -445,42 +489,62 @@ struct TrackListView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch model.phase {
-        case .idle, .loading:
-            loadingState
+        // A short cross-fade, and nothing more. This screen is opened often, so
+        // the bridge has to be quick enough not to register as motion: a list
+        // that assembles itself, or rows that arrive one after another, reads as
+        // polish once and as lag every time after.
+        Group {
+            switch model.phase {
+            case .idle, .loading:
+                loadingState
+                    .transition(.opacity)
 
-        case .failed(let message):
-            // No Try Again where trying again cannot work: a rule that refused
-            // this request will refuse the next one identically, and a button
-            // that only ever reproduces the same refusal is worse than none.
-            ErrorRow(
-                message: message,
-                retry: model.canRetryLoad ? { Task { await model.load() } } : nil
-            )
-            .padding(16)
+            case .failed(let message):
+                // No Try Again where trying again cannot work: a rule that refused
+                // this request will refuse the next one identically, and a button
+                // that only ever reproduces the same refusal is worse than none.
+                ErrorRow(
+                    message: message,
+                    retry: model.canRetryLoad ? { Task { await model.load() } } : nil
+                )
+                .padding(16)
+                .transition(.opacity)
 
-        case .empty:
-            EmptyStateView(state: .playlistEmpty)
-                .padding(.top, 40)
+            case .empty:
+                EmptyStateView(state: .playlistEmpty)
+                    .padding(.top, 40)
+                    .transition(.opacity)
 
-        case .unavailable(let state):
-            // A rule, not a failure, so it gets the empty-state treatment and
-            // the way out the state names: Spotify, where this playlist can be
-            // opened and its tracks added to one of the listener's own.
-            EmptyStateView(state: state) {
-                if let url = URL(string: model.playlist.uri) { openURL(url) }
-            }
-            .padding(.top, 40)
-
-        case .ready:
-            if model.arrangedRows.isEmpty, model.filter.isActive {
-                EmptyStateView(state: .filterHidesEverything(total: model.rows.count)) {
-                    model.filter = BPMFilter(includeDoubled: model.filter.includeDoubled)
+            case .unavailable(let state):
+                // A rule, not a failure, so it gets the empty-state treatment and
+                // the way out the state names: Spotify, where this playlist can be
+                // opened and its tracks added to one of the listener's own.
+                EmptyStateView(state: state) {
+                    if let url = URL(string: model.playlist.uri) { openURL(url) }
                 }
                 .padding(.top, 40)
-            } else {
-                list
+                .transition(.opacity)
+
+            case .ready:
+                readyContent
+                    .transition(.opacity)
             }
+        }
+        .animation(.easeOut(duration: 0.18), value: contentKind)
+    }
+
+    /// Split out so the `.ready` branch is one view with one transition, rather
+    /// than a nested `if` whose two halves would cross-fade against each other
+    /// every time the tempo filter empties the list and fills it again.
+    @ViewBuilder
+    private var readyContent: some View {
+        if model.arrangedRows.isEmpty, model.filter.isActive {
+            EmptyStateView(state: .filterHidesEverything(total: model.rows.count)) {
+                model.filter = BPMFilter(includeDoubled: model.filter.includeDoubled)
+            }
+            .padding(.top, 40)
+        } else {
+            list
         }
     }
 
@@ -536,7 +600,7 @@ struct TrackListView: View {
             )
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableRow)
         // The row already speaks as one sentence; this only says what happens
         // if you activate it.
         .accessibilityHint("Opens every attribute for this track.")
