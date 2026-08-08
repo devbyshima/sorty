@@ -60,8 +60,14 @@ struct CoverImage: View {
                         .interpolation(.high)
                         .antialiased(true)
                         .scaledToFill()
+                        // Both branches carry it, or the spinner vanishes on the
+                        // first frame while the artwork is still fading in
+                        // behind it. Whether this plays at all is decided in
+                        // `load`, not here.
+                        .transition(.opacity)
                 } else if url != nil {
                     ProgressView()
+                        .transition(.opacity)
                 }
             }
             .task(id: key) { await load(key) }
@@ -77,9 +83,28 @@ struct CoverImage: View {
         }
         guard let url = key.url, key.pixels > 0 else { return }
 
+        let started = ContinuousClock.now
         let resolved = await CoverImageLoader.shared.image(for: url, pixels: key.pixels)
         guard !Task.isCancelled else { return }
-        image = resolved
-        loadedFor = key
+
+        // Only a wait somebody saw is worth bridging.
+        //
+        // `CoverImageLoader` deliberately holds no decoded fetched covers, so a
+        // recycled cell re-resolves from the byte cache in a frame or two.
+        // Fading *that* would make the whole library shimmer every time it
+        // scrolled, which is worse than the pop this is here to remove. Below
+        // the threshold the spinner never really registered and the artwork
+        // should simply be there.
+        let wasWaited = ContinuousClock.now - started > .milliseconds(100)
+
+        if wasWaited {
+            withAnimation(.easeOut(duration: 0.18)) {
+                image = resolved
+                loadedFor = key
+            }
+        } else {
+            image = resolved
+            loadedFor = key
+        }
     }
 }

@@ -45,19 +45,36 @@ struct RootView: View {
         }
     }
 
+    /// The stage change is what has to be animated, not the views.
+    ///
+    /// A `.transition` only plays when something animates the value that swapped
+    /// the views, and `SessionModel` assigns `stage` bare in six places. So the
+    /// `.transition(.opacity)` below sat here doing nothing, and the three
+    /// screens cut between each other - including `ConnectingView`, which spends
+    /// 0.45s settling its mark in and then vanished in a frame. Its own comment
+    /// promises the launch, the connect screen and the library are "one
+    /// continuous move rather than three flashes".
+    ///
+    /// Opacity only, so there is nothing to gate on Reduce Motion: a cross-fade
+    /// is already the reduced-motion form of this.
     @ViewBuilder
     private var sessionContent: some View {
-        switch session.stage {
-        case .connecting:
-            ConnectingView()
+        Group {
+            switch session.stage {
+            case .connecting:
+                ConnectingView()
+                    .transition(.opacity)
 
-        case .signedOut:
-            SignedOutView(onConnect: { showingConnect = true })
-                .transition(.opacity)
+            case .signedOut:
+                SignedOutView(onConnect: { showingConnect = true })
+                    .transition(.opacity)
 
-        case .ready:
-            library
+            case .ready:
+                library
+                    .transition(.opacity)
+            }
         }
+        .animation(.easeOut(duration: 0.25), value: session.stage)
     }
 
     private var library: some View {
