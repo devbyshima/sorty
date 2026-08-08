@@ -5,7 +5,7 @@ import ImageIO
 /// Resolves cover artwork from a URL, whoever the listener is.
 ///
 /// Demo covers are drawn on device and real ones are fetched, and the URL alone
-/// decides which — `DemoArtwork.Request` claims a demo cover and nothing else.
+/// decides which - `DemoArtwork.Request` claims a demo cover and nothing else.
 /// Keeping that decision here rather than in the view is what makes it
 /// testable: `SortifyKit` is what the test target compiles.
 ///
@@ -39,6 +39,12 @@ public actor CoverImageLoader {
     }
 
     public func image(for url: URL, pixels: Int) async -> CGImage? {
+        #if !DEBUG
+        // No demo covers exist in a shipped build, so nothing can produce a URL
+        // this branch would claim. Compiling the generator in anyway would be
+        // shipping a demo path that only dead code can reach - see ADR-0007.
+        return await Self.fetch(url)
+        #else
         guard let request = DemoArtwork.Request(url: url) else {
             return await Self.fetch(url)
         }
@@ -64,6 +70,7 @@ public actor CoverImageLoader {
             evictIfNeeded()
         }
         return result
+        #endif
     }
 
     private func touch(_ key: Key) {

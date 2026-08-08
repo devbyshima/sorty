@@ -43,8 +43,8 @@ struct SaveSplitTests {
     ///
     /// A 68-track playlist narrowed to 20 by a tempo filter and overwritten used
     /// to be replaced on the listener's real account with those 20 tracks, with
-    /// no undo and no dialog. The guarantee is now structural — overwrite is
-    /// never handed a list at all — and this is what holds it there.
+    /// no undo and no dialog. The guarantee is now structural - overwrite is
+    /// never handed a list at all - and this is what holds it there.
     @Test("Overwrite writes every track in the playlist even with a filter active")
     func overwriteIgnoresTheFilter() async {
         let (model, service) = await loadedModel()
@@ -76,7 +76,7 @@ struct SaveSplitTests {
         let written = await service.writes.first?.uris
         #expect(
             written == (0..<8).reversed().map { "spotify:track:t\($0)" },
-            "the whole playlist, but arranged — overwrite reorders, it doesn't restore"
+            "the whole playlist, but arranged - overwrite reorders, it doesn't restore"
         )
     }
 
@@ -206,7 +206,7 @@ struct SaveSplitTests {
     }
 
     /// Filtering everything away leaves the subset path nothing to create, but
-    /// overwrite is untouched by it — a filter can't empty what it never sees.
+    /// overwrite is untouched by it - a filter can't empty what it never sees.
     @Test("A filter that hides everything blocks only the path that would obey it")
     func emptySubsetBlocksOnlyTheSubsetPath() async {
         let (model, service) = await loadedModel()
@@ -227,7 +227,7 @@ struct SaveSplitTests {
     }
 
     /// Demo Mode produces Arrangements and saves none of them. Both actions go
-    /// dark rather than one — and this is the gate ticket 11's guided connect
+    /// dark rather than one - and this is the gate ticket 11's guided connect
     /// flow will hang off, so it is worth pinning before it has a second reader.
     @Test("Demo Mode arms neither path")
     func demoModeArmsNothing() async {
@@ -257,7 +257,7 @@ struct SaveSplitTests {
         await overwriter.overwrite()
 
         #expect(
-            overwriter.saveStatus == .updated("Updated “Test Playlist” — 8 tracks by decreasing BPM."),
+            overwriter.saveStatus == .updated("Updated “Test Playlist” with 8 tracks by decreasing BPM."),
             "the count reported is the count written, filter or no filter"
         )
 
@@ -268,7 +268,7 @@ struct SaveSplitTests {
 
         #expect(
             creator.saveStatus
-                == .created("Created “Test Playlist ordered by decreasing BPM” — 3 tracks by decreasing BPM.")
+                == .created("Created “Test Playlist ordered by decreasing BPM” with 3 tracks by decreasing BPM.")
         )
     }
 
@@ -289,7 +289,7 @@ struct SaveSplitTests {
         #expect(model.saveActions.contains { $0.kind == .newPlaylist && $0.isEnabled })
     }
 
-    /// A failed save must leave the screen able to try again — the gate is
+    /// A failed save must leave the screen able to try again - the gate is
     /// derived from what Spotify actually holds, and a write that threw changed
     /// nothing there.
     @Test("A failed save leaves Save armed to retry")

@@ -52,7 +52,22 @@ targets:
       path: Sortify/App/Info.plist
       properties:
         CFBundleDisplayName: Sortify
-        UILaunchScreen: {}
+        # Not empty any more, and not a brand card either.
+        #
+        # The Human Interface Guidelines prohibit a branded launch screen: it
+        # "isn't an opportunity for artistic expression", and logos are excluded
+        # "unless they're a fixed part of your app's first screen". The whole
+        # vocabulary available here is a colour, an image, a safe-area flag and
+        # empty bars - no text, no layout, no animation.
+        #
+        # So the sanctioned job is to *resemble the first screen*, making the
+        # handoff invisible rather than a flash. `LaunchBackground` is
+        # `SortifyTheme.background` in both Appearances, which is exactly what
+        # the library renders on. An empty dictionary here would still satisfy
+        # TN3208's upload requirement, but it would flash white into a tinted
+        # screen, and near-white into a near-black one.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
         ITSAppUsesNonExemptEncryption: false
         # PKCE callback. Must be registered verbatim in the Spotify dashboard.
         CFBundleURLTypes:

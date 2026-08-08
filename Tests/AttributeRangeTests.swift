@@ -54,7 +54,7 @@ struct AttributeRangeTests {
 
     /// Alphabetical order is a sequence, not a scale: "how far through the
     /// alphabet" measures nothing, so there is no line for a title to sit on.
-    @Test("Title and artist have no range — there is no line to sit on")
+    @Test("Title and artist have no range - there is no line to sit on")
     func alphabeticalAttributesHaveNoRange() {
         for attribute in [Attribute.title, .artist] {
             #expect(AttributeRange(attribute: attribute, rows: rows([100, 140])) == nil, "\(attribute)")
@@ -110,14 +110,14 @@ struct AttributeRangeTests {
         #expect(range?.fraction(for: tracks[2]) == 0.5)
     }
 
-    @Test("A track with no value has no fraction — an absent measurement is not a low one")
+    @Test("A track with no value has no fraction - an absent measurement is not a low one")
     func missingValueHasNoFraction() {
         let tracks = rows([100, nil, 200])
         let range = AttributeRange(attribute: .bpm, rows: tracks)
         #expect(range?.fraction(for: tracks[1]) == nil)
     }
 
-    @Test("Negative scales work — loudness is decibels below zero")
+    @Test("Negative scales work - loudness is decibels below zero")
     func negativeValuesFraction() {
         let tracks = [-20.0, -4.0, -12.0].enumerated().map { index, loudness in
             TrackRow(

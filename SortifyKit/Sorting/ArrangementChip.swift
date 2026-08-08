@@ -17,7 +17,7 @@ public struct ArrangementChip: Identifiable, Sendable, Hashable {
     /// True for the five that never move; false for a trailing off-piste chip.
     public let isPinned: Bool
     /// Shuffle, once applied, re-rolls from a control of its own rather than
-    /// from the direction gesture — so tapping a chip twice always means the
+    /// from the direction gesture - so tapping a chip twice always means the
     /// same thing whatever the chip is.
     public let showsReroll: Bool
     /// What tapping the chip body applies. For the active chip this flips the

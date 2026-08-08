@@ -156,7 +156,14 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
         return !isPersonalized
     }
 
+    /// Every size this playlist's cover comes in, for a view that knows how big
+    /// it is drawing.
+    public var artworkImages: [SpotifyImage] { images ?? [] }
+
     /// Picks the smallest image that is still sharp at card size on retina.
+    ///
+    /// Sized for a card. The playlist screen draws its cover far larger and
+    /// resolves from `artworkImages` instead.
     public var cardImageURL: URL? {
         guard let images, !images.isEmpty else { return nil }
         if images.count == 1 { return URL(string: images[0].url) }
@@ -166,6 +173,44 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
             .sorted { ($0.width ?? 0) < ($1.width ?? 0) }
         let match = sized.first { ($0.width ?? 0) >= minSize && ($0.height ?? 0) >= minSize }
         return URL(string: (match ?? images[0]).url)
+    }
+}
+
+extension Array where Element == SpotifyImage {
+
+    /// The smallest cover that is still sharp at `pixels`, or the largest there
+    /// is when nothing reaches it.
+    ///
+    /// Spotify offers each cover at 640, 300 and 64. The old accessors asked
+    /// for a fixed floor - 160 for a track, 300 for a playlist card - which was
+    /// right when every cover on screen was a 44pt thumbnail and wrong the
+    /// moment one became the subject of a screen: a 300pt cover on a 3x display
+    /// needs 900 pixels and was being handed 300, which is visibly soft. Asking
+    /// for the size actually being drawn is the only version of this that stays
+    /// correct as layouts change.
+    ///
+    /// Still the *smallest* that suffices, not simply the largest: a 44pt row
+    /// thumbnail has no use for 640 pixels, and a scrolling list of them would
+    /// pay for every one.
+    public func url(coveringPixels pixels: Int) -> URL? {
+        guard !isEmpty else { return nil }
+
+        let sized = filter { $0.width != nil }.sorted { ($0.width ?? 0) < ($1.width ?? 0) }
+        guard !sized.isEmpty else { return URL(string: self[0].url) }
+
+        let match = sized.first { ($0.width ?? 0) >= pixels } ?? sized[sized.count - 1]
+        return URL(string: match.url)
+    }
+
+    /// The widest cover on offer, in points at this display scale.
+    ///
+    /// A view drawing a cover larger than this is upscaling, and no choice of
+    /// file will fix it: there is no bigger one. Worth asking before committing
+    /// to a size.
+    public func maximumPointWidth(scale: CGFloat) -> CGFloat? {
+        let widest = compactMap(\.width).max()
+        guard let widest, scale > 0 else { return nil }
+        return CGFloat(widest) / scale
     }
 }
 
@@ -217,7 +262,7 @@ public enum PlayableKind: String, Codable, Sendable {
     case track, episode
 }
 
-/// A track *or* a podcast episode — playlists can hold both.
+/// A track *or* a podcast episode - playlists can hold both.
 public struct Playable: Codable, Sendable, Hashable {
     public let id: String?
     public let name: String
@@ -226,7 +271,7 @@ public struct Playable: Codable, Sendable, Hashable {
     public let popularity: Int?
     public let artists: [TrackArtist]?
     public let album: TrackAlbum?
-    /// Episodes carry their own artwork — they belong to a show, not an album,
+    /// Episodes carry their own artwork - they belong to a show, not an album,
     /// so there is no album to read it from. Tracks leave this nil and resolve
     /// through `album`.
     public let images: [SpotifyImage]?
@@ -262,9 +307,17 @@ public struct Playable: Codable, Sendable, Hashable {
     public var isEpisode: Bool { type == .episode }
     public var primaryArtistName: String? { artists?.first?.name }
 
+    /// Every size of this track's cover, its own if it has any and its album's
+    /// otherwise. The view picks the one it needs once it knows how big it is
+    /// drawing.
+    public var coverImages: [SpotifyImage] { images ?? album?.images ?? [] }
+
     /// Cover artwork for this track or episode: its own if it has any, else its
     /// album's. One accessor so a row never has to know which kind it is
     /// holding.
+    ///
+    /// Sized for a row thumbnail. Anything drawing a cover larger than that
+    /// should resolve from `coverImages` at the size it is actually drawing.
     public var coverImageURL: URL? {
         let candidates = images ?? album?.images
         guard let candidates, !candidates.isEmpty else { return nil }

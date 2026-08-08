@@ -6,7 +6,7 @@ import Foundation
 /// distinguish these actions are both rules worth asserting: **what each one is
 /// allowed to write** (ADR-0002) and **whether it has anything to write yet**.
 /// The count in "Save These 20 as a New Playlist" is the first of those made
-/// visible at the moment of choosing — the difference from the whole playlist,
+/// visible at the moment of choosing - the difference from the whole playlist,
 /// stated before the write rather than discovered after it.
 public struct SaveAction: Identifiable, Sendable, Hashable {
     /// Not a Bool and not a payload flag. The two kinds are two code paths, and

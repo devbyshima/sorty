@@ -73,7 +73,7 @@ struct TrackListModelTests {
         #expect(!model.canSave, "back to the arrangement that's on Spotify, so there's nothing to save")
     }
 
-    /// Drives the model the way the screen does — through the chip row — so the
+    /// Drives the model the way the screen does - through the chip row - so the
     /// composition in `ArrangementChip` and its effect on the playlist are
     /// asserted together rather than separately.
     private func tap(_ basis: Arrangement.Basis, on model: TrackListModel) {
@@ -292,7 +292,7 @@ struct TrackListModelTests {
 
     /// The invariant behind the whole group: using Sortify must never cost a
     /// listener tracks, so a track the provider had nothing for is still
-    /// written back — appended at the end, not dropped.
+    /// written back - appended at the end, not dropped.
     @Test("Unrankable tracks are saved too, appended after the ranked ones")
     func unrankableTracksAreStillSaved() async {
         var table = sampleFeatures(count: 8)
@@ -382,7 +382,7 @@ struct DemoCatalogTests {
     }
 
     /// Every entry, episodes included. An episode has no album to read artwork
-    /// from, so it carries its own — without that, the artwork row in ticket 03
+    /// from, so it carries its own - without that, the artwork row in ticket 03
     /// would have a hole in exactly the place this catalogue exists to exercise.
     @Test("Every demo entry resolves cover artwork, tracks and episodes alike")
     func everyEntryHasArtwork() {

@@ -5,8 +5,8 @@ import Foundation
 /// The same shape as `TrackRowText`, and here for the same reason: what a row
 /// *says* is a set of rules, and one of these rules is load-bearing. The badge
 /// marking a playlist Sortify can't write to is derived from
-/// `Playlist.isWritable(byUserID:)` — the very predicate that later decides
-/// whether Overwrite is offered — so the list cannot promise something the next
+/// `Playlist.isWritable(byUserID:)` - the very predicate that later decides
+/// whether Overwrite is offered - so the list cannot promise something the next
 /// screen withdraws.
 public struct PlaylistRowText: Equatable, Sendable {
     /// Why a row carries a mark. Two conditions, not one: a playlist can be
@@ -15,7 +15,7 @@ public struct PlaylistRowText: Equatable, Sendable {
     public enum Badge: String, Sendable, Hashable, Identifiable, CaseIterable {
         /// Other listeners can add to it, so its contents move under you.
         case collaborative
-        /// Sortify can't write to it — which is why Overwrite won't be there
+        /// Sortify can't write to it - which is why Overwrite won't be there
         /// when you open it. Said here rather than discovered there.
         case readOnly
 

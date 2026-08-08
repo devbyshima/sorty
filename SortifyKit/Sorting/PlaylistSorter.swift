@@ -4,7 +4,7 @@ import Foundation
 public struct BPMFilter: Sendable, Hashable {
     public var minBPM: Int?
     public var maxBPM: Int?
-    /// Also match tracks whose BPM *doubled* lands in range — a 70 BPM track and
+    /// Also match tracks whose BPM *doubled* lands in range - a 70 BPM track and
     /// a 140 BPM track often feel like the same tempo on the floor, and tempo
     /// detectors routinely halve one or double the other.
     public var includeDoubled: Bool
@@ -26,8 +26,8 @@ public struct BPMFilter: Sendable, Hashable {
         }
     }
 
-    /// Rows with no BPM at all — episodes, or tracks the feature provider had
-    /// nothing for — always pass, so filtering never silently drops them.
+    /// Rows with no BPM at all - episodes, or tracks the feature provider had
+    /// nothing for - always pass, so filtering never silently drops them.
     public func accepts(_ row: TrackRow) -> Bool {
         guard isActive else { return true }
         guard let bpmValue = row.numericValue(for: .bpm) else { return true }
@@ -112,8 +112,8 @@ public enum PlaylistSorter {
     /// Splits an arranged playlist into what the Arrangement could place and
     /// what it couldn't, each part in arrangement order.
     ///
-    /// The unrankable ones already sank to the bottom — nil sinks in both
-    /// directions — but they did it silently, showing a dash. Naming them is
+    /// The unrankable ones already sank to the bottom - nil sinks in both
+    /// directions - but they did it silently, showing a dash. Naming them is
     /// what turns a run of blank rows from "the app is broken" into "the
     /// provider had nothing for these".
     public static func partition(

@@ -22,7 +22,7 @@ struct ArrangementTests {
         #expect(Set(Arrangement.all).count == Arrangement.all.count)
     }
 
-    @Test("Reversing original order is representable — the # header still flips")
+    @Test("Reversing original order is representable - the # header still flips")
     func originalOrderReverses() {
         #expect(Arrangement.originalOrder.reversed == .attribute(.order, .descending))
         #expect(Arrangement.originalOrder.reversed != Arrangement.originalOrder)
@@ -66,7 +66,7 @@ struct ArrangementTests {
         #expect(Attribute.allCases.count == 13)
     }
 
-    @Test("Explanation copy has one source — a Basis defers to its Attribute")
+    @Test("Explanation copy has one source - a Basis defers to its Attribute")
     func explanationIsNotDuplicated() {
         for attribute in Attribute.allCases {
             #expect(Arrangement.Basis.attribute(attribute).explanation == attribute.explanation)

@@ -5,7 +5,7 @@ import QuartzCore
 /// Measures what a reorder actually costs, so `ReorderAnimation.rowLimit` is a
 /// number that was taken rather than chosen.
 ///
-/// Runs on a **device**. Simulator frame timing is the Mac's — a reorder that
+/// Runs on a **device**. Simulator frame timing is the Mac's - a reorder that
 /// looks fine there says nothing about a phone, which is why the spec insists
 /// this ticket opens with a measurement.
 ///

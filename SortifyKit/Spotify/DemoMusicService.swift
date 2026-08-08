@@ -1,5 +1,9 @@
 import Foundation
 
+#if DEBUG
+// Test and screenshot-harness scaffolding only. ADR-0007 removed Demo Mode from
+// the shipped app; this whole file compiles out of Release.
+
 /// A complete, offline stand-in for Spotify.
 ///
 /// Sortify needs this for a reason beyond convenience: a newly registered
@@ -7,8 +11,8 @@ import Foundation
 /// app at five authorised users. Demo Mode lets the app be opened, explored and
 /// screenshotted with every column populated and every sort meaningful.
 ///
-/// The catalogue is invented — fictional artists and titles with plausible
-/// acoustic values — so no fabricated measurement is ever attributed to a real
+/// The catalogue is invented - fictional artists and titles with plausible
+/// acoustic values - so no fabricated measurement is ever attributed to a real
 /// recording.
 public struct DemoMusicService: MusicService, Sendable {
     public let canWriteBack = false
@@ -95,3 +99,4 @@ public struct DemoAudioFeatureProvider: AudioFeatureProviding {
         return result
     }
 }
+#endif

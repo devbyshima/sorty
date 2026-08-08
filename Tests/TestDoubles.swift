@@ -60,7 +60,7 @@ actor RecordingMusicService: MusicService {
     }
 }
 
-/// Serves a fixed lookup table, and nothing for anything absent from it — the
+/// Serves a fixed lookup table, and nothing for anything absent from it - the
 /// shape a real provider has, where coverage is partial.
 struct StubFeatureProvider: AudioFeatureProviding {
     let displayName = "Stub"

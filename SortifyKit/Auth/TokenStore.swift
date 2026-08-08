@@ -5,11 +5,30 @@ public struct SpotifyTokens: Codable, Sendable, Equatable {
     public var accessToken: String
     public var refreshToken: String?
     public var expiresAt: Date
+    /// What Spotify granted, not what was asked for.
+    ///
+    /// Optional because a token stored before this field existed decodes with
+    /// nil - and nil is exactly the signal that matters: it predates
+    /// `playlist-read-collaborative`, so the account is connected but cannot
+    /// see shared playlists until it reconnects. See `grants(_:)`.
+    public var grantedScopes: [String]?
 
-    public init(accessToken: String, refreshToken: String?, expiresAt: Date) {
+    public init(
+        accessToken: String,
+        refreshToken: String?,
+        expiresAt: Date,
+        grantedScopes: [String]? = nil
+    ) {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
         self.expiresAt = expiresAt
+        self.grantedScopes = grantedScopes
+    }
+
+    /// False for a token that predates the field, which is treated as not
+    /// granting anything new rather than as granting everything.
+    public func grants(_ scope: String) -> Bool {
+        grantedScopes?.contains(scope) ?? false
     }
 
     /// Treated as expired a minute early so a request never starts with a token

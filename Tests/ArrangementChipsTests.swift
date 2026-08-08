@@ -107,7 +107,7 @@ struct ArrangementChipsTests {
 
     // MARK: - Shuffle
 
-    @Test("Tapping the active Shuffle chip does not re-roll — that is its own control")
+    @Test("Tapping the active Shuffle chip does not re-roll - that is its own control")
     func shuffleDoesNotRerollFromTheChipBody() {
         let row = ArrangementChip.row(for: .shuffled)
         let shuffle = row.first { $0.basis == .shuffle }
@@ -125,7 +125,7 @@ struct ArrangementChipsTests {
         }
     }
 
-    @Test("Artist separation offers no re-roll — one arrangement, one result")
+    @Test("Artist separation offers no re-roll - one arrangement, one result")
     func artistSeparationHasNoReroll() {
         let row = ArrangementChip.row(for: .artistSeparation)
         #expect(row.first { $0.basis == .artistSeparation }?.showsReroll == false)

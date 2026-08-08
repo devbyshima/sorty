@@ -8,7 +8,7 @@ import Foundation
 /// dashboard was the wrong one to copy. This catches the paste errors that can
 /// be caught without a network, and says what to fix.
 ///
-/// It is not a claim that the ID is *real* — only the authorisation can settle
+/// It is not a claim that the ID is *real* - only the authorisation can settle
 /// that, which is why the flow never reports success until Spotify has answered.
 public enum ClientIDCheck: Equatable, Sendable {
     case valid
@@ -39,7 +39,7 @@ public enum ClientIDCheck: Equatable, Sendable {
         case .empty:
             "Paste the Client ID from your app's page on the Spotify dashboard."
         case .wrongLength(let count):
-            "That's \(count) characters — a Client ID is exactly 32. Check you copied the whole thing, and that it isn't the Client Secret."
+            "That's \(count) characters. A Client ID is exactly 32, so check you copied the whole thing, and that it isn't the Client Secret."
         case .notHexadecimal:
             "A Client ID is made of digits and the letters a–f only. Something else came along with the paste."
         }
@@ -85,7 +85,7 @@ public enum ConnectStep: Int, CaseIterable, Identifiable, Sendable, Comparable {
             """
             Spotify caps a single application at five listeners. If Sortify \
             shipped with one Client ID built in, the sixth person to open it \
-            would be locked out — and lifting the cap needs 250,000 monthly \
+            would be locked out, and lifting the cap needs 250,000 monthly \
             listeners, which an app that can't reach its sixth user will never \
             have.
 
@@ -94,7 +94,7 @@ public enum ConnectStep: Int, CaseIterable, Identifiable, Sendable, Comparable {
             """
         case .createApp:
             """
-            On Spotify's developer dashboard, create an app — any name and \
+            On Spotify's developer dashboard, create an app. Any name and \
             description will do. Add the redirect URI below exactly as it \
             appears, then add your own Spotify account under Users Management.
 
@@ -104,7 +104,7 @@ public enum ConnectStep: Int, CaseIterable, Identifiable, Sendable, Comparable {
         case .clientID:
             """
             Your app's page shows a Client ID and a Client Secret. Sortify \
-            needs the Client ID — the secret never leaves Spotify's dashboard \
+            needs the Client ID. The secret never leaves Spotify's dashboard \
             and Sortify will never ask for it.
             """
         case .authorize:

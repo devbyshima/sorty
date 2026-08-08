@@ -4,8 +4,8 @@ import SwiftUI
 ///
 /// The magnitude is carried by **length**, never by hue: a listener who cannot
 /// separate the fill from the track still reads the bar by how far it goes, and
-/// the accent colour is the same at every value. That is user story 62 — bars
-/// distinguishable without relying on colour alone — and it is why there is no
+/// the accent colour is the same at every value. That is user story 62 - bars
+/// distinguishable without relying on colour alone - and it is why there is no
 /// low-is-red, high-is-green gradient here.
 ///
 /// One component, used by the rows and by the track detail sheet, so a value

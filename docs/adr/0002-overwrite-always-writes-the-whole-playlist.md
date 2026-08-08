@@ -19,7 +19,7 @@ The other 48 are gone, and Spotify offers no undo. The menu item carries
 `role: .destructive` (`TrackTableView.swift:184`), which colours the label red
 and asks for no confirmation.
 
-The behaviour is not purely a mistake — filtering to a tempo range and keeping
+The behaviour is not purely a mistake - filtering to a tempo range and keeping
 the result is a real workflow, and it is exactly right when the destination is a
 *new* playlist.
 
@@ -31,7 +31,7 @@ The two operations are separated by what they are allowed to write:
   active arrangement. The filter is a view onto the arrangement and never
   narrows what overwrite writes.
 - **Save as new playlist** may write a subset. When a filter is active this is
-  stated in the action itself — "Save these 20 as a new playlist".
+  stated in the action itself - "Save these 20 as a new playlist".
 
 Destructive loss is therefore prevented structurally, not by a warning dialog.
 

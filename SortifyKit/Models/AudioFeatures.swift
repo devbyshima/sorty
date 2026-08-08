@@ -15,7 +15,7 @@ public struct AudioFeatures: Codable, Sendable, Hashable, Identifiable {
     public let danceability: Double?
     /// Decibels, typically -60…0
     public let loudness: Double?
-    /// 0…1 — musical positiveness.
+    /// 0…1 - musical positiveness.
     public let valence: Double?
     /// 0…1
     public let acousticness: Double?

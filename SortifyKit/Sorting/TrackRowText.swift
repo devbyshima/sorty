@@ -3,21 +3,21 @@ import Foundation
 /// Everything a track row says, resolved once from the row and the applied
 /// Arrangement.
 ///
-/// This is not layout — it is the set of decisions about *what words appear*,
+/// This is not layout - it is the set of decisions about *what words appear*,
 /// and every one of them is a rule: identity is never dropped, an Attribute the
 /// row already shows is not printed twice, a missing measurement is absent
 /// rather than zero, and VoiceOver gets one sentence instead of a reading of
 /// every cell. Those belong where they can be tested.
 public struct TrackRowText: Equatable, Sendable {
     /// 1-based position in the *current* arrangement, not the original order.
-    /// Nil for a track the Arrangement couldn't place — numbering it would
+    /// Nil for a track the Arrangement couldn't place - numbering it would
     /// imply a rank it doesn't have.
     public let position: String?
     public let title: String
     /// Artist, or what the entry is when there isn't one.
     public let subtitle: String
     /// The active Arrangement's value, or nil when there is nothing worth
-    /// showing — see `isAlreadyVisible`.
+    /// showing - see `isAlreadyVisible`.
     public let value: String?
     /// The whole row as one spoken sentence.
     public let spoken: String
@@ -47,9 +47,15 @@ public struct TrackRowText: Equatable, Sendable {
         self.spoken = sentence
     }
 
-    /// Position, title and artist are on every row already. Repeating one in
-    /// the value slot puts the same number on both ends of the row, and makes
-    /// VoiceOver say it twice in a sentence that is meant to be read quickly.
+    /// Title and artist are on every row already, and order is the row's own
+    /// place in the list. Repeating one in the value slot says nothing the row
+    /// does not, and makes VoiceOver say it twice in a sentence that is meant to
+    /// be read quickly.
+    ///
+    /// `position` no longer appears on the row - the number column was removed
+    /// so artwork could sit at the same margin as everything else - but it is
+    /// still spoken, because rank in an ordered list is real information that a
+    /// sighted reader gets from the sequence itself.
     static func isAlreadyVisible(_ attribute: Attribute) -> Bool {
         switch attribute {
         case .order, .title, .artist: true

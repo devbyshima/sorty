@@ -60,7 +60,7 @@ struct ConnectFlowTests {
 
     /// The requirement has to read as a platform constraint rather than an
     /// arbitrary demand, which means the first step has to say what the
-    /// constraint *is* — story 50.
+    /// constraint *is* - story 50.
     @Test("The first step explains the five-listener cap")
     func firstStepNamesTheCap() {
         let body = ConnectStep.why.body
@@ -97,44 +97,43 @@ struct LaunchStateTests {
         )
     }
 
-    /// ADR-0003. The highest-friction moment in the product must not sit before
-    /// any demonstration of its value.
-    @Test("The app launches into a live Demo Mode session")
-    func launchesIntoDemo() async {
+    /// ADR-0007. Demo Mode is gone from the shipped app, so a first run has no
+    /// session to land in and the way-in screen is the state rather than a
+    /// once-only moment. ADR-0003 refused exactly this, on friction grounds
+    /// that are real and are now accepted rather than solved.
+    @Test("A first run lands signed out")
+    func firstRunLandsSignedOut() async {
         let session = session()
         await session.restore()
 
-        #expect(session.stage == .ready)
-        #expect(session.isDemo)
-        #expect(!session.playlists.isEmpty, "arranging something is possible immediately")
+        #expect(session.stage == .signedOut)
+        #expect(!session.isConnected)
+        #expect(session.playlists.isEmpty)
         #expect(session.connectFailure == nil)
     }
 
-    /// Configured for Spotify but with no usable token — the state a listener
-    /// lands in after reinstalling. A landing screen here would be a wall on
-    /// launch.
-    @Test("A configured account that can't be resumed falls back to Demo Mode")
-    func unusableCredentialsFallBack() async {
+    /// Configured but with no usable token - the state a listener lands in
+    /// after reinstalling. It is a wall, and it is the front door.
+    @Test("A configured account that can't be resumed lands signed out")
+    func unusableCredentialsLandSignedOut() async {
         let session = session()
         session.configuration.clientID = "0123456789abcdef0123456789abcdef"
-        session.configuration.serviceMode = .spotify
 
         await session.restore()
 
-        #expect(session.stage == .ready)
-        #expect(session.isDemo)
-        #expect(!session.playlists.isEmpty)
+        #expect(session.stage == .signedOut)
+        #expect(session.playlists.isEmpty)
     }
 
-    @Test("Signing out returns to Demo Mode rather than to nothing")
-    func signOutReturnsToDemo() async {
+    @Test("Signing out lands where a first run begins")
+    func signOutLandsSignedOut() async {
         let session = session()
         await session.restore()
         await session.signOut()
 
-        #expect(session.stage == .ready)
-        #expect(session.isDemo)
-        #expect(!session.playlists.isEmpty)
+        #expect(session.stage == .signedOut)
+        #expect(!session.isConnected)
+        #expect(session.playlists.isEmpty)
     }
 
     /// Cancelling is not failing. The listener changed their mind and lands
@@ -145,7 +144,7 @@ struct LaunchStateTests {
         await session.restore()
         await session.signInFailed(SpotifyAuthError.cancelled)
 
-        #expect(session.isDemo)
+        #expect(session.stage == .signedOut)
         #expect(session.connectFailure == nil)
     }
 
@@ -155,22 +154,53 @@ struct LaunchStateTests {
         await session.restore()
         await session.signInFailed(SpotifyAuthError.denied("access_denied"))
 
-        #expect(session.stage == .ready, "the session stays usable")
-        #expect(session.isDemo)
+        #expect(session.stage == .signedOut)
         #expect(session.connectFailure?.contains("access_denied") == true)
 
         session.beginConnecting()
         #expect(session.connectFailure == nil, "a retry doesn't open under the last error")
     }
 
-    /// The boundary the whole flow exists to explain.
-    @Test("Demo Mode refuses writes, which is what Save leads off")
-    func demoModeCannotWrite() async {
-        let session = session()
-        await session.restore()
+    /// The seam ADR-0007 leaves for the screenshot harness, asserted here
+    /// because nothing else can: if it breaks, 31 screenshots photograph an
+    /// empty library rather than failing, and the set still looks plausible.
+    @Test("Demo data is reachable only by asking for it")
+    func demoDataIsReachableForTheHarness() async {
+        let plain = session()
+        await plain.restore()
+        #expect(plain.playlists.isEmpty, "nothing arrives without the flag")
 
-        #expect(!session.service.canWriteBack)
-        let model = session.makeTrackListModel(for: session.playlists[0])
+        let demo = SessionModel(
+            configurationStore: ConfigurationStore(defaults: UserDefaults(suiteName: UUID().uuidString)!),
+            tokenStore: InMemoryTokenStore(),
+            usesDemoData: true
+        )
+        await demo.restore()
+
+        #expect(demo.stage == .ready)
+        #expect(!demo.playlists.isEmpty, "the harness has a library to photograph")
+    }
+
+    /// The boundary the whole flow exists to explain.
+    /// Save is armed by `canWriteBack`, and a session without an account must
+    /// refuse it - which is what makes the Save anchor open the connect flow
+    /// instead of writing. Asserted through the demo session because it is the
+    /// only non-writable one that has a playlist to build a model from.
+    @Test("A session with no account refuses writes, which is what Save leads off")
+    func sessionWithoutAnAccountCannotWrite() async {
+        let unconnected = session()
+        await unconnected.restore()
+        #expect(!unconnected.service.canWriteBack)
+
+        let demo = SessionModel(
+            configurationStore: ConfigurationStore(defaults: UserDefaults(suiteName: UUID().uuidString)!),
+            tokenStore: InMemoryTokenStore(),
+            usesDemoData: true
+        )
+        await demo.restore()
+
+        #expect(!demo.service.canWriteBack)
+        let model = demo.makeTrackListModel(for: demo.playlists[0])
         await model.load()
         model.apply(.attribute(.bpm, .descending))
         #expect(!model.canSave)

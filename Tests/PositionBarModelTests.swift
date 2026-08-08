@@ -41,7 +41,7 @@ struct PositionBarModelTests {
         #expect(model.positionRange?.maximum == 140)
     }
 
-    @Test("Artist separation and Shuffle get none — they rank by no Attribute")
+    @Test("Artist separation and Shuffle get none - they rank by no Attribute")
     func computedArrangementsHaveNoRange() async {
         let model = await loadedModel()
         for arrangement in [Arrangement.artistSeparation, .shuffled] {
@@ -50,10 +50,11 @@ struct PositionBarModelTests {
         }
     }
 
-    /// The row already prints its position, title and artist, so ticket 03
-    /// suppresses repeating them as a value. A bar under a value that isn't
-    /// there would be a bar under nothing — and a bar for position is a ramp
-    /// from empty to full down a list that is already in that order.
+    /// The row already prints title and artist, and its order is its own place
+    /// in the list, so ticket 03 suppresses repeating them as a value. A bar
+    /// under a value that isn't there would be a bar under nothing - and a bar
+    /// for position is a ramp from empty to full down a list that is already in
+    /// that order.
     @Test("Attributes the row already shows get no bar")
     func alreadyVisibleAttributesGetNoBar() async {
         let model = await loadedModel()

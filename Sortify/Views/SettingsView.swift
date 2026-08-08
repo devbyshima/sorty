@@ -4,27 +4,63 @@ struct SettingsView: View {
     @Environment(SessionModel.self) private var session
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    /// The same key `RootView` applies, so changing it here changes the whole
+    /// app rather than this sheet.
+    @AppStorage("appearance") private var appearance: AppearanceChoice = .system
+    @State private var showingFAQ = false
 
     var body: some View {
         @Bindable var session = session
 
         NavigationStack {
             Form {
+                // Moved out of the library's menu, which was listing status
+                // among a set of actions. Both belong beside the control that
+                // changes them, which is the picker directly below.
                 Section {
-                    Picker("Backend", selection: $session.configuration.serviceMode) {
-                        ForEach(ServiceMode.allCases, id: \.self) { mode in
-                            Text(mode.label).tag(mode)
-                        }
-                    }
+                    LabeledContent("Account", value: session.user?.displayName ?? session.user?.id ?? "Not connected")
                 } header: {
-                    Text("Source")
-                } footer: {
-                    Text(session.configuration.serviceMode == .demo
-                         ? "Demo Mode serves a built-in sample catalogue. Every arrangement works, but nothing can be saved back."
-                         : "Sortify talks to your Spotify account with your own Client ID.")
+                    Text("Account")
                 }
 
-                if session.configuration.serviceMode == .spotify {
+                Section {
+                    Picker("Appearance", selection: $appearance) {
+                        ForEach(AppearanceChoice.allCases) { choice in
+                            Text(choice.label).tag(choice)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("Light and dark are both designed. System follows whatever your device is set to.")
+                }
+
+                if session.isConnected {
+                    // Not decoration: "collaborative playlists don't show up"
+                    // has three different causes that look identical from the
+                    // library - a token granted before Sortify asked for the
+                    // permission, a reconnect that silently didn't take, and
+                    // playlists that are shared but not actually collaborative.
+                    // These two rows separate them.
+                    Section {
+                        LabeledContent("Reads collaborative") {
+                            Text(session.grantedScopes.contains("playlist-read-collaborative") ? "Yes" : "No")
+                                .foregroundStyle(
+                                    session.grantedScopes.contains("playlist-read-collaborative")
+                                        ? AnyShapeStyle(.secondary)
+                                        : AnyShapeStyle(SortifyTheme.accent)
+                                )
+                        }
+                        LabeledContent("Collaborative playlists", value: "\(session.collaborativeCount)")
+                    } header: {
+                        Text("Spotify access")
+                    } footer: {
+                        Text(session.grantedScopes.contains("playlist-read-collaborative")
+                             ? "Spotify only marks a playlist collaborative when other people can add and remove tracks. Sharing a link does not make one collaborative."
+                             : "This account connected before Sortify asked for permission to read collaborative playlists. Sign out and connect again to grant it.")
+                    }
+
                     Section {
                         LabeledContent("Client ID") {
                             TextField("Paste from the Spotify dashboard", text: $session.configuration.clientID)
@@ -53,7 +89,7 @@ struct SettingsView: View {
 
                             Two limits worth knowing before you start: a development-mode app admits \
                             at most five listeners and its owner needs Spotify Premium. Spotify's own \
-                            docs prefer an https redirect over a custom scheme — if the dashboard \
+                            docs prefer an https redirect over a custom scheme. If the dashboard \
                             rejects `sortify://callback` as insecure, point this at an https URL you \
                             control instead.
                             """)
@@ -72,7 +108,7 @@ struct SettingsView: View {
                             Text(session.configuration.featureSource.explanation)
                             if session.configuration.featureSource.sendsTrackIDsOffDevice {
                                 Label(
-                                    "Track IDs for the playlist you open are sent to api.reccobeats.com. Nothing else leaves the device — not your name, not your tokens.",
+                                    "Track IDs for the playlist you open are sent to api.reccobeats.com. Nothing else leaves the device: not your name, not your tokens.",
                                     systemImage: "hand.raised"
                                 )
                                 .font(.caption)
@@ -94,12 +130,20 @@ struct SettingsView: View {
                 } header: {
                     Text("Why this setting exists")
                 }
+
+                Section {
+                    Button("Frequently asked questions", systemImage: "questionmark.circle") {
+                        showingFAQ = true
+                    }
+                }
             }
+            .sheet(isPresented: $showingFAQ) { FAQView() }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }.fontWeight(.semibold)
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                        .labelStyle(.iconOnly)
                 }
             }
         }

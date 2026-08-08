@@ -72,7 +72,7 @@ struct ModelDecodingTests {
         #expect(item.track?.primaryArtistName == nil)
     }
 
-    @Test("Missing `popularity` — removed for new dev-mode apps — decodes as nil, not zero")
+    @Test("Missing `popularity` - removed for new dev-mode apps - decodes as nil, not zero")
     func missingPopularity() throws {
         let playable = try decode(Playable.self, """
         {"id":"t1","name":"No Pop","type":"track","duration_ms":1000}

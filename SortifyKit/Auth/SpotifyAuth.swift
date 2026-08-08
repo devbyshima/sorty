@@ -5,10 +5,18 @@ public struct SpotifyAuthConfig: Sendable {
     public let redirectURI: String
     public let scopes: [String]
 
-    /// Exactly the scopes the reference app asks for — enough to read playlists
-    /// and write the sorted result back, and nothing more.
+    /// Enough to read playlists and write the sorted result back, and nothing
+    /// more.
+    ///
+    /// **`playlist-read-collaborative` is not optional.** Without it Spotify
+    /// omits collaborative playlists you are a member of from `/me/playlists`
+    /// entirely - they are not misclassified, they never arrive - so the
+    /// Collaborative chip is empty and no shared playlist can be arranged. The
+    /// first three were "the same three the reference app uses"; the reference
+    /// app does not offer a Collaborative filter.
     public static let requiredScopes = [
         "playlist-read-private",
+        "playlist-read-collaborative",
         "playlist-modify-private",
         "playlist-modify-public",
     ]
@@ -55,7 +63,7 @@ public enum SpotifyAuthError: LocalizedError, Equatable {
 
 /// Builds the authorize URL, exchanges the code, and refreshes tokens.
 ///
-/// Deliberately knows nothing about presenting a browser — the app target owns
+/// Deliberately knows nothing about presenting a browser - the app target owns
 /// `ASWebAuthenticationSession` and hands the callback URL back here, which
 /// keeps this whole type testable without a UI.
 public actor SpotifyAuthenticator {
@@ -167,6 +175,12 @@ public actor SpotifyAuthenticator {
                 "refresh_token": refreshToken,
             ]
             var tokens = try await self.postToken(body)
+            // A refresh response often omits `scope`. Carrying the previous
+            // grant forward stops a refresh from looking like a downgrade and
+            // raising a reconnect prompt against a perfectly good token.
+            if tokens.grantedScopes == nil {
+                tokens.grantedScopes = existing.grantedScopes
+            }
             // Spotify only sometimes rotates the refresh token; hold on to the
             // old one when it doesn't, or the next refresh has nothing to use.
             if tokens.refreshToken == nil {
@@ -181,7 +195,7 @@ public actor SpotifyAuthenticator {
         do {
             return try await task.value
         } catch {
-            // A refresh token Spotify rejects is dead — drop it so the UI falls
+            // A refresh token Spotify rejects is dead - drop it so the UI falls
             // back to the sign-in screen instead of retrying forever.
             if case SpotifyAuthError.tokenExchangeFailed = error {
                 store.clear()
@@ -202,6 +216,10 @@ public actor SpotifyAuthenticator {
         let access_token: String
         let refresh_token: String?
         let expires_in: Double
+        /// Space-separated, and what Spotify actually granted rather than what
+        /// was asked for. Absent on some refresh responses, which is why the
+        /// refresh path carries the previous value forward.
+        let scope: String?
     }
 
     private struct TokenErrorResponse: Decodable {
@@ -232,7 +250,8 @@ public actor SpotifyAuthenticator {
         return SpotifyTokens(
             accessToken: decoded.access_token,
             refreshToken: decoded.refresh_token,
-            expiresAt: Date().addingTimeInterval(decoded.expires_in)
+            expiresAt: Date().addingTimeInterval(decoded.expires_in),
+            grantedScopes: decoded.scope.map { $0.split(separator: " ").map(String.init) }
         )
     }
 }

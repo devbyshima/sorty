@@ -42,7 +42,7 @@ public actor ReccoBeatsAudioFeatureProvider: AudioFeatureProviding {
         }
         let missing = lastRequested - lastReturned
         return """
-            ReccoBeats had no acoustic data for \(missing) of \(lastRequested) tracks — they \
+            ReccoBeats had no acoustic data for \(missing) of \(lastRequested) tracks. They \
             have no BPM, Energy, Danceability, Loudness, Valence or Acousticness, so those \
             arrangements can't rank them. Coverage is thinnest on releases from 2025 onward.
             """
@@ -67,7 +67,7 @@ public actor ReccoBeatsAudioFeatureProvider: AudioFeatureProviding {
 
     /// ReccoBeats assigns its own UUID in `id` and identifies the Spotify track
     /// only through `href`, so the Spotify ID has to be parsed back out of that
-    /// URL — using `id` directly would key the whole table by the wrong string.
+    /// URL - using `id` directly would key the whole table by the wrong string.
     private struct Entry: Decodable {
         let href: String?
         let tempo: Double?

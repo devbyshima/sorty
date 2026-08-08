@@ -2,114 +2,167 @@ import SwiftUI
 
 /// One track, and every Attribute it has.
 ///
-/// The list behind this sheet reads one Attribute down a playlist. This reads
-/// every Attribute across one track — the half of the old table ADR-0001 traded
-/// away, and the reason that trade was acceptable. Everything on screen is
-/// decided by `TrackDetail` in SortifyKit; this file measures and draws.
+/// Rebuilt around the cover: large, centred, and the subject of the screen
+/// rather than a stamp beside a title. The track's words sit **beneath** the
+/// artwork, not on it - Spotify's design guidelines forbid overlaying text on
+/// their artwork, so the "text at the bottom of the cover" this was asked for
+/// is expressed as text directly under a cover that fills the width, which
+/// reads the same and is permitted.
+///
+/// Everything on screen is decided by `TrackDetail` in SortifyKit; this file
+/// measures and draws.
 struct TrackDetailSheet: View {
     let detail: TrackDetail
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    /// Artwork grows with the text rather than sitting as a stamp beside an
-    /// accessibility-sized title — but only so far. Left to scale freely it
-    /// reaches about 260pt at the largest size and the sheet opens on a cover
-    /// and nothing else, which on the screen that exists to show thirteen
-    /// Attributes is the wrong thing to have made room for.
-    @ScaledMetric(relativeTo: .headline) private var scaledArtworkSide: Double = 84
-    private var artworkSide: Double { min(scaledArtworkSide, 128) }
+    @Environment(\.colorScheme) private var colorScheme
 
     private var isAccessibilitySize: Bool { dynamicTypeSize.isAccessibilitySize }
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    identity
-                    if let url = detail.spotifyURL {
-                        Button {
-                            openURL(url)
-                        } label: {
-                            Label("Open in Spotify", systemImage: "arrow.up.forward.app")
-                                .font(.subheadline.weight(.medium))
-                        }
-                    }
-                }
-
-                ForEach(detail.sections) { section in
-                    Section {
-                        ForEach(section.readings) { reading in
-                            readingRow(reading)
-                        }
-                    } header: {
-                        Text(section.title)
-                    } footer: {
-                        if let footer = section.footer {
-                            Text(footer)
-                        }
-                    }
-                }
+        ScrollView {
+            VStack(spacing: 0) {
+                cover
+                identity
+                openInSpotify
+                attributes
             }
-            .navigationTitle("Track")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }.fontWeight(.semibold)
-                }
+            .padding(.bottom, 28)
+        }
+        .debugScrolled()
+        .background(SortifyTheme.background)
+        // The bar owns the blur, as it does on the playlist screen.
+        //
+        // There is no `NavigationStack` here any more. It existed only to draw
+        // a title and a close button, and it brought a bar whose background
+        // could not be the blur - so the blur had to be a separate band
+        // underneath it, which is what made the top of this sheet read as a
+        // coloured slab instead of as artwork passing under a bar.
+        //
+        // The overscan is 0: a sheet has no status bar to reach up under, and
+        // reaching past its own top edge draws over the presenting screen.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            ScreenTopBar(title: "Track", overscan: 0, topPadding: 14) {
+                EmptyView()
+            } trailing: {
+                TopBarButton(systemImage: "xmark", label: "Close") { dismiss() }
             }
         }
     }
 
-    // MARK: - Identity
+    // MARK: - Cover
 
-    /// Artwork beside the words normally; above them once the text is large
-    /// enough that a title sharing the line would wrap to a column two words
-    /// wide.
-    private var identityLayout: AnyLayout {
-        isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: 14))
+    /// Fills the width, minus a margin, and stays square.
+    ///
+    /// At accessibility sizes it shrinks rather than grows: the sheet's job is
+    /// thirteen readings, and a cover that scales with the text would push all
+    /// of them below the fold. The old layout capped a *growing* cover at 128pt
+    /// for the same reason; this is that decision expressed the other way up.
+    private var cover: some View {
+        StickerCover(images: detail.artworkImages)
+            .frame(maxWidth: isAccessibilitySize ? 180 : 300)
+            .shadow(color: SortifyTheme.cardShadow(colorScheme), radius: 20, y: 12)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, 24)
+            // Longer than the blur's fade, with room to spare: a Gaussian's
+            // visible smear runs past its nominal radius, so matching the fade
+            // exactly still left a haze on the artwork's top edge.
+            .padding(.top, 30)
+            .padding(.bottom, 18)
+            // The title beneath already names the track, and `CoverImage` shows
+            // an unlabelled spinner while a fetched cover resolves.
+            .accessibilityHidden(true)
     }
 
+    /// Directly under the cover, centred with it.
     private var identity: some View {
-        identityLayout {
-            // Hidden rather than merged: the title beside it already names the
-            // track, and `CoverImage` shows an unlabelled spinner while a
-            // fetched cover resolves. Every other call site sits inside a view
-            // that ignores its children, so this is the first place that
-            // spinner could have reached VoiceOver.
-            CoverImage(url: detail.artworkURL)
-                .frame(width: artworkSide, height: artworkSide)
-                .clipShape(.rect(cornerRadius: 8))
-                .accessibilityHidden(true)
+        VStack(spacing: 4) {
+            Text(detail.title)
+                .font(.title3.bold())
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(detail.title)
-                    .font(.headline)
+            Text(detail.subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Absent for a podcast episode, which belongs to a show.
+            if let album = detail.album {
+                Text(album)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-
-                Text(detail.subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                // Absent for a podcast episode, which belongs to a show.
-                if let album = detail.album {
-                    Text(album)
-                        .font(.footnote)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
         .accessibilityElement(children: .combine)
     }
 
+    @ViewBuilder
+    private var openInSpotify: some View {
+        if let url = detail.spotifyURL {
+            Button {
+                openURL(url)
+            } label: {
+                // Wordmark-free and glyph-free by request. Spotify's guidelines
+                // list the sanctioned labels as GET SPOTIFY FREE, OPEN SPOTIFY,
+                // PLAY ON SPOTIFY and LISTEN ON SPOTIFY; "Open on Spotify" sits
+                // between the first two rather than on the list, which is worth
+                // knowing but is the dev's call.
+                Text("Open on Spotify")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(SortifyTheme.onAccent)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 11)
+                    .background(SortifyTheme.spotifyGreen, in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 22)
+        }
+    }
+
     // MARK: - Readings
+
+    private var attributes: some View {
+        VStack(spacing: 18) {
+            ForEach(detail.sections) { section in
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(section.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(section.readings.enumerated()), id: \.element.id) { index, reading in
+                            readingRow(reading)
+
+                            if index < section.readings.count - 1 {
+                                Rectangle()
+                                    .fill(SortifyTheme.hairline)
+                                    .frame(height: 1)
+                                    .padding(.leading, 14)
+                            }
+                        }
+                    }
+                    .background(SortifyTheme.surface, in: .rect(cornerRadius: 14))
+
+                    if let footer = section.footer {
+                        Text(footer)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+    }
 
     /// Name and value share a line until the text is large enough that both
     /// would truncate, which on this screen would leave a number with nothing
@@ -134,9 +187,7 @@ struct TrackDetailSheet: View {
 
                 // Missing measurements are spelled out and drawn back: the
                 // accent is what a real value looks like here, so an absent one
-                // must not borrow it. Drawn back only as far as `.secondary`,
-                // though — this word is the *only* thing separating "we have no
-                // measurement" from a blank row, so it has to stay readable.
+                // must not borrow it.
                 Text(reading.displayValue)
                     .font(.subheadline.weight(.semibold))
                     .monospacedDigit()
@@ -149,7 +200,7 @@ struct TrackDetailSheet: View {
             }
 
             // Absent where the value is, and absent where every track scored
-            // the same — decided in SortifyKit, so the sheet and the rows can't
+            // the same - decided in SortifyKit, so the sheet and the rows can't
             // disagree about when a bar means something.
             if let fraction = reading.fraction {
                 PositionBar(fraction: fraction, fillsWidth: true)
@@ -162,13 +213,10 @@ struct TrackDetailSheet: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.vertical, 2)
-        // One stop per Attribute — "BPM, Unavailable, The estimated tempo…" —
-        // rather than three. Left uncombined, six identical "Unavailable" stops
-        // arrive in a row with nothing naming which Attribute each belongs to,
-        // and thirteen Attributes cost thirty-nine swipes. Every other
-        // row-shaped surface here is collapsed the same way; the bar is already
-        // hidden, so it stays out of the merge.
+        .padding(14)
+        // One stop per Attribute rather than three. Left uncombined, six
+        // identical "Unavailable" stops arrive in a row with nothing naming
+        // which Attribute each belongs to.
         .accessibilityElement(children: .combine)
     }
 }

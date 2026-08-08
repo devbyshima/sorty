@@ -10,7 +10,7 @@ Accepted.
 
 The accent Sortify shipped with was `#1DB966`. Spotify's brand green is
 `#1DB954`. Those share the *exact* red and green channel values and differ by
-eighteen points of blue — which is not an independent choice that happened to
+eighteen points of blue - which is not an independent choice that happened to
 land nearby.
 
 The consequence is not legal, it is attributional. An app that reads as
@@ -44,8 +44,8 @@ appearance.
 
 Rejections, and why:
 
-- **Coral** collided with the artwork — half the demo covers are in the red and
-  orange family — and worse, red is iOS's destructive colour. It would have sat
+- **Coral** collided with the artwork - half the demo covers are in the red and
+  orange family - and worse, red is iOS's destructive colour. It would have sat
   beside an Overwrite action wearing the same red the Overwrite action wears.
 - **Cobalt** is close enough to the system's default tint that a tinted app and
   an untinted one look the same. An identity that reads as "nobody chose one" is
@@ -59,7 +59,7 @@ Rejections, and why:
 
 No single indigo serves both. The light value clears AA everywhere it lands
 (5.33 and 5.95) but drops to 2.86 on the dark card; lifting it for dark costs
-the light case. Hence two values in the colour set — which is what a colour set
+the light case. Hence two values in the colour set - which is what a colour set
 is for, and what the old accent was not using properly.
 
 **The foreground on the accent adapts too.** The applied chip draws label on
@@ -70,7 +70,7 @@ accent:
 | light `5B4BE0` | **5.95** | 3.53 |
 | dark `8B7BFF` | 3.29 | **6.37** |
 
-There is no constant that clears 4.5:1 against both — arithmetically there
+There is no constant that clears 4.5:1 against both - arithmetically there
 cannot be, since one needs the accent dark and the other needs it light. So
 `SortifyTheme.onAccent` is a token resolving to `Color(.systemBackground)`:
 white in light, near-black in dark. Writing `.white` at the call site, as the
@@ -96,14 +96,14 @@ came out of it, only one of which the ticket anticipated:
    exactly that metadata. `SpotifyAttribution` now sits at the foot of both.
 3. **Naming is constrained**, which nobody had checked: *"The app name should
    not include 'Spotify' or be similar to 'Spotify' in sound or spelling."*
-   "Sortify" is one letter from "Spotify". This ADR does not decide that — it
+   "Sortify" is one letter from "Spotify". This ADR does not decide that - it
    records that the guideline exists and that the name sits close to it.
 
 ## Consequences
 
 **One outstanding item.** The guidelines ask for the **logo** (icon + wordmark),
 not a wordmark set in type. `SpotifyAttribution` currently renders an SF Symbol
-and text. The official asset has to come from Spotify's own brand resources —
+and text. The official asset has to come from Spotify's own brand resources -
 it is a trademark file, and redrawing it by hand would be worse than not having
 it. The component is shaped to take it.
 
@@ -113,3 +113,21 @@ outside this ADR's scope and outside the redesign's, but it is now written down.
 **`-accent` stays in the build.** DEBUG only. The next time the identity is
 questioned, the comparison should be made the same way rather than in a colour
 picker.
+
+## Correction, 2026-08-06
+
+Finding 1 above ("Green is not restricted. Third parties may use it.") is too
+broad and should not be relied on as written.
+
+It is correct for **interface chrome**, which is what this ADR was deciding.
+It is **wrong for the app's logo and icon**: Spotify's guidelines name Spotify
+Green expressly as a brand element a third-party logo may not include or
+resemble, alongside the circle and the waves. An app icon is therefore
+constrained in a way this ADR's accent decision was not.
+
+Findings 2 (attribution is mandatory) and 3 (naming is constrained) hold
+verbatim.
+
+Established by `.scratch/ui-redesign-2/issues/12-how-close-to-spotify.md`, which
+read the Developer Policy and Design Guidelines rather than the branding page
+alone.

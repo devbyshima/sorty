@@ -3,7 +3,7 @@ import Foundation
 /// One track of a playlist, flattened together with every Attribute it has, so
 /// arranging never has to reach back into the network layer.
 public struct TrackRow: Sendable, Identifiable, Hashable {
-    /// Stable identity — playlists may legitimately contain the same track
+    /// Stable identity - playlists may legitimately contain the same track
     /// twice, so the original index is part of the identity, not the track ID.
     public let id: Int
     /// 0-based position in the playlist as Spotify returned it.
@@ -49,8 +49,8 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         case .length: (features?.durationMS ?? playable.durationMS).map(Double.init)
         case .acoustic: features?.acousticness.map { ($0 * 100).rounded() }
         // Nil, not zero. An episode has no popularity at all, and coercing that
-        // to 0 made it sort as the least popular track and — once bars arrived
-        // — draw one, which is exactly the "an absent measurement looking like
+        // to 0 made it sort as the least popular track and - once bars arrived
+        // - draw one, which is exactly the "an absent measurement looking like
         // a low one" that the bars exist to avoid.
         case .pop: playable.popularity.map(Double.init)
         case .title, .artist, .release, .added: nil
@@ -82,7 +82,7 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
     /// Where a value sits on a line, for the position bar.
     ///
     /// Numeric Attributes use their own value. Dates become a day count so that
-    /// "released halfway through this playlist's span" is expressible — they
+    /// "released halfway through this playlist's span" is expressible - they
     /// sort as text but they are still earlier and later. Title and artist have
     /// no magnitude and return nil.
     public func plottableValue(for attribute: Attribute) -> Double? {
@@ -130,7 +130,7 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         return "\(totalSeconds / 60):\(String(format: "%02d", totalSeconds % 60))"
     }
 
-    /// The way out to Spotify — the row's swipe action and the detail sheet's
+    /// The way out to Spotify - the row's swipe action and the detail sheet's
     /// button are the same link, so they resolve it the same way.
     ///
     /// Deliberately not `savableURI`: this opens a track rather than writing

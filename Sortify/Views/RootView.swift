@@ -1,12 +1,11 @@
 import SwiftUI
 
-/// The app, which is always in a session.
+/// The app.
 ///
-/// There is no signed-out screen. ADR-0003 makes Demo Mode the front door, so a
-/// first-run listener is arranging a real-looking playlist within seconds
-/// instead of meeting the highest-friction moment in the product before any
-/// demonstration of its value. Connecting is reached from Save — the one thing
-/// Demo Mode cannot do — and from the account menu.
+/// ADR-0007 removed Demo Mode, so there are three states rather than a session
+/// that always exists: connecting, signed out, and a connected library. The
+/// signed-out screen is the front door - not a once-only welcome - and it is
+/// where signing out lands too.
 struct RootView: View {
     @Environment(SessionModel.self) private var session
     @State private var path: [Playlist] = []
@@ -14,6 +13,10 @@ struct RootView: View {
     @State private var showingFAQ = false
     @State private var showingConnect = false
     @State private var didRestore = false
+    /// Appearance, as `CONTEXT.md` defines it: followed from the device unless
+    /// the user says otherwise. Applied at the root so sheets inherit it, which
+    /// they would not if it were applied per screen.
+    @AppStorage("appearance") private var appearance: AppearanceChoice = .system
 
     var body: some View {
         Group {
@@ -30,6 +33,7 @@ struct RootView: View {
             sessionContent
             #endif
         }
+        .preferredColorScheme(appearance.colorScheme)
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $showingFAQ) { FAQView() }
         .sheet(isPresented: $showingConnect) { ConnectFlowView() }
@@ -47,16 +51,27 @@ struct RootView: View {
         case .connecting:
             ConnectingView()
 
+        case .signedOut:
+            SignedOutView(onConnect: { showingConnect = true })
+                .transition(.opacity)
+
         case .ready:
-            NavigationStack(path: $path) {
-                PlaylistsView(onSelect: { path.append($0) })
-                    .navigationDestination(for: Playlist.self) { playlist in
-                        TrackListView(
-                            model: session.makeTrackListModel(for: playlist),
-                            onConnect: { showingConnect = true }
-                        )
-                    }
-                    .toolbar { navigationToolbar }
+            library
+        }
+    }
+
+    private var library: some View {
+        NavigationStack(path: $path) {
+            PlaylistsView(
+                onSelect: { path.append($0) },
+                onConnect: { showingConnect = true },
+                onSettings: { showingSettings = true }
+            )
+            .navigationDestination(for: Playlist.self) { playlist in
+                TrackListView(
+                    model: session.makeTrackListModel(for: playlist),
+                    onConnect: { showingConnect = true }
+                )
             }
         }
     }
@@ -65,7 +80,14 @@ struct RootView: View {
     /// headlessly. No-op in release builds.
     private func applyDebugLaunchIfNeeded() async {
         guard let screen = DebugLaunch.screen else { return }
+        if let layout = DebugLaunch.libraryLayout {
+            session.libraryLayout = layout
+        }
         switch screen {
+        case .signedOut:
+            // Reached by not connecting, which is the default state, so there
+            // is nothing to drive.
+            break
         case .playlists:
             break
         case .faq:
@@ -85,43 +107,49 @@ struct RootView: View {
         }
     }
 
-    @ToolbarContentBuilder
-    private var navigationToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Section(session.user?.displayName ?? session.user?.id ?? "Demo Mode") {
-                    Label(session.configuration.serviceMode.label, systemImage: "dot.radiowaves.left.and.right")
-                }
-                // The other way in, for someone who came to sort their own
-                // playlists and doesn't want to be shown a demo first.
-                if session.isDemo {
-                    Button("Connect Spotify", systemImage: "link") { showingConnect = true }
-                }
-                Button("Settings", systemImage: "gearshape") { showingSettings = true }
-                Button("FAQ", systemImage: "questionmark.circle") { showingFAQ = true }
-                if !session.isDemo {
-                    Divider()
-                    Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                        Task { await session.signOut() }
-                    }
-                }
-            } label: {
-                Label("Account", systemImage: "person.crop.circle")
-            }
-        }
-    }
 }
 
+/// The one screen in Sortify that legitimately occupies the user while nothing
+/// is on offer.
+///
+/// It is deliberately *not* a launch splash: a timed brand card would be
+/// inventing a wait, which the Human Interface Guidelines rule out anyway. This
+/// covers a real network round trip - a cold launch restoring a connected
+/// session, or an authorisation coming back. A first run does not see it at all;
+/// with no account there is nothing to restore, and ADR-0007 sends that straight
+/// to `SignedOutView`.
+///
+/// It resembles the launch screen it replaces, which resembles the library it
+/// leads to, so the three are one continuous move rather than three flashes.
 struct ConnectingView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var settled = false
+
     var body: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Connecting…")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 22) {
+            SortifyMarkTile(side: 84)
+                // The mark arrives rather than appearing: a small settle, once,
+                // that reads as the app assembling itself. Reduced Motion gets
+                // the same screen without it, because this carries no meaning
+                // that motion is required to convey.
+                .scaleEffect(settled || reduceMotion ? 1 : 0.92)
+                .opacity(settled || reduceMotion ? 1 : 0)
+
+            VStack(spacing: 10) {
+                Text("Connecting to Spotify")
+                    .font(.headline)
+                ProgressView()
+                    .controlSize(.small)
+            }
+            .opacity(settled || reduceMotion ? 1 : 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(SortifyTheme.background)
+        .task {
+            guard !reduceMotion else { return }
+            withAnimation(.snappy(duration: 0.45)) { settled = true }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Connecting to Spotify")
     }
 }

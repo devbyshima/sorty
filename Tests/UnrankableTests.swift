@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 /// Tracks an Arrangement can't place used to sink to the bottom showing a dash,
-/// with an explanation that only appeared when *every* track failed — so in the
+/// with an explanation that only appeared when *every* track failed - so in the
 /// common case, where some did, a run of blank rows read as a bug in the app.
 @Suite("Unrankable tracks")
 struct UnrankableTests {
@@ -175,7 +175,7 @@ struct UnrankableTests {
     }
 
     /// "BPM is measured from music" is true. "Release date is measured from
-    /// music" is not — a Spotify episode has a release date, Sortify just
+    /// music" is not - a Spotify episode has a release date, Sortify just
     /// doesn't read one, and story 27 is about saying the *right* why.
     @Test("The episode reason says why for that Attribute, not a general one")
     func episodeCopyMatchesTheAttribute() {

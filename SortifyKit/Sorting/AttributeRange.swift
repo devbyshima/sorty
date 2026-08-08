@@ -7,7 +7,7 @@ import Foundation
 /// playlist of uniformly fast tracks measured against 0–200 BPM would bunch
 /// every bar at the same length and say nothing; measured against its own
 /// 170–180 it shows which track is the fastest. That is the whole point of the
-/// bar — the shape of an arrangement, legible while scrolling, without reading
+/// bar - the shape of an arrangement, legible while scrolling, without reading
 /// the numbers.
 public struct AttributeRange: Equatable, Sendable {
     public let attribute: Attribute
@@ -15,7 +15,7 @@ public struct AttributeRange: Equatable, Sendable {
     public let maximum: Double
 
     /// Every track scored the same, so there is nothing to place anything
-    /// within. No track is higher than another, and no bar is drawn — see
+    /// within. No track is higher than another, and no bar is drawn - see
     /// `fraction(for:)`.
     public var isDegenerate: Bool { minimum == maximum }
 
@@ -43,7 +43,7 @@ public struct AttributeRange: Equatable, Sendable {
     ///
     /// Nil means "draw no bar", and it covers both ways a bar can have nothing
     /// to say: the track has no value, or every track has the same one. Absence
-    /// is the honest rendering for both — a full bar on every row of a
+    /// is the honest rendering for both - a full bar on every row of a
     /// single-value playlist asserts a ranking nobody measured, and an empty
     /// one asserts the opposite.
     public func fraction(for row: TrackRow) -> Double? {

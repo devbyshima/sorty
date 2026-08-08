@@ -4,7 +4,7 @@ import Foundation
 /// playlist the rows are placed against.
 ///
 /// This is where ADR-0001's accepted cost is repaid. The fifteen-column table
-/// could be read two ways — one Attribute down the list, which the arrangement
+/// could be read two ways - one Attribute down the list, which the arrangement
 /// list now does better, and every Attribute across one track, which a row
 /// showing a single value cannot do at all. The second reading lives here, and
 /// nowhere else; if it were weak the trade-off would quietly be a regression.
@@ -22,7 +22,7 @@ public struct TrackDetail: Equatable, Sendable {
     /// One Attribute, as this track has it.
     public struct Reading: Identifiable, Equatable, Sendable {
         public let attribute: Attribute
-        /// Nil when the track has no value — the state `displayValue` renders
+        /// Nil when the track has no value - the state `displayValue` renders
         /// as `unavailable`.
         public let value: String?
         /// Where the value sits within this playlist's span for the Attribute,
@@ -36,7 +36,7 @@ public struct TrackDetail: Equatable, Sendable {
         /// What the sheet prints, present or not.
         public var displayValue: String { value ?? TrackDetail.unavailable }
 
-        /// Forwards to THE source of explanation copy — the same property the
+        /// Forwards to THE source of explanation copy - the same property the
         /// picker sheet and the FAQ read, never a second wording of it.
         public var explanation: String { attribute.explanation }
     }
@@ -58,12 +58,15 @@ public struct TrackDetail: Equatable, Sendable {
     }
 
     public let title: String
-    /// Artist, or what the entry is when there isn't one — the same words the
+    /// Artist, or what the entry is when there isn't one - the same words the
     /// row uses, so opening a track never renames it.
     public let subtitle: String
     /// Nil for a podcast episode, which belongs to a show rather than an album.
     public let album: String?
     public let artworkURL: URL?
+    /// Every size the cover comes in, so a view drawing it large can fetch a
+    /// file that is actually sharp at that size rather than a thumbnail.
+    public let artworkImages: [SpotifyImage]
     /// The way out to Spotify, or nil for anything with no server-side URI.
     public let spotifyURL: URL?
     public let sections: [Section]
@@ -76,7 +79,7 @@ public struct TrackDetail: Equatable, Sendable {
         readings.first { $0.attribute == attribute }
     }
 
-    /// `rows` is the whole loaded playlist, deliberately — not what the filter
+    /// `rows` is the whole loaded playlist, deliberately - not what the filter
     /// left and not what the Arrangement ranked. A bar answers "where does this
     /// sit among the others", and letting the filter move the range would make
     /// the same track draw a different length depending on what else happened
@@ -87,6 +90,7 @@ public struct TrackDetail: Equatable, Sendable {
         subtitle = TrackRowText.subtitle(for: row)
         album = row.playable.album?.name
         artworkURL = row.playable.coverImageURL
+        artworkImages = row.playable.coverImages
         spotifyURL = row.spotifyURL
 
         func readings(for attributes: [Attribute]) -> [Reading] {

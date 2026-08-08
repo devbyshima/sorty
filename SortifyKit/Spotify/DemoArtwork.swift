@@ -1,11 +1,15 @@
 import CoreGraphics
 import Foundation
 
+#if DEBUG
+// Test and screenshot-harness scaffolding only. ADR-0007 removed Demo Mode from
+// the shipped app; this whole file compiles out of Release.
+
 /// Cover artwork for the demo catalogue, drawn on device.
 ///
 /// Demo Mode runs with no account and no network (`CONTEXT.md`), so the covers
-/// cannot be fetched. They still arrive the way real covers do — as URLs on the
-/// model, at several sizes — so the model shape and `Playlist.cardImageURL`'s
+/// cannot be fetched. They still arrive the way real covers do - as URLs on the
+/// model, at several sizes - so the model shape and `Playlist.cardImageURL`'s
 /// size picking stay exactly what a signed-in listener exercises. Only the
 /// final load branches, in `CoverImageLoader`.
 ///
@@ -32,8 +36,8 @@ public enum DemoArtwork {
     /// how the image layer decides whether to draw or to fetch.
     ///
     /// Only the seed is carried. The `size` in the URL exists so the catalogue
-    /// can offer a cover at several resolutions the way Spotify does — which is
-    /// what `Playlist.cardImageURL` picks between — but a drawn cover is
+    /// can offer a cover at several resolutions the way Spotify does - which is
+    /// what `Playlist.cardImageURL` picks between - but a drawn cover is
     /// rendered to whatever the view actually needs, so the number in the URL
     /// never decides anything.
     public struct Request: Sendable, Hashable {
@@ -186,3 +190,4 @@ public enum DemoArtwork {
         return (r + m, g + m, b + m)
     }
 }
+#endif

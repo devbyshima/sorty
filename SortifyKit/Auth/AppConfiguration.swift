@@ -1,19 +1,11 @@
 import Foundation
 
-/// Which backend the app is currently talking to.
-public enum ServiceMode: String, Sendable, CaseIterable, Hashable {
-    /// Bundled sample catalogue — no account, no network, everything populated.
-    case demo
-    /// A real Spotify account via the user's own Client ID.
-    case spotify
-
-    public var label: String {
-        switch self {
-        case .demo: "Demo Mode"
-        case .spotify: "Spotify"
-        }
-    }
-}
+// `ServiceMode` used to live here, choosing between a bundled sample catalogue
+// and a real account. ADR-0007 removed Demo Mode from the shipped app, so there
+// is one backend and nothing to choose. The demo catalogue survives under
+// `#if DEBUG` for the tests and the screenshot harness, selected by a launch
+// argument rather than by a persisted user preference - a stored mode is exactly
+// how a demo path survives into a release build unnoticed.
 
 /// Where the acoustic columns get their numbers.
 public enum FeatureSourceMode: String, Sendable, CaseIterable, Hashable {
@@ -39,7 +31,7 @@ public enum FeatureSourceMode: String, Sendable, CaseIterable, Hashable {
         case .reccoBeats:
             "Free, no account needed, keyed by Spotify track ID. Coverage is strong for catalogue released up to 2024 and thin for 2025-onward releases; missing tracks leave those cells blank."
         case .spotify:
-            "Spotify restricted this endpoint in November 2024. It works only if your Client ID was granted extended quota before then — otherwise every request returns 403."
+            "Spotify restricted this endpoint in November 2024. It works only if your Client ID was granted extended quota before then. Otherwise every request returns 403."
         case .none:
             "BPM, Energy, Danceability, Loudness, Valence and Acousticness stay empty. Every other arrangement works normally."
         }
@@ -58,7 +50,6 @@ public enum FeatureSourceMode: String, Sendable, CaseIterable, Hashable {
 public struct AppConfiguration: Sendable, Equatable {
     public var clientID: String
     public var redirectURI: String
-    public var serviceMode: ServiceMode
     public var featureSource: FeatureSourceMode
 
     public static let defaultRedirectURI = "sortify://callback"
@@ -66,12 +57,10 @@ public struct AppConfiguration: Sendable, Equatable {
     public init(
         clientID: String = "",
         redirectURI: String = AppConfiguration.defaultRedirectURI,
-        serviceMode: ServiceMode = .demo,
         featureSource: FeatureSourceMode = .reccoBeats
     ) {
         self.clientID = clientID
         self.redirectURI = redirectURI
-        self.serviceMode = serviceMode
         self.featureSource = featureSource
     }
 
@@ -88,7 +77,7 @@ public struct AppConfiguration: Sendable, Equatable {
     }
 }
 
-/// Persists `AppConfiguration`. Only the Client ID and preferences live here —
+/// Persists `AppConfiguration`. Only the Client ID and preferences live here -
 /// tokens go to the Keychain.
 public struct ConfigurationStore {
     private let defaults: UserDefaults
@@ -96,17 +85,20 @@ public struct ConfigurationStore {
     private enum Key {
         static let clientID = "sortify.clientID"
         static let redirectURI = "sortify.redirectURI"
-        static let serviceMode = "sortify.serviceMode"
         static let featureSource = "sortify.featureSource"
+        /// Written by every version before ADR-0007. Removed on load rather than
+        /// left behind, so an install that once chose Demo Mode does not carry a
+        /// key naming a mode the app no longer has.
+        static let retiredServiceMode = "sortify.serviceMode"
     }
 
     public init(defaults: UserDefaults = .standard) { self.defaults = defaults }
 
     public func load() -> AppConfiguration {
-        AppConfiguration(
+        defaults.removeObject(forKey: Key.retiredServiceMode)
+        return AppConfiguration(
             clientID: defaults.string(forKey: Key.clientID) ?? "",
             redirectURI: defaults.string(forKey: Key.redirectURI) ?? AppConfiguration.defaultRedirectURI,
-            serviceMode: defaults.string(forKey: Key.serviceMode).flatMap(ServiceMode.init) ?? .demo,
             featureSource: defaults.string(forKey: Key.featureSource).flatMap(FeatureSourceMode.init) ?? .reccoBeats
         )
     }
@@ -114,7 +106,6 @@ public struct ConfigurationStore {
     public func save(_ configuration: AppConfiguration) {
         defaults.set(configuration.clientID, forKey: Key.clientID)
         defaults.set(configuration.redirectURI, forKey: Key.redirectURI)
-        defaults.set(configuration.serviceMode.rawValue, forKey: Key.serviceMode)
         defaults.set(configuration.featureSource.rawValue, forKey: Key.featureSource)
     }
 }

@@ -1,14 +1,14 @@
 import Foundation
 
-/// A property a track has — thirteen of them, closed.
+/// A property a track has - thirteen of them, closed.
 ///
 /// An Attribute is something a track *is*; an `Arrangement` is something you do
 /// to a playlist. Nothing here knows about ordering, direction or table
 /// columns: artist separation and shuffle are not Attributes, because no track
 /// carries either value.
 ///
-/// Ten are measurements of the music. The other three — position, title and
-/// artist — are things a track carries rather than things it measures, but they
+/// Ten are measurements of the music. The other three - position, title and
+/// artist - are things a track carries rather than things it measures, but they
 /// are read from the track exactly like the rest, so they belong here and not
 /// among the orderings that compute their own values.
 public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
@@ -17,8 +17,8 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
 
     public var id: String { rawValue }
 
-    /// Spelled out. Read by the FAQ, accessibility labels and — through
-    /// `Arrangement.name` — the saved-playlist name.
+    /// Spelled out. Read by the FAQ, accessibility labels and - through
+    /// `Arrangement.name` - the saved-playlist name.
     public var name: String {
         switch self {
         case .order: "Original order"
@@ -45,7 +45,7 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
         }
     }
 
-    /// Whether this Attribute has a magnitude — somewhere a value can sit on a
+    /// Whether this Attribute has a magnitude - somewhere a value can sit on a
     /// line, which is what a position bar draws.
     ///
     /// Not the same question as `isNumeric`, which is about how two values
@@ -61,7 +61,7 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
     }
 
     /// True when the value comes from the audio-feature provider rather than
-    /// from Spotify's own track metadata — so it can legitimately be missing.
+    /// from Spotify's own track metadata - so it can legitimately be missing.
     public var isAudioFeature: Bool {
         switch self {
         case .bpm, .energy, .dance, .loud, .valence, .acoustic: true
@@ -77,7 +77,7 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
     /// where the question is "what does arranging by this do", and beside a
     /// *value* in the detail sheet, where it is "what am I looking at". So each
     /// says what the Attribute is first, and only then what ordering by it
-    /// gets you — a sentence that opens with "in alphabetical order" explains
+    /// gets you - a sentence that opens with "in alphabetical order" explains
     /// nothing at all when it is sitting under one track's title.
     public var explanation: String {
         switch self {
@@ -94,7 +94,7 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
         case .bpm:
             "The estimated tempo in beats per minute. A waltz sits around 80, a pop song around 120, drum & bass around 170."
         case .energy:
-            "A 0–100 measure of intensity and activity. Energetic tracks feel fast, loud and noisy — think death metal. A Bach prelude scores low."
+            "A 0–100 measure of intensity and activity. Energetic tracks feel fast, loud and noisy, like death metal. A Bach prelude scores low."
         case .dance:
             "A 0–100 score for how suitable a track is for dancing, from tempo, rhythm stability, beat strength and regularity."
         case .loud:

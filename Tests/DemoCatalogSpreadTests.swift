@@ -39,8 +39,8 @@ struct DemoCatalogSpreadTests {
 
         for attribute in Self.scaled {
             let observed = values(all, attribute)
-            #expect(observed.min()! <= 15, "\(attribute) never gets low — min \(observed.min()!)")
-            #expect(observed.max()! >= 85, "\(attribute) never gets high — max \(observed.max()!)")
+            #expect(observed.min()! <= 15, "\(attribute) never gets low - min \(observed.min()!)")
+            #expect(observed.max()! >= 85, "\(attribute) never gets high - max \(observed.max()!)")
         }
     }
 
@@ -55,7 +55,7 @@ struct DemoCatalogSpreadTests {
                 let span = observed.max()! - observed.min()!
                 #expect(
                     span >= 40,
-                    "\(playlist.name) / \(attribute) spans only \(span) points — the position bar would be flat"
+                    "\(playlist.name) / \(attribute) spans only \(span) points - the position bar would be flat"
                 )
             }
         }
@@ -69,7 +69,7 @@ struct DemoCatalogSpreadTests {
     /// The criterion is "span the range **instead of clustering in the
     /// middle**", and min/max cannot see clustering: two outliers satisfy it
     /// while every other track sits on 50. This measures the body of the
-    /// distribution, across the library — which is the level the phrase is
+    /// distribution, across the library - which is the level the phrase is
     /// about, since a single playlist is *supposed* to have a character.
     @Test("Across the library, values fill the range rather than bunching mid-scale")
     func libraryIsNotConcentrated() {
@@ -81,7 +81,7 @@ struct DemoCatalogSpreadTests {
 
             #expect(
                 standardDeviation(observed) >= 18,
-                "\(attribute): SD \(standardDeviation(observed)) — the library bunches"
+                "\(attribute): SD \(standardDeviation(observed)) - the library bunches"
             )
 
             let middle = observed.filter { $0 > 33 && $0 < 67 }.count
@@ -92,7 +92,7 @@ struct DemoCatalogSpreadTests {
         }
     }
 
-    /// A playlist may legitimately be tight on the Attribute that defines it —
+    /// A playlist may legitimately be tight on the Attribute that defines it -
     /// an acoustic playlist really is mostly acoustic. What it may never be is
     /// *constant*, which is the bug this replaces: acousticness used to be
     /// hard-coded to 0.72 for every track of a low-energy playlist, so
@@ -107,7 +107,7 @@ struct DemoCatalogSpreadTests {
                 let observed = values(playlistRows, attribute)
                 #expect(
                     standardDeviation(observed) >= 9,
-                    "\(playlist.name) / \(attribute): SD \(standardDeviation(observed)) — barely varies"
+                    "\(playlist.name) / \(attribute): SD \(standardDeviation(observed)) - barely varies"
                 )
             }
         }

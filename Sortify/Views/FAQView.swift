@@ -17,7 +17,7 @@ struct FAQView: View {
                     )
                     FAQItem(
                         question: "Is my data safe?",
-                        answer: "Sortify never sees your Spotify password — sign-in runs in Apple's own web authentication sheet. Your tokens live in the device Keychain and never leave it. There is no Sortify server, no account and no analytics."
+                        answer: "Sortify never sees your Spotify password. Sign-in runs in Apple's own web authentication sheet. Your tokens live in the device Keychain and never leave it. There is no Sortify server, no account and no analytics."
                     )
                 }
 
@@ -52,7 +52,7 @@ struct FAQView: View {
                     )
                     FAQItem(
                         question: "Can I preview a track?",
-                        answer: "Not in Sortify — Spotify stopped serving 30-second preview clips to new apps at the same time it withdrew audio features. Swipe a row to open the track in Spotify instead."
+                        answer: "Not in Sortify. Spotify stopped serving 30-second preview clips to new apps at the same time it withdrew audio features. Swipe a row to open the track in Spotify instead."
                     )
                 }
 
@@ -71,7 +71,8 @@ struct FAQView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }.fontWeight(.semibold)
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                        .labelStyle(.iconOnly)
                 }
             }
         }

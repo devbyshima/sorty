@@ -10,7 +10,7 @@ import SwiftUI
 /// Every screen in Sortify that lists tracks is showing exactly that metadata,
 /// so this belongs at the foot of each of them rather than only in the FAQ.
 ///
-/// The second of the two places Spotify's green is correct — the other is the
+/// The second of the two places Spotify's green is correct - the other is the
 /// connect affordance. The accent is Sortify's everywhere else (ADR-0006).
 ///
 /// > Important: the guidelines ask for the **logo** (icon + wordmark), not a

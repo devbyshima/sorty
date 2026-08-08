@@ -13,7 +13,7 @@ import Foundation
 /// when it eventually has to place one. Here artist-less entries share a single
 /// bucket and get distributed like any other "artist".
 public enum ArtistSeparation {
-    /// Assigns `artistSeparationIndex` to every row. Row order is untouched —
+    /// Assigns `artistSeparationIndex` to every row. Row order is untouched -
     /// only the index is written, so the caller decides when to actually sort.
     public static func assignIndices(to rows: inout [TrackRow]) {
         let total = rows.count

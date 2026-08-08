@@ -1,14 +1,14 @@
 import Foundation
 
-/// A named way of ordering a playlist — the first-class thing a user picks.
+/// A named way of ordering a playlist - the first-class thing a user picks.
 /// Attribute-derived orderings carry the Attribute and a direction; artist
 /// separation and shuffle are peers that compute their own order.
 ///
-/// FAITHFULNESS INVARIANT: an Arrangement value *is* an ordering — no two
+/// FAITHFULNESS INVARIANT: an Arrangement value *is* an ordering - no two
 /// values denote the same one, and each determines the order completely.
 /// `canSave` compares the applied Arrangement against the saved one, so either
 /// half failing makes it quietly wrong. In particular **Original order is
-/// `.attribute(.order, .ascending)` — a name, not a case**; adding a case for
+/// `.attribute(.order, .ascending)` - a name, not a case**; adding a case for
 /// it would give one ordering two unequal values.
 ///
 /// Shuffle carries its seed for the other half of the same invariant. Without
@@ -35,7 +35,7 @@ public enum Arrangement: Sendable, Hashable {
         var multiplier: Int { self == .ascending ? 1 : -1 }
     }
 
-    /// The playlist as Spotify returned it. A constant, not a case — see the
+    /// The playlist as Spotify returned it. A constant, not a case - see the
     /// faithfulness invariant above.
     public static let originalOrder = Arrangement.attribute(.order, .ascending)
 
@@ -75,7 +75,7 @@ public enum Arrangement: Sendable, Hashable {
     /// no per-track number that would mean anything.
     public var rankingAttribute: Attribute? { basis.attribute }
 
-    /// Total — the directionless Arrangements reverse to themselves, so callers
+    /// Total - the directionless Arrangements reverse to themselves, so callers
     /// need no guard.
     public var reversed: Arrangement {
         switch self {
@@ -103,7 +103,7 @@ extension Arrangement {
     /// "which arrangement is selected".
     ///
     /// Always derived (`arrangement.basis`), never stored beside an
-    /// Arrangement — the app's single piece of ordering state is the
+    /// Arrangement - the app's single piece of ordering state is the
     /// Arrangement, and a stored Basis would be the parallel state this type
     /// exists to remove.
     public enum Basis: RawRepresentable, CaseIterable, Sendable, Hashable, Identifiable {
@@ -161,13 +161,13 @@ extension Arrangement {
             switch self {
             case .attribute(let attribute): attribute.explanation
             case .artistSeparation:
-                "Not an attribute of the music — Sortify computes this. It rearranges the playlist so tracks by the same artist land as far apart as possible."
+                "Not an attribute of the music. Sortify computes this. It rearranges the playlist so tracks by the same artist land as far apart as possible."
             case .shuffle:
                 "A random order. Re-roll from the chip for a different one."
             }
         }
 
-        /// Pairs a Basis with a direction. Not a normalizing factory — every
+        /// Pairs a Basis with a direction. Not a normalizing factory - every
         /// case constructor stays directly writable and every directly-written
         /// value is legal. This exists so generic code (the launch argument,
         /// the table header, tests) can ask for "this ordering, that way round"

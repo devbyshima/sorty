@@ -11,14 +11,14 @@ ticket 02.
 
 The redesign spec describes the new ordering type as *"an **Arrangement** type
 whose cases are Attribute-derived orderings (carrying an Attribute and a
-direction) plus the computed ones — Artist separation, Shuffle, Original
+direction) plus the computed ones - Artist separation, Shuffle, Original
 order."* Read literally, that asks for three computed cases, one of them
 `originalOrder`.
 
 The same spec also fixes the size of the Attribute type: ticket 02 says
 *"**Attribute** covers the thirteen measurable properties."* Today's
 `SortColumn` has fifteen cases; removing artist separation and shuffle leaves
-exactly thirteen — and that thirteen **includes** `order`, the track's position
+exactly thirteen - and that thirteen **includes** `order`, the track's position
 in the playlist. So position is an Attribute.
 
 Those two readings collide. If `order` is an Attribute and `originalOrder` is
@@ -26,7 +26,7 @@ also a case, then `.attribute(.order, .ascending)` and `.originalOrder` are two
 values denoting one ordering. They compare unequal, and `TrackTableModel.canSave`
 decides whether anything has changed by comparing the applied arrangement
 against the saved one. Two spellings of "unchanged" would make Save offer itself
-on a playlist nobody rearranged — and the redesign's active-chip highlight and
+on a playlist nobody rearranged - and the redesign's active-chip highlight and
 reorder animation would inherit the same fault.
 
 `CONTEXT.md`, which is authoritative on vocabulary, names only Artist separation
@@ -35,8 +35,8 @@ value*. A track does carry its position, exactly as it carries its date added.
 
 ## Decision
 
-`Arrangement` has three cases — `.attribute(Attribute, Direction)`,
-`.artistSeparation`, `.shuffle` — and **Original order is
+`Arrangement` has three cases - `.attribute(Attribute, Direction)`,
+`.artistSeparation`, `.shuffle` - and **Original order is
 `Arrangement.attribute(.order, .ascending)`, exposed as `static let
 originalOrder`**.
 
@@ -54,7 +54,7 @@ table's `#` header reverses the playlist on a second tap, and a payload-free
 `case originalOrder` would have made that behaviour impossible to express.
 A `case originalOrder(Direction)` would have re-created the duplicate.
 
-Nothing suppresses the duplicate spelling, because it does not exist — there is
+Nothing suppresses the duplicate spelling, because it does not exist - there is
 no normalizing initializer for a future caller to route around. The two reasons
 someone would reach for the case are pre-empted: `Basis.originalOrder.name`
 already gives the label "Original order", and `Arrangement.direction` is an
@@ -70,7 +70,7 @@ layer it was actually about.
 **Amended by ticket 03.** When this was written the invariant held in one
 direction only: `.shuffle` was a single value standing for whichever order the
 current random values happened to produce, so re-rolling did not re-arm Save.
-Ticket 03 gave it the seed payload — `case shuffle(seed: UInt64)`, keyed through
+Ticket 03 gave it the seed payload - `case shuffle(seed: UInt64)`, keyed through
 SplitMix64 rather than `Hasher`, which is seeded per process and would make a
 shuffled screenshot unreproducible. The invariant now holds both ways: no two
 values denote the same ordering, and every value determines its ordering

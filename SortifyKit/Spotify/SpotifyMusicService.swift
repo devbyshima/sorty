@@ -70,7 +70,7 @@ public actor SpotifyMusicService: MusicService {
         case 429:
             // Two different 429s share this status. A rolling-window rate limit
             // clears on its own, so wait it out. Development-mode quota
-            // exhaustion does not — retrying just burns the remaining budget.
+            // exhaustion does not - retrying just burns the remaining budget.
             let envelope = try? JSONDecoder().decode(SpotifyErrorEnvelope.self, from: data)
             if envelope?.error?.reason == "QUOTA_EXCEEDED" {
                 throw SpotifyAPIError.quotaExceeded
@@ -200,7 +200,24 @@ public actor SpotifyMusicService: MusicService {
         var result: [TrackAlbum] = []
         // Batch /albums accepts 20 IDs per call, but February 2026 removed it for
         // newly registered apps. Try the batch, then degrade to one call per
-        // album rather than losing the Release column entirely.
+        // album rather than losing every release date.
+        //
+        // The fallback fires on *any* API failure, not only the 404 that
+        // `isPathUnsupported` recognises. That predicate exists for the two
+        // spellings of the playlist-items endpoint, where a 403 genuinely means
+        // "not allowed" and retrying the other spelling would mask it. Here the
+        // single-album path is a different endpoint rather than a different
+        // spelling, and the restriction this fallback was written for reports
+        // itself as 403 - which the app's own copy says, in
+        // `FeatureSourceMode.explanation`. Excluding 403 meant the degrade path
+        // never ran in exactly the case it exists for, and every release date
+        // came back empty.
+        //
+        // Once a whole batch has failed *and* its individual retries turned up
+        // nothing, stop retrying: a permission failure applies to every album
+        // alike, and a 300-album playlist would otherwise spend 300 requests
+        // proving it.
+        var individualRetriesAreFutile = false
         for batch in ids.chunked(into: 20) {
             let url = base.appending(path: "albums")
                 .appending(queryItems: [.init(name: "ids", value: batch.joined(separator: ","))])
@@ -209,8 +226,11 @@ public actor SpotifyMusicService: MusicService {
                     result.append(contentsOf: response.albums.compactMap(\.self))
                     continue
                 }
-            } catch let error as SpotifyAPIError where isPathUnsupported(error) {
-                result.append(contentsOf: await albumsIndividually(ids: batch))
+            } catch is SpotifyAPIError {
+                guard !individualRetriesAreFutile else { continue }
+                let recovered = await albumsIndividually(ids: batch)
+                individualRetriesAreFutile = recovered.isEmpty
+                result.append(contentsOf: recovered)
                 continue
             }
         }
@@ -310,7 +330,7 @@ public actor SpotifyMusicService: MusicService {
     }
 
     /// 404 means "this Client ID doesn't have that spelling of the endpoint".
-    /// 403 is deliberately excluded — that means "not allowed", and retrying a
+    /// 403 is deliberately excluded - that means "not allowed", and retrying a
     /// different path would just mask a genuine permission failure.
     private func isPathUnsupported(_ error: SpotifyAPIError) -> Bool {
         error.httpStatus == 404

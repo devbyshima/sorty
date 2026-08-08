@@ -50,13 +50,13 @@ struct PlaylistRowTests {
             let text = PlaylistRowText(playlist: playlist, currentUserID: "me")
             #expect(
                 text.badges.contains(.readOnly) == !isWritable,
-                "\(playlist.name) — the row must not promise what the save screen withdraws"
+                "\(playlist.name) - the row must not promise what the save screen withdraws"
             )
             #expect(playlist.isWritable(byUserID: "me") == isWritable)
         }
     }
 
-    /// A playlist can be collaborative *and* yours to overwrite — the two marks
+    /// A playlist can be collaborative *and* yours to overwrite - the two marks
     /// answer different questions, so neither implies the other.
     @Test("Collaborative and read-only are independent")
     func badgesAreIndependent() {
@@ -76,7 +76,7 @@ struct PlaylistRowTests {
     }
 
     /// Signed out there is no owner to compare against, so nothing is writable
-    /// — and the rows say so rather than implying an Overwrite that isn't
+    /// - and the rows say so rather than implying an Overwrite that isn't
     /// coming.
     @Test("With no account every playlist reads as read-only")
     func signedOutMarksEverything() {

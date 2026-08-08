@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-/// The sheet is the half of the old table the list can't do — every Attribute
+/// The sheet is the half of the old table the list can't do - every Attribute
 /// across one track. What it says is decided here, so it can be asserted here.
 @Suite("Track detail")
 struct TrackDetailTests {
@@ -44,7 +44,7 @@ struct TrackDetailTests {
             originalIndex: 3,
             playable: Playable(
                 id: "e0",
-                name: "Field Notes — Ep. 12",
+                name: "Field Notes: Ep. 12",
                 uri: "spotify:episode:e0",
                 durationMS: 1_800_000,
                 popularity: nil,
@@ -105,7 +105,7 @@ struct TrackDetailTests {
         #expect(detail.spotifyURL == URL(string: "spotify:track:t1"))
     }
 
-    /// The same words the row uses — opening a track must not rename it.
+    /// The same words the row uses - opening a track must not rename it.
     @Test("An episode is named as one rather than given a blank artist")
     func episodeSubtitleMatchesTheRow() {
         let all = rows() + [episode]
@@ -157,8 +157,8 @@ struct TrackDetailTests {
         }
     }
 
-    /// `length` is the one audio feature with a fallback — Spotify supplies the
-    /// duration whether or not the provider does — so it survives a miss while
+    /// `length` is the one audio feature with a fallback - Spotify supplies the
+    /// duration whether or not the provider does - so it survives a miss while
     /// the rest don't.
     @Test("What Spotify supplies survives a provider miss")
     func spotifyMetadataSurvivesAMiss() {
@@ -172,7 +172,7 @@ struct TrackDetailTests {
     }
 
     /// The footer explains the six absences above it. It must not also claim
-    /// the section below never has any — an episode carries no artist, no
+    /// the section below never has any - an episode carries no artist, no
     /// popularity and no album to hold a release date, so four of those seven
     /// read "Unavailable" too, and a footer promising otherwise would be a
     /// sentence the very next screenful contradicts.
@@ -200,7 +200,7 @@ struct TrackDetailTests {
 
     // MARK: - Bars
 
-    @Test("A value sits where the playlist puts it — bottom, middle and top")
+    @Test("A value sits where the playlist puts it - bottom, middle and top")
     func fractionsSpanTheRange() {
         let all = rows()
 
@@ -232,7 +232,7 @@ struct TrackDetailTests {
         }
     }
 
-    /// The rows suppress this one — a bar for position down a list already in
+    /// The rows suppress this one - a bar for position down a list already in
     /// that order is a ramp that says nothing. Here the list is one track, and
     /// where it sat is exactly what a listener came to find out.
     @Test("Position gets a bar in the sheet even though the rows suppress it")
@@ -298,7 +298,7 @@ struct TrackDetailModelTests {
         // Tempos are 100/110/120/130/140, and the track picked has to be one
         // whose fraction *would* move if the range narrowed. The minimum sits
         // at 0 against every range that contains it, so asserting on it passes
-        // whether the invariant holds or not — the test would name the
+        // whether the invariant holds or not - the test would name the
         // regression without being able to see it. 110 reads 0.25 across the
         // whole playlist and 0.5 across the filtered 100–120.
         let row = model.rows[1]
@@ -311,7 +311,7 @@ struct TrackDetailModelTests {
     }
 
     /// A track only reachable past the group headers still opens to a full
-    /// sheet — the Attributes it does have are exactly what says why it landed
+    /// sheet - the Attributes it does have are exactly what says why it landed
     /// there.
     @Test("An unrankable track still has a sheet")
     func unrankableTracksOpenToo() async {

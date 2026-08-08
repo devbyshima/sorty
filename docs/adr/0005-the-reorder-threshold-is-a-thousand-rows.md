@@ -25,8 +25,8 @@ frames across a reorder and flags any whose gap from the previous frame exceeds
 the link rather than assumed, because ProMotion changes it underneath you.
 
 Driven by `-screen profile -count N` (`ReorderProfileView`), which builds a
-playlist of N invented tracks with Attributes on coprime strides — so no two
-Arrangements agree on an order and every reorder genuinely moves every row —
+playlist of N invented tracks with Attributes on coprime strides - so no two
+Arrangements agree on an order and every reorder genuinely moves every row -
 and then drives the **real** `TrackListModel` and `TrackListView`. A
 purpose-built list would have measured the harness.
 
@@ -35,9 +35,9 @@ Run on **Serein, an iPhone 16 Pro (A18 Pro), iOS 27**, installed via
 
 Two scenarios per size:
 
-- **Single reorder** — one Arrangement applied, sampled for 900ms while the
+- **Single reorder** - one Arrangement applied, sampled for 900ms while the
   spring settles. Three passes over six Arrangements: 18 samples per size.
-- **Rapid burst** — six Arrangements applied 80ms apart, faster than anyone can
+- **Rapid burst** - six Arrangements applied 80ms apart, faster than anyone can
   tap distinct chips, sampled until settled. This is ticket 09's "rapidly
   switching Arrangements does not queue or stack".
 
@@ -62,7 +62,7 @@ Single reorder, 18 samples per size:
 |  5,000 |                      9 |        1.57× | 6.80× (113ms) |
 
 **Flat.** A reorder of 5,000 rows costs what a reorder of 100 costs, and the
-spread is noise rather than trend — 500 rows measured worse than 1,000. An
+spread is noise rather than trend - 500 rows measured worse than 1,000. An
 earlier sweep to 10,000 (Spotify's own playlist ceiling) agreed: 0–1 late frames
 per reorder.
 
@@ -70,7 +70,7 @@ The reason is structural. `LazyVStack` lays out only the rows on screen, so the
 spring animates about a dozen of them however long the playlist is, and the sort
 itself is sub-millisecond even at five thousand.
 
-Rapid burst — six Arrangements in 480ms:
+Rapid burst - six Arrangements in 480ms:
 
 | rows  | late frames | worst |
 | ----: | ----------: | ----: |
@@ -79,8 +79,8 @@ Rapid burst — six Arrangements in 480ms:
 | 5,000 |     15 / 63 | 6.56× |
 
 Here size finally appears: 13% of frames late at 100 rows, 15% at 1,000, 24% at
-5,000. The animations do **not** queue — six queued springs would have held the
-window late for 2.4 seconds, and it settles in about 1.4 — but the cost of
+5,000. The animations do **not** queue - six queued springs would have held the
+window late for 2.4 seconds, and it settles in about 1.4 - but the cost of
 changing your mind quickly does grow.
 
 ## Decision
@@ -102,12 +102,12 @@ snap. That is accepted: the alternative is a rule that only holds while nobody
 taps twice.
 
 **Do not raise it from intuition, and do not lower it either.** If row rendering
-gets more expensive — a per-row waveform, say — the single-reorder table stops
+gets more expensive - a per-row waveform, say - the single-reorder table stops
 being flat and the number has to be taken again. The harness is still in the
 repo for exactly that: `-screen profile -count N`, `REORDER-PROFILE` lines on
 the console.
 
 **These numbers are one device.** An A18 Pro is the fast end of what iOS 27
 runs. The costs are not size-dependent, so a slower phone scales the hitch
-rather than moving the threshold — which is why the answer to a slow device is
+rather than moving the threshold - which is why the answer to a slow device is
 to re-measure, not to lower a row count that was never the lever.

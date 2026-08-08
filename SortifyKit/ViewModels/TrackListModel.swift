@@ -24,9 +24,9 @@ public final class TrackListModel {
     /// into whichever unrankable group it explains.
     ///
     /// It used to be a notice above the list, shown only when *every* track
-    /// failed — so in the common case, where some did, nothing said anything.
+    /// failed - so in the common case, where some did, nothing said anything.
     private var providerNote: String?
-    /// Oldest `added_at` in the playlist — the closest thing Spotify offers to a
+    /// Oldest `added_at` in the playlist - the closest thing Spotify offers to a
     /// creation date.
     public private(set) var oldestAddedAt: String?
 
@@ -63,7 +63,7 @@ public final class TrackListModel {
     private var saved: Saved?
 
     /// Both caches are read on every row of a long list, so they are memoized
-    /// rather than recomputed — without this, resolving the range per row would
+    /// rather than recomputed - without this, resolving the range per row would
     /// make drawing the list O(n²).
     ///
     /// Both are observation-tracked stored properties, and on a cache hit the
@@ -96,8 +96,8 @@ public final class TrackListModel {
     /// is shown.
     ///
     /// The unrankable ones are deliberately part of this. A track the provider
-    /// had nothing for is still written back — appended at the end rather than
-    /// dropped — because using Sortify must never cost a listener tracks.
+    /// had nothing for is still written back - appended at the end rather than
+    /// dropped - because using Sortify must never cost a listener tracks.
     ///
     /// Display order and write order are the same list on purpose: a listener
     /// who can see the order should be able to trust that it is what gets
@@ -123,7 +123,7 @@ public final class TrackListModel {
         return resolved
     }
 
-    /// Every track in the playlist, in Arrangement order — the filter not
+    /// Every track in the playlist, in Arrangement order - the filter not
     /// consulted.
     ///
     /// This is the *only* thing overwrite is allowed to write (ADR-0002). It is
@@ -175,7 +175,7 @@ public final class TrackListModel {
 
     /// One track in full, for the detail sheet.
     ///
-    /// Resolved against `rows` — the whole loaded playlist — for the same
+    /// Resolved against `rows` - the whole loaded playlist - for the same
     /// reason `positionRange` is: a track hidden by the filter is still one of
     /// the others this one is being compared against. Not cached, because it is
     /// computed once per tap rather than once per row.
@@ -198,7 +198,7 @@ public final class TrackListModel {
     public var canSave: Bool { saveActions.contains { $0.isEnabled } }
 
     /// A new playlist is a duplicate unless *something* differs from what's on
-    /// Spotify — and the filter counts, because a filter is the whole reason
+    /// Spotify - and the filter counts, because a filter is the whole reason
     /// story 41 wants this path.
     public var canSaveAsNewPlaylist: Bool {
         guard isReadyToWrite, let saved else { return false }
@@ -209,7 +209,7 @@ public final class TrackListModel {
     ///
     /// This is ADR-0002 showing up in the gate rather than only in the payload.
     /// Overwrite never consults the filter, so narrowing the filter cannot
-    /// leave the playlist on Spotify stale — the order it holds is still the
+    /// leave the playlist on Spotify stale - the order it holds is still the
     /// order this screen would write. Offering it there would be offering a
     /// write with nothing to write.
     public var canOverwrite: Bool {
@@ -217,7 +217,7 @@ public final class TrackListModel {
         return saved.arrangement != arrangement
     }
 
-    /// Whether this playlist is one Sortify may write over at all — a question
+    /// Whether this playlist is one Sortify may write over at all - a question
     /// about the playlist, not about whether anything has changed.
     public var mayOverwriteThisPlaylist: Bool {
         service.canWriteBack && playlist.isWritable(byUserID: currentUserID)
@@ -289,11 +289,25 @@ public final class TrackListModel {
         } catch is CancellationError {
             // Leaving the screen mid-load is not a failure.
         } catch {
-            phase = .failed(error.localizedDescription)
+            // Not `localizedDescription`: Spotify answers most refusals with a
+            // bare "Forbidden", which told the listener nothing about whose
+            // rule it was or whether retrying could help. `LoadFailure` reads
+            // the status and the playlist together, because the status alone
+            // never says which refusal this is.
+            phase = .failed(
+                LoadFailure.message(for: error, playlist: playlist, currentUserID: currentUserID)
+            )
+            canRetryLoad = LoadFailure.isWorthRetrying(
+                error, playlist: playlist, currentUserID: currentUserID
+            )
         }
     }
 
-    /// Fills in audio features and album release dates. Neither is fatal — the
+    /// False when the refusal is a rule that will refuse the next request too.
+    /// A Try Again button that cannot succeed is worse than no button.
+    public private(set) var canRetryLoad = true
+
+    /// Fills in audio features and album release dates. Neither is fatal - the
     /// list is useful without them, and on a post-2024 Spotify app the feature
     /// call will simply come back empty.
     private func enrich() async {
@@ -350,7 +364,7 @@ public final class TrackListModel {
     ///
     /// Its own control, deliberately: the old table re-rolled when you tapped
     /// the Random column a second time, which is the same gesture that flipped
-    /// direction everywhere else — one gesture meaning two things depending on
+    /// direction everywhere else - one gesture meaning two things depending on
     /// where it landed (ADR-0001).
     ///
     /// The new seed is part of the Arrangement, so a re-roll is a change like
@@ -396,7 +410,7 @@ public final class TrackListModel {
     public func overwrite() async {
         let uris = overwriteURIs
         guard !uris.isEmpty else {
-            saveStatus = .failed("Nothing to save — none of these tracks can be written back to Spotify.")
+            saveStatus = .failed("Nothing to save. None of these tracks can be written back to Spotify.")
             return
         }
 
@@ -406,18 +420,18 @@ public final class TrackListModel {
         do {
             try await service.replaceTracks(playlistID: playlist.id, uris: uris)
             saved = current
-            saveStatus = .updated("Updated “\(playlist.name)” — \(uris.count) tracks by \(arrangementName).")
+            saveStatus = .updated("Updated “\(playlist.name)” with \(uris.count) tracks by \(arrangementName).")
         } catch {
             saveStatus = .failed(Self.failureMessage(for: error))
         }
     }
 
-    /// Creates a new playlist holding what is on screen — which may be a
+    /// Creates a new playlist holding what is on screen - which may be a
     /// subset, and is the only path that may be.
     public func saveAsNewPlaylist() async {
         let uris = newPlaylistURIs
         guard !uris.isEmpty else {
-            saveStatus = .failed("Nothing to save — the BPM filter is hiding every track.")
+            saveStatus = .failed("Nothing to save. The BPM filter is hiding every track.")
             return
         }
         guard let userID = currentUserID else {
@@ -440,17 +454,17 @@ public final class TrackListModel {
             try await service.replaceTracks(playlistID: created.id, uris: uris)
 
             saved = current
-            saveStatus = .created("Created “\(created.name)” — \(uris.count) tracks by \(arrangementName).")
+            saveStatus = .created("Created “\(created.name)” with \(uris.count) tracks by \(arrangementName).")
         } catch {
             saveStatus = .failed(Self.failureMessage(for: error))
         }
     }
 
-    /// Shared because it is about the *error*, not about the payload — the one
+    /// Shared because it is about the *error*, not about the payload - the one
     /// thing the two paths may legitimately have in common.
     private static func failureMessage(for error: any Error) -> String {
         if let apiError = error as? SpotifyAPIError, apiError.isNotWritable {
-            return "This playlist can't be modified — it may be owned by Spotify or another listener. Save a new playlist instead."
+            return "This playlist can't be modified. It may be owned by Spotify or another listener. Save a new playlist instead."
         }
         return error.localizedDescription
     }

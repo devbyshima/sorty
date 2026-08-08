@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 /// The policy behind the reorder, which is a decision rather than a layout
-/// detail. The *number* in it is a measurement — see `docs/adr/0005` — and
+/// detail. The *number* in it is a measurement - see `docs/adr/0005` - and
 /// these tests pin the rule, not the measurement.
 @Suite("Reorder animation")
 struct ReorderAnimationTests {

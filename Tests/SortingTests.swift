@@ -90,7 +90,7 @@ struct AttributeValueTests {
         #expect(row.displayValue(for: .length) == "3:05")
     }
 
-    @Test("A missing feature yields nil, not zero — zero would sort as a real value")
+    @Test("A missing feature yields nil, not zero - zero would sort as a real value")
     func missingFeaturesAreNil() {
         let row = makeRow(index: 0, hasFeatures: false)
         for attribute in Attribute.allCases where attribute.isAudioFeature {
@@ -116,7 +116,7 @@ struct AttributeValueTests {
         #expect(row.textValue(for: .added) == "2024-06-01")
     }
 
-    @Test("Only real Spotify URIs are savable — local files are dropped")
+    @Test("Only real Spotify URIs are savable - local files are dropped")
     func savableURIs() {
         #expect(makeRow(index: 0).savableURI == "spotify:track:t0")
         #expect(makeRow(index: 1, isEpisode: true).savableURI == "spotify:episode:t1")
@@ -232,7 +232,7 @@ struct ArrangingTests {
     }
 
     /// The seed has to determine the order completely, and identically on every
-    /// launch — otherwise a shuffled screenshot could never be reproduced, and
+    /// launch - otherwise a shuffled screenshot could never be reproduced, and
     /// `canSave` could not tell one shuffle from another.
     @Test("The same seed is the same shuffle, every time and in every process")
     func shufflesAreReproducible() {
@@ -246,7 +246,7 @@ struct ArrangingTests {
         #expect(Array(first.prefix(6)) == [11, 23, 30, 34, 15, 35])
     }
 
-    @Test("Shuffle ignores direction — it has none to ignore")
+    @Test("Shuffle ignores direction - it has none to ignore")
     func shuffleHasNoDirection() {
         #expect(Arrangement.shuffle(seed: 7).direction == nil)
         #expect(Arrangement.shuffle(seed: 7).reversed == .shuffle(seed: 7))
@@ -297,7 +297,7 @@ struct BPMFilterTests {
         #expect(!withoutDoubling.accepts(row))
     }
 
-    @Test("Rows with no BPM are never hidden — filtering must not silently drop episodes")
+    @Test("Rows with no BPM are never hidden - filtering must not silently drop episodes")
     func rowsWithoutBPMAlwaysPass() {
         let filter = BPMFilter(minBPM: 100, maxBPM: 140)
         #expect(filter.accepts(makeRow(index: 0, hasFeatures: false)))
@@ -305,7 +305,7 @@ struct BPMFilterTests {
     }
 
     /// Was `arrangeOrdersThenFilters`, against a `PlaylistSorter.arrange` that
-    /// no longer exists — ADR-0002 wanted no filter-aware payload builder in
+    /// no longer exists - ADR-0002 wanted no filter-aware payload builder in
     /// the shared layer. The behaviour it covered is the same, asserted where
     /// it now lives.
     @Test("Filtering happens after arranging, and preserves the arranged order")
@@ -339,7 +339,7 @@ struct ArtistSeparationTests {
 
     @Test("A dominant artist stops being back-to-back")
     func dominantArtistIsSpread() {
-        // Six tracks by one artist followed by six others — the worst case.
+        // Six tracks by one artist followed by six others - the worst case.
         var rows: [TrackRow] = []
         for index in 0..<6 { rows.append(makeRow(index: index, artist: "Heavy")) }
         for index in 6..<12 { rows.append(makeRow(index: index, artist: "Other \(index)")) }

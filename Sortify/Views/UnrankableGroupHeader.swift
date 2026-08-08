@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Introduces the tracks the active Arrangement couldn't place.
 ///
-/// The tracks below it were always here — nil sinks to the bottom in either
-/// direction — but they arrived silently, showing a dash. A run of blank rows
+/// The tracks below it were always here - nil sinks to the bottom in either
+/// direction - but they arrived silently, showing a dash. A run of blank rows
 /// with no explanation reads as a bug in the app rather than as data the
 /// provider lacked, which is what this header exists to correct.
 struct UnrankableGroupHeader: View {

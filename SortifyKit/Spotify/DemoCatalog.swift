@@ -1,9 +1,13 @@
 import Foundation
 
+#if DEBUG
+// Test and screenshot-harness scaffolding only. ADR-0007 removed Demo Mode from
+// the shipped app; this whole file compiles out of Release.
+
 /// The invented library Demo Mode serves.
 ///
 /// Generated from a fixed seed, so the same playlist always produces the same
-/// numbers — screenshots and tests stay reproducible across runs.
+/// numbers - screenshots and tests stay reproducible across runs.
 public struct DemoCatalog: Sendable {
     public static let shared = DemoCatalog()
 
@@ -18,7 +22,7 @@ public struct DemoCatalog: Sendable {
 
     // MARK: - Generation
 
-    /// Each playlist has its own musical character — that is what makes picking
+    /// Each playlist has its own musical character - that is what makes picking
     /// between them mean something, and what makes an arrangement of one look
     /// different from an arrangement of another. Centres set the character;
     /// the spread around them is wide enough that any single playlist still
@@ -38,7 +42,7 @@ public struct DemoCatalog: Sendable {
         let acousticCentre: Double
         let episodes: Int
         /// Tracks the audio-feature provider has nothing for. Real playlists
-        /// have these — ReccoBeats' catalogue is patchy for recent releases —
+        /// have these - ReccoBeats' catalogue is patchy for recent releases -
         /// and the unrankable group in ticket 05 needs them to exist.
         let tracksWithoutFeatures: Int
     }
@@ -221,20 +225,20 @@ public struct DemoCatalog: Sendable {
                 items.append(PlaylistItem(addedAt: addedAt, isLocal: false, track: track))
             }
 
-            // Podcast episodes: no artists, no acoustic attributes — exactly the
+            // Podcast episodes: no artists, no acoustic attributes - exactly the
             // shape that makes the sort and save paths interesting.
             for episodeIndex in 0..<spec.episodes {
                 let id = "\(spec.id)-e\(episodeIndex)"
                 let episode = Playable(
                     id: id,
-                    name: "\(Self.showNames[episodeIndex % Self.showNames.count]) — Ep. \(12 + episodeIndex)",
+                    name: "\(Self.showNames[episodeIndex % Self.showNames.count]): Ep. \(12 + episodeIndex)",
                     uri: "spotify:episode:\(id)",
                     durationMS: 1_500_000 + Int(generator.next(upperBound: 2_400_000)),
                     popularity: nil,
                     artists: nil,
                     album: nil,
                     // An episode belongs to a show, not an album, so it carries
-                    // its own artwork — seeded by the show so a series looks
+                    // its own artwork - seeded by the show so a series looks
                     // like a series.
                     images: DemoArtwork.images(seed: "show-\(Self.showNames[episodeIndex % Self.showNames.count])"),
                     type: .episode
@@ -324,3 +328,4 @@ extension Double {
         Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
+#endif

@@ -12,9 +12,11 @@ enum DebugLaunch {
     enum Screen: String {
         case playlists, tracks, faq, settings
         /// The guided connect flow of ticket 11, which a listener reaches by
-        /// tapping Save in Demo Mode — so the harness has to arrive at it.
+        /// tapping Save in Demo Mode - so the harness has to arrive at it.
         case connect
-        /// Not a screen a listener reaches — the reorder measurement of ticket
+        /// The way in, shown whenever no account is connected (ADR-0007).
+        case signedOut
+        /// Not a screen a listener reaches - the reorder measurement of ticket
         /// 09, which drives the real list at a size the demo catalogue has no
         /// playlist for.
         case profile
@@ -30,35 +32,35 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "screen").flatMap(Screen.init)
     }
 
-    /// `-playlist demo-longrun` — which demo playlist to open for `.tracks`.
+    /// `-playlist demo-longrun` - which demo playlist to open for `.tracks`.
     static var playlistID: String? {
         UserDefaults.standard.string(forKey: "playlist")
     }
 
     /// `-arrangement bpm-descending`, `-arrangement artist-separation`.
-    /// One argument, because an Arrangement is one thing — a column plus a
+    /// One argument, because an Arrangement is one thing - a column plus a
     /// separate direction could name a combination that doesn't exist.
     static var arrangement: Arrangement? {
         UserDefaults.standard.string(forKey: "arrangement").flatMap(Arrangement.init(argument:))
     }
 
-    /// `-sheet arrangements` — a sheet can only be reached by tapping, and the
+    /// `-sheet arrangements` - a sheet can only be reached by tapping, and the
     /// harness never touches the simulator, so it has to arrive presented.
     static var sheet: Sheet? {
         UserDefaults.standard.string(forKey: "sheet").flatMap(Sheet.init)
     }
 
-    /// `-connectStep clientID` — which step of the guided connect flow to
+    /// `-connectStep clientID` - which step of the guided connect flow to
     /// arrive on. Steps are reached by tapping Continue, and the harness never
-    /// taps, so the interesting ones — the redirect URI to copy, the Client ID
-    /// field and its complaint — need naming directly.
+    /// taps, so the interesting ones - the redirect URI to copy, the Client ID
+    /// field and its complaint - need naming directly.
     static var connectStep: ConnectStep? {
         UserDefaults.standard.string(forKey: "connectStep").flatMap { raw in
             ConnectStep.allCases.first { "\($0)" == raw }
         }
     }
 
-    /// `-accent 5B4BE0` — overrides the identity colour for the length of one
+    /// `-accent 5B4BE0` - overrides the identity colour for the length of one
     /// launch.
     ///
     /// A colour cannot be judged in the abstract; it has to be seen against
@@ -77,14 +79,14 @@ enum DebugLaunch {
         )
     }
 
-    /// `-count 400` — how many tracks `-screen profile` builds its playlist
+    /// `-count 400` - how many tracks `-screen profile` builds its playlist
     /// from. The reorder threshold is a measurement, so the size has to be an
     /// input rather than whatever the demo catalogue happens to hold.
     static var profileCount: Int? {
         UserDefaults.standard.string(forKey: "count").flatMap(Int.init)
     }
 
-    /// `-track 22` — which row `-sheet track` opens the detail sheet for,
+    /// `-track 22` - which row `-sheet track` opens the detail sheet for,
     /// counted down the list as it appears. Position on screen rather than
     /// original index, so the harness can name a track from the unrankable
     /// group as easily as a ranked one.
@@ -92,7 +94,7 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "track").flatMap(Int.init)
     }
 
-    /// `-filter 300-400` — a tempo range, so a screen can be reached that would
+    /// `-filter 300-400` - a tempo range, so a screen can be reached that would
     /// otherwise need scrolling. Tracks with no BPM always pass the filter, so
     /// a range nothing matches leaves exactly the unrankable ones on screen.
     static var filter: BPMFilter? {
@@ -100,6 +102,39 @@ enum DebugLaunch {
         let bounds = raw.split(separator: "-").map { Int($0) }
         guard bounds.count == 2, let low = bounds[0], let high = bounds[1] else { return nil }
         return BPMFilter(minBPM: low, maxBPM: high, includeDoubled: false)
+    }
+
+    /// `-scrolled 260` - how far down the screen arrives, in points.
+    ///
+    /// The progressive blur exists only where content passes *under* a header,
+    /// so a screen at rest has nothing to photograph and a screenshot of one
+    /// proves only that the header is sharp. Arriving already scrolled is what
+    /// makes the blur itself verifiable from a cold launch, which is the only
+    /// kind of run this harness does.
+    static var scrollOffset: CGFloat? {
+        UserDefaults.standard.string(forKey: "scrolled").flatMap(Double.init).map { CGFloat($0) }
+    }
+
+    /// `-demo` - run against the bundled sample catalogue.
+    ///
+    /// **The only way into it.** ADR-0007 removed Demo Mode from the app, and
+    /// the catalogue survives for this harness and for the tests. It is an
+    /// explicit argument rather than a Debug-only default because a default
+    /// means Debug and Release take different paths through the same launch
+    /// code, which is exactly how a demo path survives into a shipped build
+    /// unnoticed. Passing it is auditable; forgetting it fails loudly, with an
+    /// empty library rather than a plausible one.
+    static var usesDemoData: Bool {
+        UserDefaults.standard.string(forKey: "demo") != nil
+            || CommandLine.arguments.contains("-demo")
+    }
+
+    /// `-layout grid2` - which library layout to arrive in.
+    ///
+    /// It is a persisted preference, so without this the harness can only ever
+    /// shoot whichever one the simulator happens to have been left in.
+    static var libraryLayout: LibraryLayout? {
+        UserDefaults.standard.string(forKey: "layout").flatMap(LibraryLayout.init(rawValue:))
     }
 
     static var isActive: Bool { screen != nil }
@@ -112,6 +147,48 @@ enum DebugLaunch {
     static var profileCount: Int? { nil }
     static var connectStep: ConnectStep? { nil }
     static var filter: BPMFilter? { nil }
+    static var scrollOffset: CGFloat? { nil }
+    static var libraryLayout: LibraryLayout? { nil }
+    static var usesDemoData: Bool { false }
     static var isActive: Bool { false }
     #endif
+}
+
+// MARK: - Arriving scrolled
+
+private struct DebugScrolled: ViewModifier {
+    let offset: CGFloat?
+
+    @State private var position = ScrollPosition()
+
+    func body(content: Content) -> some View {
+        if let offset {
+            content
+                .scrollPosition($position)
+                // After a beat, not in `onAppear`: the scroll view has no
+                // content extent yet when the view first appears, so a scroll
+                // requested there is clamped to zero and silently does nothing.
+                // The harness waits seconds before it shoots, so this is free.
+                .task {
+                    // Long enough to be after the screen's own `load()`, which
+                    // rebuilds the list and resets the offset to zero. At 400ms
+                    // it raced that and sometimes shot an unscrolled screen.
+                    try? await Task.sleep(for: .milliseconds(1200))
+                    position.scrollTo(y: offset)
+                }
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    /// Arrives at `-scrolled N` points down, for the headless harness.
+    ///
+    /// Outside DEBUG `DebugLaunch.scrollOffset` is always nil, so this resolves
+    /// to the untouched scroll view - it does not bind a scroll position in a
+    /// shipping build.
+    func debugScrolled() -> some View {
+        modifier(DebugScrolled(offset: DebugLaunch.scrollOffset))
+    }
 }

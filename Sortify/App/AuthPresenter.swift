@@ -5,7 +5,7 @@ import SwiftUI
 ///
 /// This is the only correct surface for OAuth on iOS: it shares Safari's cookie
 /// jar (so an already-signed-in listener gets a one-tap approval), shows the
-/// system's own consent prompt, and hands the callback URL straight back —
+/// system's own consent prompt, and hands the callback URL straight back -
 /// unlike `SFSafariViewController`, which can't see the redirect, or a
 /// `WKWebView`, which would put Sortify between the user and their password.
 @MainActor
@@ -35,7 +35,7 @@ final class AuthPresenter: NSObject, ASWebAuthenticationPresentationContextProvi
     ///
     /// `redirectURI` decides how the callback is matched. Spotify's dashboard
     /// has been rejecting custom schemes as insecure for Client IDs created
-    /// since April 2025, so an https redirect has to work too — that path needs
+    /// since April 2025, so an https redirect has to work too - that path needs
     /// a matching `apple-app-site-association` on the host.
     func authenticate(url: URL, redirectURI: String) async throws -> URL {
         guard let callback = Self.callback(for: redirectURI) else {

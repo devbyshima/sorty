@@ -59,13 +59,13 @@ struct ReorderProfileView: View {
         print("REORDER-PROFILE rows=\(count) limit=\(ReorderAnimation.rowLimit)")
 
         // Three passes. A single reorder produces one number, and one number
-        // off a 60Hz sampler is noise — the pass that happens to miss the spike
+        // off a 60Hz sampler is noise - the pass that happens to miss the spike
         // reports zero and would argue the cost had vanished.
         for arrangement in sequence + sequence + sequence {
             profiler.start()
             withAnimation(.snappy) { model.apply(arrangement) }
             // Longer than `.snappy` takes to settle, so the tail of the spring
-            // is measured too — that is where a struggling list gives up.
+            // is measured too - that is where a struggling list gives up.
             try? await Task.sleep(for: .milliseconds(900))
             let result = profiler.stop()
 
@@ -83,7 +83,7 @@ struct ReorderProfileView: View {
         done = true
     }
 
-    /// Six Arrangements in half a second — faster than anyone can tap, and the
+    /// Six Arrangements in half a second - faster than anyone can tap, and the
     /// case the ticket asks about: do the springs queue, or does one spring
     /// keep changing its mind?
     ///

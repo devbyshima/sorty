@@ -10,7 +10,7 @@ import Foundation
 /// source as swappable and degrades honestly when it has none.
 public protocol AudioFeatureProviding: Sendable {
     /// Features for as many of `trackIDs` as the source knows about, keyed by
-    /// Spotify track ID. Missing IDs are simply absent — never an error.
+    /// Spotify track ID. Missing IDs are simply absent - never an error.
     func features(forTrackIDs trackIDs: [String]) async throws -> [String: AudioFeatures]
 
     /// Shown in Settings so the user knows where the numbers came from.

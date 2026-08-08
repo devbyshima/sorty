@@ -70,7 +70,7 @@ struct FeatureProviderFallbackTests {
 
     /// Not every track: the demo catalogue deliberately leaves some without
     /// features, the way a real provider misses recent releases. The provider's
-    /// job is to answer for the ones it has and stay quiet about the rest —
+    /// job is to answer for the ones it has and stay quiet about the rest -
     /// never to invent a value, and never to report the whole playlist
     /// unavailable because part of it is.
     @Test("Demo features cover most of the catalogue, and omit the rest silently")
