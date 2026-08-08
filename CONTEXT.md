@@ -60,6 +60,17 @@ connect flow. ADR-0003 refused to have one at all; ADR-0007 makes it the front
 door.
 _Avoid_: Logged out, unauthenticated, welcome
 
+**Connect flow**:
+The four steps that turn a listener with no account into one with a working
+session: why their own Client ID is needed, creating the app, pasting the ID,
+authorizing. It is Sortify's **onboarding** and the two words name one thing -
+there is no separate first-run sequence, and there is nothing else to collect,
+because a Client ID and an authorization are the whole of what this app needs
+from anyone. Reached from the signed-out screen, from Save without an account,
+and from the account menu; the Client ID stays editable in Settings afterwards.
+Under ADR-0003 it was on demand and not a gate. ADR-0007 made it the way in.
+_Avoid_: Onboarding, sign-up, setup wizard, first run
+
 **Withheld**:
 What Spotify does with a playlist the listener neither owns nor collaborates on:
 it names the playlist and refuses its contents, and sends no track count either.
