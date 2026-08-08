@@ -265,7 +265,9 @@ struct TrackListView: View {
     }
 
     private var identityText: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        let header = headerText
+
+        return VStack(alignment: .leading, spacing: 6) {
             Text(model.playlist.name)
                 .font(.title.bold())
                 .fixedSize(horizontal: false, vertical: true)
@@ -277,11 +279,25 @@ struct TrackListView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Text(subtitleLine)
+            // The owner gets a line, with a face on it where there is one. The
+            // reference puts them here and the old header folded them into the
+            // line below, which read as metadata rather than as a person.
+            if let owner = header.owner {
+                HStack(spacing: 6) {
+                    OwnerAvatar(initials: header.ownerInitials, images: ownerImages)
+                    Text(owner)
+                        .font(.footnote.weight(.medium))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Text(header.detail)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(model.playlist.name). \(header.spoken)")
     }
 
     /// Side by side normally, stacked once the text is large enough that a
@@ -296,27 +312,32 @@ struct TrackListView: View {
             : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
     }
 
-    /// Owner, then how much there is of it. Both are what the reference puts
-    /// here, and both are things Sortify actually knows.
-    private var subtitleLine: String {
-        let owner = model.playlist.owner.displayName ?? model.playlist.owner.id
-        // Nothing loaded and nothing reported. Spotify sends no count for a
-        // playlist it will not open, and "0 tracks" here would be the header
-        // filling that gap with a number it does not have.
-        guard model.playlist.trackCountIsKnown || !model.rows.isEmpty else {
-            return owner.isEmpty
-                ? PlaylistRowText.hiddenTrackCount
-                : "\(owner) · \(PlaylistRowText.hiddenTrackCount)"
-        }
-        let count = model.rows.isEmpty ? model.playlist.tracks.total : model.rows.count
-        // An active filter had exactly one indicator, and it was on the strip
-        // of controls that has just been removed. Said here instead, because a
-        // list quietly showing a third of a playlist with nothing explaining
-        // why is the kind of thing people report as lost tracks.
-        let tracks = model.filter.isActive
-            ? "\(model.arrangedRows.count) of \(count) tracks"
-            : (count == 1 ? "1 track" : "\(count) tracks")
-        return owner.isEmpty ? tracks : "\(owner) · \(tracks)"
+    /// Owner, how much there is of it, and how long it runs. All three are what
+    /// the reference puts here, and all three are things Sortify knows.
+    ///
+    /// Every rule in it lives in `PlaylistHeaderText` in SortifyKit, including
+    /// the two that only appear while the screen is filling: the count changes
+    /// source once rows arrive, and the running time cannot exist before they do
+    /// because the listing carries no total duration.
+    private var headerText: PlaylistHeaderText {
+        PlaylistHeaderText(
+            playlist: model.playlist,
+            loadedCount: model.rows.count,
+            visible: model.arrangedRows,
+            isFiltered: model.filter.isActive
+        )
+    }
+
+    /// The only face this app has.
+    ///
+    /// `PlaylistOwner` carries no image, so the signed-in listener is the one
+    /// owner whose picture is already in hand, from `/me`. Everyone else gets
+    /// initials rather than a request: `GET /users/{id}` per distinct owner is
+    /// exactly the kind of spend ADR-0008 refused, on an app capped at five
+    /// listeners.
+    private var ownerImages: [SpotifyImage] {
+        guard let user = session.user, user.id == model.playlist.owner.id else { return [] }
+        return user.images ?? []
     }
 
     /// Which actions appear, what they say and whether each is armed are all
@@ -566,6 +587,49 @@ struct TrackListView: View {
         case .created(let message), .updated(let message), .failed(let message): message
         default: nil
         }
+    }
+}
+
+// MARK: - Owner
+
+/// The circle beside the owner's name.
+///
+/// Almost always initials. Spotify's playlist object names an owner and carries
+/// no picture of them, so the only listener this app has a face for is the
+/// signed-in one; see `TrackListView.ownerImages` for why it does not go and
+/// fetch the rest. Initials are Spotify's own fallback, so the shape reads as an
+/// avatar either way.
+///
+/// Hidden from VoiceOver: the name is right beside it and the header speaks as
+/// one sentence.
+private struct OwnerAvatar: View {
+    let initials: String
+    let images: [SpotifyImage]
+
+    @ScaledMetric(relativeTo: .footnote) private var side: Double = 20
+
+    var body: some View {
+        Group {
+            if images.isEmpty {
+                Circle()
+                    .fill(SortifyTheme.surface)
+                    .overlay {
+                        Text(initials)
+                            // Sized from the circle rather than from a text
+                            // style, so two letters still fit once Dynamic Type
+                            // has grown both.
+                            .font(.system(size: side * 0.44, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .minimumScaleFactor(0.6)
+                            .lineLimit(1)
+                    }
+            } else {
+                CoverImage(images: images)
+                    .clipShape(.circle)
+            }
+        }
+        .frame(width: side, height: side)
+        .accessibilityHidden(true)
     }
 }
 
