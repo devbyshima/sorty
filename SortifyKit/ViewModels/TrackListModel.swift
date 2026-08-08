@@ -261,7 +261,11 @@ public final class TrackListModel {
                     TrackRow(
                         originalIndex: index,
                         playable: playable,
-                        addedAt: item.addedAt
+                        addedAt: item.addedAt,
+                        // Already here, in the track's own album. Reading it at
+                        // construction rather than in `enrich()` is what makes a
+                        // release date independent of a network call.
+                        albumReleaseDate: playable.album?.validReleaseDate
                     )
                 )
                 index += 1
@@ -307,9 +311,14 @@ public final class TrackListModel {
     /// A Try Again button that cannot succeed is worse than no button.
     public private(set) var canRetryLoad = true
 
-    /// Fills in audio features and album release dates. Neither is fatal - the
-    /// list is useful without them, and on a post-2024 Spotify app the feature
-    /// call will simply come back empty.
+    /// Fills in audio features, and the release date of any album that arrived
+    /// without one. Neither is fatal - the list is useful without them, and on a
+    /// post-2024 Spotify app the feature call will simply come back empty.
+    ///
+    /// Release dates are *not* fetched in the general case: they come with the
+    /// playlist (`TrackRow.albumReleaseDate`). The lookup here is for the album
+    /// that somehow carried none, which normally means no album is asked about at
+    /// all.
     private func enrich() async {
         let trackIDs = rows.compactMap { row -> String? in
             guard !row.playable.isEpisode, let id = row.playable.id else { return nil }
@@ -320,7 +329,14 @@ public final class TrackListModel {
             (try? await featureProvider.features(forTrackIDs: trackIDs)) ?? [:]
         }()
 
-        let albumIDs = Array(Set(rows.compactMap { $0.playable.album?.id }))
+        // Only the albums that arrived without a release date - normally none, so
+        // normally no request. Asking about all of them was what broke this: the
+        // answer was thrown away on success and, once February 2026 removed batch
+        // `/albums` for new apps, replaced every date with the nil of a refusal.
+        let albumIDs = Array(Set(rows.compactMap { row -> String? in
+            guard row.albumReleaseDate == nil else { return nil }
+            return row.playable.album?.id
+        }))
         async let albums: [TrackAlbum] = {
             (try? await service.albums(ids: albumIDs)) ?? []
         }()
@@ -328,7 +344,7 @@ public final class TrackListModel {
         let (resolvedFeatures, resolvedAlbums) = await (features, albums)
 
         for album in resolvedAlbums {
-            if let id = album.id, let date = album.releaseDate {
+            if let id = album.id, let date = album.validReleaseDate {
                 albumReleaseDates[id] = date
             }
         }
@@ -337,8 +353,12 @@ public final class TrackListModel {
             if let id = rows[index].playable.id {
                 rows[index].features = resolvedFeatures[id]
             }
-            if let albumID = rows[index].playable.album?.id {
-                rows[index].albumReleaseDate = albumReleaseDates[albumID]
+            // Fills a gap, never replaces what the track came with. An album the
+            // lookup had nothing for leaves the row exactly as it was.
+            if rows[index].albumReleaseDate == nil,
+               let albumID = rows[index].playable.album?.id,
+               let date = albumReleaseDates[albumID] {
+                rows[index].albumReleaseDate = date
             }
         }
 

@@ -242,12 +242,30 @@ public struct TrackAlbum: Codable, Sendable, Hashable {
     public let id: String?
     public let name: String?
     public let images: [SpotifyImage]?
-    /// Present on full album objects; absent on the simplified album inside a track.
+    /// The date the album was first released, at year, month or day precision.
+    ///
+    /// Present on the simplified album inside a track, not only on a full album
+    /// object: `release_date` is a required field of Spotify's album base object,
+    /// and both the simplified and the full album derive from it. So a playlist's
+    /// own response already carries every release date it has, and nothing has to
+    /// be fetched to read one. This is not what the app assumed - see
+    /// `TrackRow.albumReleaseDate`.
     public let releaseDate: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, images
         case releaseDate = "release_date"
+    }
+
+    /// The release date, or nil when the field arrived empty.
+    ///
+    /// Same guard as `validAddedAt`, for the same reason: a local file's album
+    /// can come back with `""`, which is "no date" wearing the shape of one.
+    /// Release date sorts as text, so an empty string would rank ahead of every
+    /// real date rather than falling to the unrankable group.
+    public var validReleaseDate: String? {
+        guard let releaseDate, !releaseDate.isEmpty else { return nil }
+        return releaseDate
     }
 
     public init(id: String? = nil, name: String? = nil, images: [SpotifyImage]? = nil, releaseDate: String? = nil) {

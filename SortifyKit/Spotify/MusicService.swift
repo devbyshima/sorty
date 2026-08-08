@@ -19,8 +19,10 @@ public protocol MusicService: Sendable {
         onPage: @Sendable ([PlaylistItem], Int) async -> Void
     ) async throws -> [PlaylistItem]
 
-    /// Full album objects, which - unlike the album stub on a track - carry the
-    /// release date.
+    /// Full album objects, asked for only when an album arrived without a release
+    /// date. A track carries its album's `release_date` already, so this is a
+    /// gap-filler rather than the way release dates are read - see
+    /// `TrackRow.albumReleaseDate` for the bug that assumption caused.
     func albums(ids: [String]) async throws -> [TrackAlbum]
 
     func createPlaylist(

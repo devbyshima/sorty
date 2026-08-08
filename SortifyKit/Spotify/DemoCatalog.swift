@@ -177,7 +177,10 @@ public struct DemoCatalog: Sendable {
                     durationMS: durationMS,
                     popularity: Int(generator.next(upperBound: 101)),
                     artists: [TrackArtist(id: "artist-\(artistIndex)", name: Self.artistNames[artistIndex])],
-                    album: TrackAlbum(id: albumID, name: albumsByID[albumID]?.name, images: albumArtwork),
+                    // The whole album, release date included: Spotify's simplified
+                    // album carries `release_date`, and a fixture that left it out
+                    // is what let the release-date bug pass every demo test.
+                    album: albumsByID[albumID],
                     type: .track
                 )
 

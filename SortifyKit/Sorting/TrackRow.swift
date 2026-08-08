@@ -11,8 +11,17 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
     public let playable: Playable
     public let addedAt: String?
     public var features: AudioFeatures?
-    /// Release date of the containing album, looked up separately because the
-    /// simplified album inside a track omits it.
+    /// Release date of the containing album, read from the track's own album.
+    ///
+    /// It used to be filled only by a separate `/albums` lookup, on the belief
+    /// that the simplified album inside a track omitted the field. It does not -
+    /// `release_date` is required on Spotify's album base object, which the
+    /// simplified album derives from - and February 2026 removed batch `/albums`
+    /// for newly registered apps, which is every app this one asks a listener to
+    /// create. So the value was arriving with the playlist, being decoded, and
+    /// then being overwritten with the nil of a request that could not succeed:
+    /// every release date read Unavailable. The lookup survives to fill a genuine
+    /// gap, not as the source.
     public var albumReleaseDate: String?
     /// Position assigned by the artist-separation pass.
     public var artistSeparationIndex: Int?

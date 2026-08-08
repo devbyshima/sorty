@@ -198,6 +198,11 @@ public actor SpotifyMusicService: MusicService {
         struct AlbumsResponse: Decodable { let albums: [TrackAlbum?] }
 
         var result: [TrackAlbum] = []
+        // Reached only for an album that arrived without a release date, because a
+        // track carries its album's `release_date` already - see
+        // `TrackRow.albumReleaseDate`. So this whole path is a gap-filler now;
+        // nothing routine depends on it succeeding.
+        //
         // Batch /albums accepts 20 IDs per call, but February 2026 removed it for
         // newly registered apps. Try the batch, then degrade to one call per
         // album rather than losing every release date.

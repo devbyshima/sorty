@@ -11,21 +11,27 @@ actor RecordingMusicService: MusicService {
 
     private(set) var createdPlaylists: [(name: String, isPublic: Bool, description: String)] = []
     private(set) var writes: [(playlistID: String, uris: [String])] = []
+    /// Every album lookup, including the empty ones - so "it never asked" can be
+    /// told apart from "it asked for nothing".
+    private(set) var albumRequests: [[String]] = []
 
     private let items: [PlaylistItem]
     private let failWrites: Bool
     private let albumsHaveDates: Bool
+    private let albumsRefused: Bool
 
     init(
         items: [PlaylistItem],
         failWrites: Bool = false,
         canWriteBack: Bool = true,
-        albumsHaveDates: Bool = true
+        albumsHaveDates: Bool = true,
+        albumsRefused: Bool = false
     ) {
         self.items = items
         self.failWrites = failWrites
         self.canWriteBack = canWriteBack
         self.albumsHaveDates = albumsHaveDates
+        self.albumsRefused = albumsRefused
     }
 
     func currentUser() async throws -> SpotifyUser { SpotifyUser(id: "me", displayName: "Me") }
@@ -42,6 +48,10 @@ actor RecordingMusicService: MusicService {
     }
 
     func albums(ids: [String]) async throws -> [TrackAlbum] {
+        albumRequests.append(ids)
+        // What a Client ID registered after 2024 gets: the endpoint is not the
+        // app's to call, and no retry changes that.
+        if albumsRefused { throw SpotifyAPIError.http(status: 403, message: "Forbidden") }
         guard albumsHaveDates else { return [] }
         return ids.map { TrackAlbum(id: $0, name: "Album \($0)", releaseDate: "2019-05-0\(($0.count % 9) + 1)") }
     }
@@ -81,9 +91,14 @@ struct StubFeatureProvider: AudioFeatureProviding {
 
 // MARK: - Fixtures
 
-func sampleItems(count: Int) -> [PlaylistItem] {
+/// A playlist page as Spotify actually returns one - the album inside each track
+/// carrying its own `release_date`, because Spotify's simplified album always
+/// does. `nestedReleaseDates: false` is the album that somehow arrived without
+/// one, which is what the `/albums` gap-filler exists for.
+func sampleItems(count: Int, nestedReleaseDates: Bool = true) -> [PlaylistItem] {
     (0..<count).map { index in
-        PlaylistItem(
+        let albumID = "alb\(index % 4)"
+        return PlaylistItem(
             addedAt: "2024-0\((index % 9) + 1)-01T00:00:00Z",
             isLocal: false,
             track: Playable(
@@ -93,7 +108,10 @@ func sampleItems(count: Int) -> [PlaylistItem] {
                 durationMS: 180_000 + index * 1_000,
                 popularity: 40 + index,
                 artists: [TrackArtist(name: "Artist \(index % 3)")],
-                album: TrackAlbum(id: "alb\(index % 4)"),
+                album: TrackAlbum(
+                    id: albumID,
+                    releaseDate: nestedReleaseDates ? "20\(10 + index % 4)-0\((index % 4) + 1)-14" : nil
+                ),
                 type: .track
             )
         )
