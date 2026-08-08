@@ -11,6 +11,11 @@ public final class TrackListModel {
         case ready
         case failed(String)
         case empty
+        /// Nothing to show and nothing went wrong: a rule of Spotify's answers
+        /// this playlist, and the state carries the words for it. Distinct from
+        /// `failed` because a rule is not an error, offers no Try Again, and
+        /// deserves the empty-state treatment rather than the error row.
+        case unavailable(EmptyState)
     }
 
     public let playlist: Playlist
@@ -238,11 +243,28 @@ public final class TrackListModel {
     // MARK: - Loading
 
     public func load() async {
-        phase = .loading(loaded: 0, total: playlist.tracks.total)
         rows = []
         albumReleaseDates = [:]
         saved = nil
         invalidateArrangement()
+
+        // Known before asking. Spotify sends a playlist's contents only to the
+        // people who own it or collaborate on it, and who owns this one arrived
+        // with the library listing, so the answer is already in hand: a request
+        // here would spend one of a five-listener quota to be told 403 and would
+        // put a spinner in front of a sentence that was true on arrival.
+        //
+        // Only another listener's playlist is pre-empted. Spotify's own
+        // editorial and algorithmic playlists fail the same rule for a different
+        // reason and keep the explanation `LoadFailure` gives them.
+        if playlist.category(currentUserID: currentUserID) == .other,
+           !playlist.contentsAreReadable(byUserID: currentUserID) {
+            phase = .unavailable(.contentsWithheld(owner: LoadFailure.ownerName(of: playlist)))
+            canRetryLoad = false
+            return
+        }
+
+        phase = .loading(loaded: 0, total: playlist.tracks.total)
 
         do {
             let collected = Mailbox()
@@ -292,6 +314,14 @@ public final class TrackListModel {
             phase = .ready
         } catch is CancellationError {
             // Leaving the screen mid-load is not a failure.
+        } catch let error as SpotifyAPIError where error.isNotWritable
+            && playlist.category(currentUserID: currentUserID) == .other {
+            // The same refusal the pre-check makes without asking, arriving from
+            // the wire instead: a collaborative playlist whose invite was
+            // withdrawn, or an owner Spotify never named. One state, so the
+            // screen reads the same either way.
+            phase = .unavailable(.contentsWithheld(owner: LoadFailure.ownerName(of: playlist)))
+            canRetryLoad = false
         } catch {
             // Not `localizedDescription`: Spotify answers most refusals with a
             // bare "Forbidden", which told the listener nothing about whose

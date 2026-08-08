@@ -7,6 +7,11 @@ public enum SpotifyAPIError: LocalizedError {
     case quotaExceeded
     case transport(any Error)
     case decoding(any Error)
+    /// Spotify answered about the playlist but sent no contents: a 200 whose
+    /// `items` array is absent rather than empty. The documented shape for a
+    /// playlist the listener neither owns nor collaborates on, alongside the
+    /// 403 the items endpoint itself returns.
+    case contentsWithheld
 
     public var errorDescription: String? {
         switch self {
@@ -22,12 +27,20 @@ public enum SpotifyAPIError: LocalizedError {
             "Network error: \(error.localizedDescription)"
         case .decoding:
             "Spotify sent a response Sortify couldn't read."
+        case .contentsWithheld:
+            "Spotify didn't send this playlist's tracks."
         }
     }
 
-    /// Playlists owned by Spotify or by another user reject writes with 403/404.
+    /// Whether this is Spotify refusing rather than failing: the statuses it
+    /// answers a rule with, plus the contents it silently leaves out.
+    ///
+    /// Named for writes because that is where it started, and read now by every
+    /// refusal - `LoadFailure` turns one of these into a sentence that says
+    /// *which* rule, which the status alone never does.
     public var isNotWritable: Bool {
         if case .http(let status, _) = self { return status == 403 || status == 404 }
+        if case .contentsWithheld = self { return true }
         return false
     }
 

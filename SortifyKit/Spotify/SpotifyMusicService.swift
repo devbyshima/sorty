@@ -152,7 +152,13 @@ public actor SpotifyMusicService: MusicService {
             guard let page = try await get(url, as: Page<Playlist?>.self) else { break }
             // Spotify occasionally emits nulls in this array; skipping empty
             // playlists matches the reference, which has nothing to sort in them.
-            all.append(contentsOf: page.items.compactMap(\.self).filter { $0.tracks.total > 0 })
+            //
+            // Empty means Spotify *said* empty. It used to mean "reported no
+            // count", and since February 2026 another listener's playlist
+            // arrives with no count at all, so that reading deleted every one of
+            // them from the library before it was ever drawn. See
+            // `Playlist.trackCountIsKnown`.
+            all.append(contentsOf: page.items.compactMap(\.self).filter { !$0.isReportedEmpty })
             await onBatch(all, page.total)
             next = page.next.flatMap(URL.init(string:))
         }
@@ -164,11 +170,11 @@ public actor SpotifyMusicService: MusicService {
         ownerID: String,
         onPage: @Sendable ([PlaylistItem], Int) async -> Void
     ) async throws -> [PlaylistItem] {
-        var next: URL? = itemsURL(playlistID: playlistID).appending(queryItems: [
-            .init(name: "limit", value: "50"),
-            .init(name: "additional_types", value: "track,episode"),
-        ])
+        var next: URL? = firstPage(of: itemsURL(playlistID: playlistID))
         var all: [PlaylistItem] = []
+        // True only while the older spelling is being tried on speculation, so a
+        // failure there can put the latch back the way it was found.
+        var isProbingLegacyPath = false
 
         while let url = next {
             try Task.checkCancellation()
@@ -176,21 +182,43 @@ public actor SpotifyMusicService: MusicService {
             do {
                 page = try await get(url, as: Page<PlaylistItem>.self)
             } catch let error as SpotifyAPIError where isPathUnsupported(error) && !usedLegacyItemsPath {
-                // This Client ID predates /items; fall back for the rest of the run.
+                // Either this Client ID predates /items, or this is a playlist
+                // Spotify won't show anyone but its owner. Both answer 404, and
+                // only trying the other spelling tells them apart.
                 usedLegacyItemsPath = true
-                next = legacyTracksURL(playlistID: playlistID).appending(queryItems: [
-                    .init(name: "limit", value: "50"),
-                    .init(name: "additional_types", value: "track,episode"),
-                ])
+                isProbingLegacyPath = true
+                next = firstPage(of: legacyTracksURL(playlistID: playlistID))
                 continue
+            } catch {
+                // The probe failed too, so the spelling was never the problem.
+                // Leaving the latch set would point every later request in this
+                // session at an endpoint March 2026 removed for Development Mode
+                // apps, and the whole library would stop loading on the way back
+                // from one playlist that was never readable.
+                if isProbingLegacyPath { usedLegacyItemsPath = false }
+                throw error
             }
             guard let page else { break }
+            isProbingLegacyPath = false
+            // A 200 that answers about the playlist and leaves its contents out.
+            // Not an empty playlist: `items` is absent rather than empty, which
+            // is how Spotify declines a playlist the listener neither owns nor
+            // collaborates on.
+            guard page.carriedItems else { throw SpotifyAPIError.contentsWithheld }
             let usable = page.items.filter { $0.track != nil }
             all.append(contentsOf: usable)
             await onPage(usable, all.count)
             next = page.next.flatMap(URL.init(string:))
         }
         return all
+    }
+
+    /// The first page of a playlist's contents, however the endpoint is spelled.
+    private func firstPage(of endpoint: URL) -> URL {
+        endpoint.appending(queryItems: [
+            .init(name: "limit", value: "50"),
+            .init(name: "additional_types", value: "track,episode"),
+        ])
     }
 
     public func albums(ids: [String]) async throws -> [TrackAlbum] {
@@ -316,9 +344,18 @@ public actor SpotifyMusicService: MusicService {
     ) async throws {
         do {
             try await write(method, itemsURL(playlistID: playlistID), body: body)
-        } catch let error as SpotifyAPIError where isPathUnsupported(error) {
-            usedLegacyItemsPath = true
-            try await write(method, legacyTracksURL(playlistID: playlistID), body: body)
+        } catch let itemsError as SpotifyAPIError
+            where isPathUnsupported(itemsError) && !usedLegacyItemsPath {
+            // Latched only once the older spelling has actually worked, and the
+            // refusal reported is the one from the endpoint this app means to
+            // use. A 404 from a playlist that does not exist would otherwise
+            // send the rest of the session to a removed endpoint.
+            do {
+                try await write(method, legacyTracksURL(playlistID: playlistID), body: body)
+                usedLegacyItemsPath = true
+            } catch {
+                throw itemsError
+            }
         }
     }
 

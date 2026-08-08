@@ -160,6 +160,18 @@ xcrun simctl ui "$UDID" content_size accessibility-extra-extra-extra-large
 shoot 29-playlists-scrolled -demo -screen playlists -scrolled 420
 xcrun simctl ui "$UDID" content_size medium
 
+# ─── Withheld ────────────────────────────────────────────────────────────────
+# Another listener's playlist, which Spotify names but never opens (ADR-0008).
+# The library shot above already carries the row for it, mark and all; this is
+# what happens when someone taps it anyway. Appended rather than filed with the
+# playlist screens so that adding it renames none of the set above.
+echo "==> withheld"
+shoot 30-tracks-withheld -demo -screen tracks -playlist demo-borrowed
+# The list is the layout that spells its marks out: the grids show a badge as a
+# glyph and no count at all, so "Can't open" and "Track count hidden" are words
+# no other shot in this set contains.
+shoot 31-playlists-list -demo -screen playlists -layout list
+
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 
 # The swap. Everything this run produced replaces everything that was there.

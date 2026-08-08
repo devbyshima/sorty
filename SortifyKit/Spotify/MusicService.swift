@@ -13,6 +13,13 @@ public protocol MusicService: Sendable {
     func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist]
 
     /// Streams playlist entries page by page.
+    ///
+    /// `ownerID` is context, not a path component. The reference app reads
+    /// `/users/{owner}/playlists/{id}/tracks`, and that owner-scoped spelling is
+    /// what this parameter is a remnant of; February 2026 removed the
+    /// `/users/{id}/playlists` family outright, so building a URL from it now
+    /// would 404. Whether Spotify will hand the contents over is decided by
+    /// `Playlist.contentsAreReadable(byUserID:)` before this is called at all.
     func playlistItems(
         playlistID: String,
         ownerID: String,

@@ -20,6 +20,14 @@ public enum EmptyState: Equatable, Sendable {
     case noPlaylists
     /// A playlist Spotify returned with nothing playable in it.
     case playlistEmpty
+    /// Another listener's playlist, which Spotify will name but not open.
+    ///
+    /// An empty state rather than an error, on this file's own three tests: it
+    /// is a normal outcome for a library that holds other people's playlists,
+    /// no part of it is Sortify failing, and there is a way out to name. The
+    /// owner's name where Spotify sent one, because "someone else" is a worse
+    /// answer to "whose rule is this" than a name is.
+    case contentsWithheld(owner: String?)
     /// The tempo filter is narrow enough to hide every track. Previously this
     /// surfaced only as a save *failure*, which told the user about it at the
     /// last possible moment.
@@ -35,6 +43,8 @@ public enum EmptyState: Equatable, Sendable {
             "No playlists yet"
         case .playlistEmpty:
             "Nothing to arrange"
+        case .contentsWithheld:
+            "Spotify keeps this one closed"
         case .filterHidesEverything:
             "Every track is filtered out"
         }
@@ -52,6 +62,18 @@ public enum EmptyState: Equatable, Sendable {
             "When you make a playlist on Spotify it will show up here."
         case .playlistEmpty:
             "This playlist has no playable tracks, so there is nothing to put in order."
+        case .contentsWithheld(let owner):
+            // Two ways out, both real: the owner can open it up, or the listener
+            // can hold the same music in a playlist of their own. Neither is
+            // something Sortify can do on their behalf, which is why this says
+            // what to do rather than offering to do it.
+            """
+            Since February 2026 Spotify sends a playlist's tracks only to the \
+            people who own it or collaborate on it, so \
+            \(owner.map { "\($0)'s" } ?? "this one") stays closed to Sortify. \
+            Ask \(owner ?? "whoever owns it") to make it collaborative, or add \
+            its tracks to a playlist of your own and arrange that one.
+            """
         case .filterHidesEverything(let total):
             "The tempo range you set hides all \(total) tracks. Widen it or clear it to see them again."
         }
@@ -63,6 +85,7 @@ public enum EmptyState: Equatable, Sendable {
         case .noPlaylistsMatch: "magnifyingglass"
         case .noPlaylists: "music.note.list"
         case .playlistEmpty: "music.note.list"
+        case .contentsWithheld: "lock"
         case .filterHidesEverything: "line.3.horizontal.decrease.circle"
         }
     }
@@ -79,6 +102,11 @@ public enum EmptyState: Equatable, Sendable {
             nil
         case .playlistEmpty:
             nil
+        case .contentsWithheld:
+            // Where the listener has to go to do either of the two things the
+            // message names. The wording is the one the rest of the app links
+            // out with, which Spotify's guidelines constrain.
+            "Open on Spotify"
         case .filterHidesEverything:
             "Clear the filter"
         }

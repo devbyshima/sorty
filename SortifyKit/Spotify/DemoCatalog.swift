@@ -11,6 +11,11 @@ import Foundation
 public struct DemoCatalog: Sendable {
     public static let shared = DemoCatalog()
 
+    /// Who the catalogue belongs to. Named once because it decides a rule now
+    /// rather than only labelling rows: a playlist owned by anyone else is one
+    /// Spotify would refuse to open, and the fixtures have to reflect that.
+    public static let userID = "demo-user"
+
     public let playlists: [Playlist]
     private let itemsByPlaylist: [String: [PlaylistItem]]
     private let featuresByTrack: [String: AudioFeatures]
@@ -90,6 +95,17 @@ public struct DemoCatalog: Sendable {
              tempoCentre: 132, energyCentre: 0.74, danceCentre: 0.7,
              valenceCentre: 0.72, acousticCentre: 0.2,
              episodes: 0, tracksWithoutFeatures: 3),
+        // Another listener's playlist, and not a shared one: the case Spotify
+        // will name but never open (ADR-0008). It arrives the way a real one
+        // does, with no track count, which is what the harness needs in order to
+        // photograph a row that says so and the screen behind it.
+        Spec(id: "demo-borrowed", name: "Sam's Coffee House",
+             description: "Sam's, and Sam's alone.",
+             owner: PlaylistOwner(id: "other-user", displayName: "Sam"),
+             trackCount: 29, isPublic: true, collaborative: false,
+             tempoCentre: 94, energyCentre: 0.36, danceCentre: 0.44,
+             valenceCentre: 0.56, acousticCentre: 0.7,
+             episodes: 0, tracksWithoutFeatures: 2),
         Spec(id: "37i9dQZF-demo-weekly", name: "Discover Weekly",
              description: "Your weekly mixtape of fresh music.",
              owner: PlaylistOwner(id: "spotify", displayName: "Spotify"),
@@ -259,6 +275,12 @@ public struct DemoCatalog: Sendable {
                     owner: spec.owner,
                     images: DemoArtwork.images(seed: spec.id),
                     tracks: PlaylistTrackCount(total: items.count),
+                    // Spotify sends a count only for playlists the listener owns
+                    // or collaborates on, so the ones it withholds arrive here
+                    // without one too. A fixture that reported a count for every
+                    // playlist would make the row that has to cope with a
+                    // missing one unreachable.
+                    trackCountIsKnown: spec.owner.id == Self.userID || spec.collaborative,
                     collaborative: spec.collaborative,
                     isPublic: spec.isPublic,
                     rawDescription: spec.description.isEmpty ? nil : spec.description

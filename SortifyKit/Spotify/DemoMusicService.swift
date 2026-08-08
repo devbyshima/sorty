@@ -26,7 +26,7 @@ public struct DemoMusicService: MusicService, Sendable {
     }
 
     public func currentUser() async throws -> SpotifyUser {
-        SpotifyUser(id: "demo-user", displayName: "Demo Listener")
+        SpotifyUser(id: DemoCatalog.userID, displayName: "Demo Listener")
     }
 
     public func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist] {

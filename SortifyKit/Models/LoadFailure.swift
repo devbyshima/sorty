@@ -31,14 +31,25 @@ public enum LoadFailure {
         case .spotify:
             return "This playlist belongs to Spotify, and Spotify doesn't let apps read its own editorial playlists. That's a restriction on their API rather than something Sortify can ask for."
         case .other:
-            let owner = playlist.owner.displayName ?? playlist.owner.id
-            let who = owner.isEmpty ? "someone else" : owner
-            return "Spotify wouldn't let Sortify read this playlist. It belongs to \(who), and access to another listener's playlists is Spotify's to grant."
+            // The same sentence the library shows when it knows in advance, and
+            // deliberately not a second wording of it: this is that rule
+            // arriving from the wire instead of from the playlist, and a
+            // listener meeting it twice should meet the same words.
+            return EmptyState.contentsWithheld(owner: ownerName(of: playlist)).message
         case .mine:
             // Own playlist, refused anyway. Worth saying plainly that this one
             // is unexpected rather than dressing it as a rule.
             return "Spotify refused to send this playlist's tracks, which is unusual for a playlist you own. Signing out and connecting again is the thing most likely to help."
         }
+    }
+
+    /// Who Spotify says owns a playlist, or nil where it said nothing useful.
+    /// A display name where there is one, the account name where there isn't,
+    /// and nothing at all rather than an empty string that reads as a gap in a
+    /// sentence.
+    public static func ownerName(of playlist: Playlist) -> String? {
+        let name = playlist.owner.displayName ?? playlist.owner.id
+        return name.isEmpty ? nil : name
     }
 
     /// Whether retrying could plausibly work. A rule refusing every request

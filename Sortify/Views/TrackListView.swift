@@ -82,34 +82,40 @@ struct TrackListView: View {
                 Section {
                     content
                 } header: {
-                    ArrangementChipRow(
-                        arrangement: model.arrangement,
-                        onApply: { arrangement in rearrange { model.apply(arrangement) } },
-                        onReroll: { rearrange { model.reroll() } },
-                        onMore: { showingPicker = true }
-                    )
-                    .padding(.vertical, 10)
-                    // **Only while pinned.** At its resting position the row is
-                    // ordinary content with ordinary content above and below it,
-                    // and a blur there has nothing to hide - it would just haze
-                    // the chips and smear the Demo Mode notice sitting directly
-                    // beneath them, before the listener has touched anything.
-                    //
-                    // Once pinned it becomes the bottom half of a single band
-                    // that starts at the screen edge: solid for the row's own
-                    // 58pt, with the 40pt tail below as the only fade in the
-                    // pair. The default overscan matters here - it carries the
-                    // solid region *up under the bar*, so where the two meet
-                    // there is solid blur on solid blur and no hairline of
-                    // unblurred content between them. The bar clips its own
-                    // background while pinned so it contributes nothing below
-                    // its edge; without that the bar's tail ramped 1 to 0 on
-                    // top of this one's solid region and the composite stepped
-                    // from double strength to single in a single pixel row,
-                    // which is the seam that was visible just above the chips.
-                    .background(alignment: .top) {
-                        if chipsPinned {
-                            TopBlur(height: 58)
+                    // Nothing to arrange on a playlist Spotify will not open, so
+                    // the row of things to arrange it by is not offered. It read
+                    // as a screen still deciding, above a sentence that had
+                    // already decided.
+                    if isOpenable {
+                        ArrangementChipRow(
+                            arrangement: model.arrangement,
+                            onApply: { arrangement in rearrange { model.apply(arrangement) } },
+                            onReroll: { rearrange { model.reroll() } },
+                            onMore: { showingPicker = true }
+                        )
+                        .padding(.vertical, 10)
+                        // **Only while pinned.** At its resting position the row
+                        // is ordinary content with ordinary content above and
+                        // below it, and a blur there has nothing to hide - it
+                        // would just haze the chips and smear what sits directly
+                        // beneath them, before the listener has touched anything.
+                        //
+                        // Once pinned it becomes the bottom half of a single band
+                        // that starts at the screen edge: solid for the row's own
+                        // 58pt, with the 40pt tail below as the only fade in the
+                        // pair. The default overscan matters here - it carries the
+                        // solid region *up under the bar*, so where the two meet
+                        // there is solid blur on solid blur and no hairline of
+                        // unblurred content between them. The bar clips its own
+                        // background while pinned so it contributes nothing below
+                        // its edge; without that the bar's tail ramped 1 to 0 on
+                        // top of this one's solid region and the composite stepped
+                        // from double strength to single in a single pixel row,
+                        // which is the seam that was visible just above the chips.
+                        .background(alignment: .top) {
+                            if chipsPinned {
+                                TopBlur(height: 58)
+                            }
                         }
                     }
                 }
@@ -190,6 +196,15 @@ struct TrackListView: View {
 
     // MARK: - Header
 
+    /// False for a playlist Spotify answers about but never opens (ADR-0008).
+    /// Everything on this screen that offers to *do* something reads from this:
+    /// there is no list to arrange and nothing to save, and controls that stay
+    /// behind to be disabled are a screen arguing with itself.
+    private var isOpenable: Bool {
+        if case .unavailable = model.phase { return false }
+        return true
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             cover
@@ -236,7 +251,13 @@ struct TrackListView: View {
             identityText
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            saveAnchor
+            // Save is the one thing you can do to a playlist, and on one Spotify
+            // will not open there is nothing to do it to. A dimmed circle there
+            // is a control explaining itself; leaving it out says the same thing
+            // and asks for nothing.
+            if isOpenable {
+                saveAnchor
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
@@ -279,6 +300,14 @@ struct TrackListView: View {
     /// here, and both are things Sortify actually knows.
     private var subtitleLine: String {
         let owner = model.playlist.owner.displayName ?? model.playlist.owner.id
+        // Nothing loaded and nothing reported. Spotify sends no count for a
+        // playlist it will not open, and "0 tracks" here would be the header
+        // filling that gap with a number it does not have.
+        guard model.playlist.trackCountIsKnown || !model.rows.isEmpty else {
+            return owner.isEmpty
+                ? PlaylistRowText.hiddenTrackCount
+                : "\(owner) · \(PlaylistRowText.hiddenTrackCount)"
+        }
         let count = model.rows.isEmpty ? model.playlist.tracks.total : model.rows.count
         // An active filter had exactly one indicator, and it was on the strip
         // of controls that has just been removed. Said here instead, because a
@@ -408,6 +437,15 @@ struct TrackListView: View {
             EmptyStateView(state: .playlistEmpty)
                 .padding(.top, 40)
 
+        case .unavailable(let state):
+            // A rule, not a failure, so it gets the empty-state treatment and
+            // the way out the state names: Spotify, where this playlist can be
+            // opened and its tracks added to one of the listener's own.
+            EmptyStateView(state: state) {
+                if let url = URL(string: model.playlist.uri) { openURL(url) }
+            }
+            .padding(.top, 40)
+
         case .ready:
             if model.arrangedRows.isEmpty, model.filter.isActive {
                 EmptyStateView(state: .filterHidesEverything(total: model.rows.count)) {
@@ -491,14 +529,19 @@ struct TrackListView: View {
     /// left is secondary by definition.
     private var overflowMenu: some View {
         Menu {
-            Button("All arrangements", systemImage: "slider.horizontal.3") {
-                showingPicker = true
-            }
-            Button("Tempo filter", systemImage: "line.3.horizontal.decrease.circle") {
-                showingFilter = true
+            // Both act on a list. Where there is none, the link out is the whole
+            // of what this menu can honestly offer, and it is also the way out
+            // the screen itself names.
+            if isOpenable {
+                Button("All arrangements", systemImage: "slider.horizontal.3") {
+                    showingPicker = true
+                }
+                Button("Tempo filter", systemImage: "line.3.horizontal.decrease.circle") {
+                    showingFilter = true
+                }
             }
             if let url = URL(string: model.playlist.uri) {
-                Divider()
+                if isOpenable { Divider() }
                 Button("Open on Spotify", systemImage: "arrow.up.forward.app") {
                     openURL(url)
                 }

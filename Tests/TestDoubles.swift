@@ -14,6 +14,9 @@ actor RecordingMusicService: MusicService {
     /// Every album lookup, including the empty ones - so "it never asked" can be
     /// told apart from "it asked for nothing".
     private(set) var albumRequests: [[String]] = []
+    /// Every playlist whose contents were asked for, so "it never asked" can be
+    /// asserted - which is the whole of what a refusal known in advance does.
+    private(set) var itemRequests: [String] = []
 
     private let items: [PlaylistItem]
     private let failWrites: Bool
@@ -43,6 +46,7 @@ actor RecordingMusicService: MusicService {
         ownerID: String,
         onPage: @Sendable ([PlaylistItem], Int) async -> Void
     ) async throws -> [PlaylistItem] {
+        itemRequests.append(playlistID)
         await onPage(items, items.count)
         return items
     }

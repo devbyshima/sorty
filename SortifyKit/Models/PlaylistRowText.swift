@@ -18,6 +18,10 @@ public struct PlaylistRowText: Equatable, Sendable {
         /// Sortify can't write to it - which is why Overwrite won't be there
         /// when you open it. Said here rather than discovered there.
         case readOnly
+        /// Spotify won't send its tracks at all, so the row leads nowhere.
+        /// Said here for the same reason as `readOnly` and more urgently: a
+        /// listener who taps this one gets a screen with no playlist in it.
+        case cantOpen
 
         public var id: String { rawValue }
 
@@ -25,6 +29,7 @@ public struct PlaylistRowText: Equatable, Sendable {
             switch self {
             case .collaborative: "Collaborative"
             case .readOnly: "Read-only"
+            case .cantOpen: "Can't open"
             }
         }
 
@@ -32,6 +37,7 @@ public struct PlaylistRowText: Equatable, Sendable {
             switch self {
             case .collaborative: "person.2.fill"
             case .readOnly: "lock.fill"
+            case .cantOpen: "lock.slash.fill"
             }
         }
     }
@@ -45,13 +51,31 @@ public struct PlaylistRowText: Equatable, Sendable {
     /// rather than a thumbnail, a name, a number and two icons.
     public let spoken: String
 
+    /// What to say where Spotify sent no count. Shared with the playlist
+    /// screen's own subtitle, which faces the same gap and must not fill it with
+    /// a different sentence.
+    public static let hiddenTrackCount = "Track count hidden"
+
     public init(playlist: Playlist, currentUserID: String?) {
         name = playlist.name
-        trackCount = Self.trackCount(playlist.tracks.total)
+        let canOpen = playlist.contentsAreReadable(byUserID: currentUserID)
+        // A count Spotify withheld is not a count of zero, and "0 tracks" under
+        // a playlist that plainly has some is the app inventing a fact.
+        trackCount = playlist.trackCountIsKnown
+            ? Self.trackCount(playlist.tracks.total)
+            : Self.hiddenTrackCount
 
         var badges: [Badge] = []
         if playlist.collaborative { badges.append(.collaborative) }
-        if !playlist.isWritable(byUserID: currentUserID) { badges.append(.readOnly) }
+        // Read-only is beside the point on a playlist that never opens: it
+        // answers "why is Overwrite missing" for a screen the listener will
+        // never reach. One mark, the one that decides whether tapping is worth
+        // it.
+        if !canOpen {
+            badges.append(.cantOpen)
+        } else if !playlist.isWritable(byUserID: currentUserID) {
+            badges.append(.readOnly)
+        }
         self.badges = badges
 
         let marks = badges.map(\.label).joined(separator: ", ")

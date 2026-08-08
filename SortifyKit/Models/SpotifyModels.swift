@@ -63,6 +63,15 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
     public let owner: PlaylistOwner
     public let images: [SpotifyImage]?
     public let tracks: PlaylistTrackCount
+    /// Whether Spotify actually reported a count, as opposed to Sortify
+    /// defaulting one.
+    ///
+    /// Absent is not zero. Since February 2026 a playlist's contents object is
+    /// returned only for playlists the listener owns or collaborates on, and the
+    /// count lives inside it, so every other listener's playlist arrives without
+    /// one. The library drops playlists with nothing in them, and reading a
+    /// missing count as an empty playlist is what silently removed all of them.
+    public let trackCountIsKnown: Bool
     public let collaborative: Bool
     /// Spotify returns `null` here when the caller can't determine visibility.
     public let isPublic: Bool?
@@ -91,7 +100,9 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
 
         let newStyle = try container.decodeIfPresent(PlaylistTrackCount.self, forKey: .items)
         let oldStyle = try container.decodeIfPresent(PlaylistTrackCount.self, forKey: .tracks)
-        tracks = newStyle ?? oldStyle ?? PlaylistTrackCount(total: 0)
+        let reported = newStyle ?? oldStyle
+        trackCountIsKnown = reported != nil
+        tracks = reported ?? PlaylistTrackCount(total: 0)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -114,6 +125,7 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
         owner: PlaylistOwner,
         images: [SpotifyImage]? = nil,
         tracks: PlaylistTrackCount,
+        trackCountIsKnown: Bool = true,
         collaborative: Bool = false,
         isPublic: Bool? = nil,
         rawDescription: String? = nil
@@ -124,6 +136,7 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
         self.owner = owner
         self.images = images
         self.tracks = tracks
+        self.trackCountIsKnown = trackCountIsKnown
         self.collaborative = collaborative
         self.isPublic = isPublic
         self.rawDescription = rawDescription
@@ -146,6 +159,35 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
         if owner.id == "spotify" { return .spotify }
         if let currentUserID, owner.id == currentUserID { return .mine }
         return .other
+    }
+
+    /// True only where Spotify said outright that this playlist holds nothing.
+    ///
+    /// The library shows nothing it cannot arrange, and an empty playlist has
+    /// nothing to arrange. A playlist whose count never arrived is a different
+    /// thing entirely and stays: see `trackCountIsKnown`.
+    public var isReportedEmpty: Bool { trackCountIsKnown && tracks.total == 0 }
+
+    /// Whether Spotify will hand over this playlist's contents at all.
+    ///
+    /// Get Playlist Items is "only accessible for playlists owned by the current
+    /// user or playlists the user is a collaborator of", and answers 403 for
+    /// anything else. That rule arrived with the February 2026 Development Mode
+    /// migration and it binds every Sortify listener, because every one of them
+    /// is a Development Mode app by construction: a single app is capped at five
+    /// listeners, which is why each brings a Client ID of their own.
+    ///
+    /// So this is not the same question as `isWritable(byUserID:)`. A playlist
+    /// can fail this one and never open at all, which is worth knowing before
+    /// the tap rather than after a spinner.
+    ///
+    /// Not knowing is not a refusal: with no `userID` yet, or a playlist whose
+    /// owner Spotify omitted, the request is still worth making.
+    public func contentsAreReadable(byUserID userID: String?) -> Bool {
+        if collaborative { return true }
+        if isPersonalized || owner.id == "spotify" { return false }
+        guard let userID, !owner.id.isEmpty else { return true }
+        return owner.id == userID
     }
 
     /// Overwriting requires being the owner, and never works for personalized
@@ -397,10 +439,36 @@ public struct Page<Item: Codable & Sendable>: Codable, Sendable {
     public let items: [Item]
     public let next: String?
     public let total: Int?
+    /// Whether the response carried an `items` array at all.
+    ///
+    /// A page of nothing and a page that withheld its contents decode to the
+    /// same empty array, and they mean opposite things: one is a playlist with
+    /// no tracks, the other is Spotify declining to send the tracks there are.
+    /// February 2026 made the second shape real, so it needs a name.
+    public let carriedItems: Bool
+
+    enum CodingKeys: String, CodingKey { case items, next, total }
 
     public init(items: [Item], next: String? = nil, total: Int? = nil) {
         self.items = items
         self.next = next
         self.total = total
+        self.carriedItems = true
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decoded = try container.decodeIfPresent([Item].self, forKey: .items)
+        items = decoded ?? []
+        carriedItems = decoded != nil
+        next = try container.decodeIfPresent(String.self, forKey: .next)
+        total = try container.decodeIfPresent(Int.self, forKey: .total)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(items, forKey: .items)
+        try container.encodeIfPresent(next, forKey: .next)
+        try container.encodeIfPresent(total, forKey: .total)
     }
 }

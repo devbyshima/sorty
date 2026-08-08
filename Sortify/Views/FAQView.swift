@@ -43,6 +43,10 @@ struct FAQView: View {
                         answer: "Spotify caps a development-mode app at five authorised listeners. A Client ID baked into Sortify would be full after five people, so everyone brings their own."
                     )
                     FAQItem(
+                        question: "Can I arrange someone else's playlist?",
+                        answer: "Only if you're a collaborator on it. Since February 2026 Spotify sends a playlist's tracks to the people who own it or collaborate on it and to nobody else, so the rest are marked “Can't open” in your library. Ask for a collaborator's invite, or add the tracks to a playlist of your own and arrange that one."
+                    )
+                    FAQItem(
                         question: "What about podcast episodes?",
                         answer: "Playlists can hold episodes alongside music. They appear in grey, have no acoustic attributes, and are preserved in place when you save."
                     )

@@ -36,28 +36,47 @@ struct PlaylistRowTests {
     }
 
     /// The badge exists so the answer arrives before the question. Deriving it
-    /// from the same predicate the save path uses is what keeps the two from
-    /// disagreeing.
-    @Test("The read-only badge matches exactly what can't be overwritten")
-    func readOnlyBadgeTracksWritability() {
+    /// from the same predicates the next screen uses is what keeps the two from
+    /// disagreeing: a playlist that cannot be overwritten always says so, in
+    /// whichever of the two ways applies to it.
+    @Test("Nothing unwritable reaches a row unmarked")
+    func everyUnwritablePlaylistIsMarked() {
         let cases: [(Playlist, Bool)] = [
             (playlist(), true),
             (playlist(ownerID: "someone-else"), false),
+            (playlist(ownerID: "sam", collaborative: true), false),
             (playlist(id: "37i9dQZF-weekly", name: "Discover Weekly"), false),
             (playlist(name: "Today's Top Hits", ownerID: "spotify"), false),
         ]
         for (playlist, isWritable) in cases {
             let text = PlaylistRowText(playlist: playlist, currentUserID: "me")
+            let marked = text.badges.contains(.readOnly) || text.badges.contains(.cantOpen)
             #expect(
-                text.badges.contains(.readOnly) == !isWritable,
+                marked == !isWritable,
                 "\(playlist.name) - the row must not promise what the save screen withdraws"
             )
             #expect(playlist.isWritable(byUserID: "me") == isWritable)
         }
     }
 
+    /// The two marks answer different questions, and the more final one wins:
+    /// telling someone Overwrite will be missing from a screen they can never
+    /// reach is noise in front of the fact that matters.
+    @Test("A playlist that never opens says that instead of read-only")
+    func cantOpenReplacesReadOnly() {
+        let theirs = PlaylistRowText(playlist: playlist(ownerID: "sam"), currentUserID: "me")
+        #expect(theirs.badges == [.cantOpen])
+
+        let weekly = PlaylistRowText(
+            playlist: playlist(id: "37i9dQZF-weekly", name: "Discover Weekly"), currentUserID: "me"
+        )
+        #expect(weekly.badges == [.cantOpen])
+    }
+
     /// A playlist can be collaborative *and* yours to overwrite - the two marks
-    /// answer different questions, so neither implies the other.
+    /// answer different questions, so neither implies the other. Shared with you
+    /// is the case that keeps `readOnly` alive: Spotify opens it, Sortify still
+    /// won't write over someone else's playlist.
     @Test("Collaborative and read-only are independent")
     func badgesAreIndependent() {
         #expect(
@@ -68,10 +87,6 @@ struct PlaylistRowTests {
             PlaylistRowText(
                 playlist: playlist(ownerID: "sam", collaborative: true), currentUserID: "me"
             ).badges == [.collaborative, .readOnly]
-        )
-        #expect(
-            PlaylistRowText(playlist: playlist(ownerID: "sam"), currentUserID: "me").badges
-                == [.readOnly]
         )
     }
 
@@ -101,11 +116,28 @@ struct PlaylistRowTests {
     @Test("The demo catalogue exercises every badge combination")
     func demoCatalogueCoversTheBadges() {
         let texts = DemoCatalog.shared.playlists.map {
-            PlaylistRowText(playlist: $0, currentUserID: "demo-user")
+            PlaylistRowText(playlist: $0, currentUserID: DemoCatalog.userID)
         }
         #expect(texts.contains { $0.badges.isEmpty })
         #expect(texts.contains { $0.badges == [.collaborative] })
         #expect(texts.contains { $0.badges == [.collaborative, .readOnly] })
-        #expect(texts.contains { $0.badges == [.readOnly] })
+        #expect(texts.contains { $0.badges == [.cantOpen] })
+    }
+
+    /// Spotify sends no count for a playlist it will not open, and a row that
+    /// filled the gap with "0 tracks" would be inventing the one fact it is
+    /// there to report.
+    @Test("A withheld count is said to be withheld, not counted as none")
+    func withheldCountIsNotZero() {
+        let theirs = Playlist(
+            id: "p9", name: "Sam's", uri: "spotify:playlist:p9",
+            owner: PlaylistOwner(id: "sam"),
+            tracks: PlaylistTrackCount(total: 0),
+            trackCountIsKnown: false
+        )
+        let text = PlaylistRowText(playlist: theirs, currentUserID: "me")
+        #expect(text.trackCount == "Track count hidden")
+        #expect(!text.trackCount.contains("0 tracks"))
+        #expect(text.spoken == "Sam's, Track count hidden, Can't open.")
     }
 }

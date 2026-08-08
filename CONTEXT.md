@@ -60,6 +60,15 @@ connect flow. ADR-0003 refused to have one at all; ADR-0007 makes it the front
 door.
 _Avoid_: Logged out, unauthenticated, welcome
 
+**Withheld**:
+What Spotify does with a playlist the listener neither owns nor collaborates on:
+it names the playlist and refuses its contents, and sends no track count either.
+Not an error, not a private playlist, and not an empty one, all of which it
+resembles from inside the app. A withheld playlist still appears in the library,
+marked *Can't open*, and opening one costs no request because ownership arrived
+with the listing. ADR-0008.
+_Avoid_: Forbidden, blocked, inaccessible, restricted
+
 **Client ID**:
 The identifier of a Spotify developer application, which in Sortify each user
 supplies for themselves. Spotify caps a single application at five listeners, so
