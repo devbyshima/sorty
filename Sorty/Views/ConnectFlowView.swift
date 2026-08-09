@@ -26,6 +26,9 @@ struct ConnectFlowView: View {
     @State private var clientID = ""
     @State private var isAuthenticating = false
     @State private var presenter = AuthPresenter()
+    /// Measured so the blur behind the pinned spine is exactly as tall as the
+    /// spine, the way the library's header does it.
+    @State private var spineHeight: CGFloat = 0
 
     private var check: ClientIDCheck { ClientIDCheck.check(clientID) }
 
@@ -46,8 +49,6 @@ struct ConnectFlowView: View {
             GeometryReader { proxy in
                 ScrollView {
                     VStack(spacing: 0) {
-                        stepSpine
-
                         Spacer(minLength: 28)
 
                         // The glyph, the words and the controls travel as one
@@ -97,15 +98,10 @@ struct ConnectFlowView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 24)
-                    // Clears the blur band. Dropping the navigation title raised
-                    // the spine into it, and a smeared progress track reads as a
-                    // rendering fault on the one element whose whole job is to
-                    // be legible at a glance.
-                    //
-                    // Measured against step 1, which is the tightest case: it is
-                    // the only step with no Back button, so its content starts
-                    // higher than any other's.
-                    .padding(.top, 76)
+                    // No band to clear any more: the spine is pinned above this
+                    // and carries the blur itself, so the page starts directly
+                    // under it.
+                    .padding(.top, 8)
                     .padding(.bottom, 20)
                     .frame(minHeight: proxy.size.height)
                 }
@@ -113,9 +109,15 @@ struct ConnectFlowView: View {
             // See SignedOutView: a background, not a sibling, or the circle
             // sizes the stack and the text runs off both edges.
             .background { SplashBackdrop() }
-            // Short tail: the step track sits close under the bar, and a long
-            // fade smeared it and "Step 3 of 4" on a screen that never scrolls.
-            .overlay(alignment: .top) { TopBlur(height: 44, overscan: 0) }
+            // Pinned, and sitting *on* its blur rather than under it.
+            //
+            // The spine used to scroll with the content beneath a `TopBlur`
+            // overlay, which draws above everything - so the only way to keep the
+            // progress track sharp was to push it down far enough to clear the
+            // band, and it ended up 76 points below the chevron. Backing the
+            // spine with the blur instead is the library header's arrangement:
+            // the track stays crisp on top, and content passes under it.
+            .safeAreaInset(edge: .top, spacing: 0) { spineHeader }
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) { advanceBar }
             // No navigation title. Beam's onboarding screens carry none, and the
@@ -199,6 +201,21 @@ struct ConnectFlowView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(step.position)
+    }
+
+    /// The spine, pinned under the chevron.
+    private var spineHeader: some View {
+        stepSpine
+            .padding(.horizontal, 24)
+            .padding(.top, 6)
+            .padding(.bottom, 12)
+            .background(alignment: .top) {
+                // Eight points shorter than the header it backs, so the fade
+                // starts just below the track rather than level with it - the
+                // same trim, and the same reasoning, as `PlaylistsView`.
+                TopBlur(height: max(0, spineHeight - 8), maxBlur: 1.5)
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spineHeight = $0 }
     }
 
     // MARK: - The step's glyph

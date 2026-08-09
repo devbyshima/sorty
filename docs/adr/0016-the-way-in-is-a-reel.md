@@ -164,6 +164,87 @@ stack and the reason iOS does not put an X on pushed screens either.
 **Pushing costs the free `dismiss()`**, since nothing is being presented. Leaving
 is handed in as a closure so the animation out matches the animation in.
 
+**The spine is pinned, and sits *on* its blur rather than under it.**
+
+It used to scroll with the page beneath a `TopBlur` overlay, and an overlay draws
+above everything - so the only way to keep the progress track sharp was to push
+it down until it cleared the band. That number was 76 points, measured against
+step 1 because it is the only step with no Back button and so the tightest case,
+and it left the track most of a thumb's width below the chevron.
+
+Backing the spine with the blur instead is the library header's arrangement
+(`PlaylistsView`): the track stays crisp on top, content passes under it, and it
+can sit as high as it likes. The blur is trimmed eight points shorter than the
+header it backs, so the fade starts just below the track rather than level with
+it - the same trim, and the same reasoning, as the library's.
+
+The general shape: **if something has to be pushed away from a blur to stay
+legible, it belongs on top of the blur, not below it.**
+
+## The onboarding travels one way, sideways
+
+Both halves now move horizontally, and a step is a *page* rather than a screen
+rearranging itself.
+
+**In the reel, the props still rise from the bottom**, as Beam has them, and
+that is deliberately a *different* axis from the pages. The two are different
+kinds of movement: a page replaces what came before it and slides in from the
+side to say so, while the three props are one screen's worth of copy rotating in
+place with nothing being navigated. They were briefly moved sideways to match the
+pages, which made the way-in screen look like it was advancing through something
+it was not.
+
+**In the connect flow**, the glyph, the words and the controls now travel
+together under one `.id(step)`. Only the two `Text`s carried the transition
+before, so a step change slid the heading sideways while the symbol above it and
+the field below it were replaced in place. The error row deliberately stays put:
+a failure belongs to the attempt, not to the step it happened on, and sliding it
+away would take the explanation with it.
+
+**`push(from:)` describes both halves of a transition, not one.** It enters from
+the named edge and exits to the *opposite* one, so
+`insertion: .trailing, removal: .leading` reads like "in from the right, out to
+the left" and means the reverse - the outgoing prop left rightwards, into the one
+arriving. One edge for both is correct, which is exactly what Beam wrote and what
+I "improved" into an asymmetric pair.
+
+This was caught by shooting ten frames 0.35s apart across a phase change and
+stacking the crops, not by reading the code, which looked right. **A transition
+is not verifiable from a still**, and the burst is the cheapest thing that makes
+it verifiable at all.
+
+## Consequences
+
+**The app's name no longer appears on the way in.** The reel replaced the title
+and tagline, as Beam's does. The mark carries identity, and the name is on the
+icon the listener just tapped. If that turns out to be wrong, the reel is not
+what needs undoing - a title above it is.
+
+**One shot was added**, `37-connect-authorize`. The last step was the only one of
+four the set never photographed, which is how it went unnoticed that it had
+nothing to distinguish it from step three. It is appended rather than filed
+beside `11`-`13`, because inserting it there collided with `14-playlists-two-up`
+and would have renumbered half the set for one addition - the same reason the
+withheld shots sit at the end.
+
+**One button, and it is a back button all the way down.** `chevron.left`, with
+its word kept as an accessibility label - a bare glyph with no accessible name is
+a button that announces itself as "button".
+
+The `xmark` beside it is gone, and pushing is what removed the need for it. A
+modal that rises needs a dismiss affordance because there is no "back" from a
+thing that came from nowhere. Pages that push have exactly one way back, and
+going back off the first page is how you leave. So the chevron pops a step until
+there are none, then closes.
+
+The flow stays leavable at every step, which ADR-0007 requires - a way in nobody
+can escape is a worse first impression than the way-in screen. It now takes the
+number of taps the depth implies rather than one, which is the ordinary cost of a
+stack and the reason iOS does not put an X on pushed screens either.
+
+**Pushing costs the free `dismiss()`**, since nothing is being presented. Leaving
+is handed in as a closure so the animation out matches the animation in.
+
 **`padding(.top, 76)` on the flow's content is a measurement**, not a margin.
 Dropping the navigation title raised the spine into `TopBlur`'s band - 44pt solid
 plus a 20pt fade - and a smeared progress track reads as a rendering fault on the
