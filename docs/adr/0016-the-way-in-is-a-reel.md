@@ -34,6 +34,11 @@ Beam's posture.**
   continuing rather than two screens meeting.
 - **The connect flow** gains that backdrop, a per-step glyph, centred type, and a
   button that floats rather than sitting on a bar.
+- **It is presented as a screen, not a sheet.** `fullScreenCover`, not `sheet`.
+  The flow *is* the onboarding, and a card framed it as an errand that could be
+  put down - something sitting on top of the app rather than the way into it. It
+  also spent the top of every step on the card inset and grabber, which is where
+  the step spine has to live.
 
 ## What was deliberately *not* taken from Beam
 
@@ -108,7 +113,18 @@ beside `11`-`13`, because inserting it there collided with `14-playlists-two-up`
 and would have renumbered half the set for one addition - the same reason the
 withheld shots sit at the end.
 
+**`Not Now` is now the only way out.** A full-screen cover has no
+swipe-to-dismiss, so the button this ADR kept against Beam's two-affordance
+pattern turned out to be load-bearing rather than merely defensible.
+
 **`padding(.top, 76)` on the flow's content is a measurement**, not a margin.
 Dropping the navigation title raised the spine into `TopBlur`'s band - 44pt solid
 plus a 20pt fade - and a smeared progress track reads as a rendering fault on the
 one element whose whole job is to be legible at a glance.
+
+It is measured **against step 1**, which is the tightest case: it is the only
+step with no Back button, so its content starts higher than any other's. Going
+full-screen looked like it should allow less - the card was insetting the content
+and now the navigation bar does it - and 24 did look right on step 2. On step 1
+it put the spine straight back under the blur. Any future adjustment gets checked
+there, not on whichever step happens to be open.

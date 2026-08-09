@@ -41,7 +41,17 @@ struct RootView: View {
         .preferredColorScheme(appearance.colorScheme)
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $showingFAQ) { FAQView() }
-        .sheet(isPresented: $showingConnect) { ConnectFlowView() }
+        // A screen, not a card. The connect flow *is* the onboarding
+        // (`CONTEXT.md`), and a sheet framed it as an errand you could put down
+        // - a detail sitting on top of the app rather than the way into it. It
+        // also cost the flow the top of every screen to the card inset and the
+        // grabber, which is where its own step spine has to live.
+        //
+        // `Not Now` matters more here than it did: a full-screen cover has no
+        // swipe-to-dismiss, so that button is now the *only* way out, which is
+        // exactly why ADR-0016 kept it when Beam's own screens have no such
+        // affordance.
+        .fullScreenCover(isPresented: $showingConnect) { ConnectFlowView() }
         .task {
             guard !didRestore else { return }
             didRestore = true

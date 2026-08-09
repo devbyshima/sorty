@@ -66,10 +66,15 @@ struct ConnectFlowView: View {
                     }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 24)
-                // Clears the blur band below. Dropping the navigation title
-                // raised the spine into it, and a smeared progress track is
-                // worse than none - it reads as a rendering fault on the one
-                // element whose whole job is to be legible at a glance.
+                // Clears the blur band. Dropping the navigation title raised
+                // the spine into it, and a smeared progress track reads as a
+                // rendering fault on the one element whose whole job is to be
+                // legible at a glance.
+                //
+                // Measured against step 1, which is the tightest case: it has
+                // no Back button, so its content starts higher than any other
+                // step's. 24 looked right on step 2 and put the spine straight
+                // back under the blur on step 1.
                 .padding(.top, 76)
                 .padding(.bottom, 20)
             }
