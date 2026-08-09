@@ -75,3 +75,35 @@ light field so the material has somewhere to lift to. It is a single token
 change and it would raise the separation everywhere at once, but it moves the
 ground under every screen to fix one family of surfaces, and a near-white field
 is what makes the pure white cards read as raised at all.
+
+## Correction, 2026-08-09
+
+**An accent fill exempts a surface from the edge.**
+
+As written, this ADR edged *every* glass surface, and on the three that carry an
+accent fill behind the material - the applied Arrangement chip, the selected
+category chip, the armed Save circle - the stroke stopped reading as an edge and
+started reading as a dark line drawn *inside* the control. That is worse than
+the problem it was added to solve, and it is only visible once a control is
+selected, which is why the measurement above missed it: every number in this ADR
+was taken from a chip at rest.
+
+The rule is now: **the edge is for clear glass.** Where an accent fill sits under
+the material there is already a hard colour boundary describing the shape, and it
+is doing the job the stroke was added to do. The exemption is expressed as
+`glassEdge(in:isEnabled:)` rather than as an `if`, so the view tree keeps the
+same shape either way and a chip does not change identity at the moment it is
+applied, which is also the moment it is animating.
+
+This does not weaken the finding. The measured ΔL\* 1.0 against a near-white
+field was about a capsule at rest, and every resting capsule still carries its
+edge. The Save circle keeps its edge unarmed, which is the state this ADR named
+as mattering most.
+
+It does reverse one line of the Consequences above. That section argued the Save
+circle should be edged in both states, because exempting it "would have made the
+one control the screen exists for the only glass in the app that behaves
+differently". Once the chips exempt their applied state, the inverse became true:
+keeping the armed circle edged would have made *it* the odd one out. The
+principle is the same one either way - every accent-filled surface behaves alike -
+and it now costs one fewer special case.

@@ -477,11 +477,11 @@ struct TrackListView: View {
                 : .regular.interactive(),
             in: .circle
         )
-        // Edged like every other glass surface. It matters most in the unarmed
-        // state, which is clear glass on a near-white field and had no outline
-        // at all in light; armed, the accent is already carrying the shape and
-        // the edge is barely visible against it.
-        .glassEdge(in: .circle)
+        // Edged only while unarmed, which is clear glass on a near-white field
+        // and had no outline at all in light. Armed, the accent is already
+        // carrying the shape, and ADR-0011's correction makes that the rule for
+        // every accent-filled surface rather than a judgement per control.
+        .glassEdge(in: .circle, isEnabled: !isArmed)
         .contentShape(.circle)
     }
 

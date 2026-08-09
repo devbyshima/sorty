@@ -103,7 +103,9 @@ struct LibraryBar: View {
                     .foregroundStyle(isSelected ? SortifyTheme.onAccent : .primary)
                     .background(isSelected ? AnyShapeStyle(SortifyTheme.accent) : AnyShapeStyle(.clear), in: .capsule)
                     .glassEffect(.regular.interactive(!isSearchExpanded), in: .capsule)
-                    .glassEdge(in: .capsule)
+                    // Same rule as the Arrangement chips: the selected one is
+                    // filled with the accent and needs no stroke over it.
+                    .glassEdge(in: .capsule, isEnabled: !isSelected)
                     .contentShape(.capsule)
                     .onTapGesture {
                         // Tapping the active chip clears back to All, so there

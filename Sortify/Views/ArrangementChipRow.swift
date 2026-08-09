@@ -133,7 +133,10 @@ private struct ChipView: View {
         // doing the same job on different nouns, so they read as one thing.
         .background(chip.isActive ? AnyShapeStyle(SortifyTheme.accent) : AnyShapeStyle(.clear), in: .capsule)
         .glassEffect(.regular.interactive(), in: .capsule)
-        .glassEdge(in: .capsule)
+        // No edge once it is applied: the accent fill is already a hard
+        // boundary, and the stroke over it stops reading as an edge and starts
+        // reading as a dark line drawn inside the chip.
+        .glassEdge(in: .capsule, isEnabled: !chip.isActive)
         .contentShape(.capsule)
         // The tap goes here, on the same view that carries the interactive
         // glass, which is what `LibraryBar` does and is the whole difference in

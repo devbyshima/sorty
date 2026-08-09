@@ -123,8 +123,19 @@ extension View {
     /// call site decides how much edge it wants. `strokeBorder` rather than
     /// `stroke`: an inset border stays inside the material instead of
     /// straddling it and reading a pixel wider than the shape it traces.
-    func glassEdge(in shape: some InsettableShape) -> some View {
-        overlay(shape.strokeBorder(SortifyTheme.glassEdge, lineWidth: 1))
+    ///
+    /// **Pass `false` where an accent fill sits under the glass.** The edge
+    /// exists so a *clear* capsule reads as an object on a near-white field;
+    /// over the accent there is already a hard colour boundary doing that job,
+    /// and the stroke stops reading as an edge and starts reading as a dark
+    /// line drawn inside the control. ADR-0011 makes the measurement and its
+    /// correction records this exemption.
+    ///
+    /// Expressed as a colour rather than as an `if`, so the view tree is the
+    /// same shape whichever way it goes and a chip does not change identity at
+    /// the moment it is applied - which is the moment it is also animating.
+    func glassEdge(in shape: some InsettableShape, isEnabled: Bool = true) -> some View {
+        overlay(shape.strokeBorder(isEnabled ? SortifyTheme.glassEdge : .clear, lineWidth: 1))
     }
 }
 
