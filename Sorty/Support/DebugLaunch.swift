@@ -153,6 +153,18 @@ enum DebugLaunch {
         CommandLine.arguments.contains("-pendingCovers")
     }
 
+    /// `-advanceAfter 2` - move the connect flow on by one step, that many
+    /// seconds after it appears.
+    ///
+    /// The page transition is the only way to see whether `pageSmear` resolved
+    /// at all, and a step changes only when somebody taps - which this harness
+    /// never does. Without this the shader could fail to load and the transition
+    /// would quietly degrade to a plain slide, which looks perfectly fine and is
+    /// exactly the silent failure ADR-0015 exists to catch.
+    static var advanceAfter: Double? {
+        UserDefaults.standard.string(forKey: "advanceAfter").flatMap(Double.init)
+    }
+
     static var isActive: Bool { screen != nil }
     #else
     static var screen: Screen? { nil }
@@ -167,6 +179,7 @@ enum DebugLaunch {
     static var libraryLayout: LibraryLayout? { nil }
     static var usesDemoData: Bool { false }
     static var holdsCovers: Bool { false }
+    static var advanceAfter: Double? { nil }
     static var isActive: Bool { false }
     #endif
 }

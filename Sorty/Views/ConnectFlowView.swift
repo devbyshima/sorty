@@ -31,52 +31,63 @@ struct ConnectFlowView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                    VStack(spacing: 24) {
+            // The page fills the space it has been given, rather than stacking
+            // from the top and leaving a void above the button.
+            //
+            // As a card this read fine, because a sheet is only as tall as its
+            // content. A full-screen page is not: step 1 is a heading and two
+            // short paragraphs, and top-aligned on a 6.3" display that left a
+            // hand's depth of nothing between the last line and Continue, which
+            // looks like a screen that failed to finish loading.
+            //
+            // `minHeight` rather than a plain centre, so the two steps that
+            // *do* overflow - the Client ID field with a keyboard up, and the
+            // dashboard step - still scroll instead of being squeezed.
+            GeometryReader { proxy in
+                ScrollView {
+                    VStack(spacing: 0) {
                         stepSpine
 
+                        Spacer(minLength: 28)
+
                         // The glyph, the words and the controls travel as one
-                        // page.
-                        //
-                        // Only the two `Text`s used to carry the transition, so
-                        // a step change slid the heading sideways while the
-                        // symbol above it and the field below it were simply
-                        // replaced in place. That reads as a screen rearranging
-                        // itself rather than as one page leaving and the next
-                        // arriving, which is what the spine above has already
-                        // promised.
+                        // page. Only the two `Text`s used to carry the
+                        // transition, so a step change slid the heading sideways
+                        // while the symbol above it and the field below it were
+                        // replaced in place - a screen rearranging itself rather
+                        // than one page leaving and the next arriving.
                         VStack(spacing: 24) {
-                            stepGlyph
+                            VStack(spacing: 24) {
+                                stepGlyph
 
-                            VStack(spacing: 12) {
-                                Text(step.title)
-                                    .font(.title2.bold())
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                VStack(spacing: 12) {
+                                    Text(step.title)
+                                        .font(.title2.bold())
+                                        .multilineTextAlignment(.center)
+                                        .fixedSize(horizontal: false, vertical: true)
 
-                                Text(step.body)
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                    Text(step.body)
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
                             }
+                            .id(step)
+                            .transition(.page(reduceMotion: reduceMotion))
 
+                            // Same travel, same fade, same timing - and no
+                            // shader. The Client ID field is UIKit-backed and
+                            // cannot survive the offscreen pass a `layerEffect`
+                            // forces; see `PageTransition.smears`.
                             stepControls
+                                .id(step)
+                                .transition(.page(reduceMotion: reduceMotion, smears: false))
                         }
-                        // Slides in the direction of travel, so a step forward
-                        // and a step back are distinguishable without reading
-                        // anything.
-                        .id(step)
-                        .transition(
-                            reduceMotion
-                                ? .opacity
-                                : .asymmetric(
-                                    insertion: .move(edge: .trailing).combined(with: .opacity),
-                                    removal: .move(edge: .leading).combined(with: .opacity)
-                                )
-                        )
 
-                        // Outside the page, and stays put while pages move: a
+                        Spacer(minLength: 28)
+
+                        // Outside the page and holding still while pages move: a
                         // failure belongs to the attempt rather than to the step
                         // it happened on, and sliding it away would take the
                         // explanation with it.
@@ -84,19 +95,20 @@ struct ConnectFlowView: View {
                             ErrorRow(message: failure)
                         }
                     }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 24)
-                // Clears the blur band. Dropping the navigation title raised
-                // the spine into it, and a smeared progress track reads as a
-                // rendering fault on the one element whose whole job is to be
-                // legible at a glance.
-                //
-                // Measured against step 1, which is the tightest case: it has
-                // no Back button, so its content starts higher than any other
-                // step's. 24 looked right on step 2 and put the spine straight
-                // back under the blur on step 1.
-                .padding(.top, 76)
-                .padding(.bottom, 20)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 24)
+                    // Clears the blur band. Dropping the navigation title raised
+                    // the spine into it, and a smeared progress track reads as a
+                    // rendering fault on the one element whose whole job is to
+                    // be legible at a glance.
+                    //
+                    // Measured against step 1, which is the tightest case: it is
+                    // the only step with no Back button, so its content starts
+                    // higher than any other's.
+                    .padding(.top, 76)
+                    .padding(.bottom, 20)
+                    .frame(minHeight: proxy.size.height)
+                }
             }
             // See SignedOutView: a background, not a sibling, or the circle
             // sizes the stack and the text runs off both edges.
@@ -144,6 +156,23 @@ struct ConnectFlowView: View {
                 clientID = session.configuration.clientID
                 if let start = DebugLaunch.connectStep { step = start }
             }
+            #if DEBUG
+            // `-advanceAfter N`: drives one step change so the transition can be
+            // photographed. No-op in a shipping build.
+            //
+            // **Deliberately slower than the real thing.** A tap animates over
+            // 0.25s and `simctl io screenshot` takes about 0.25s to return, so a
+            // burst straddles the whole transition and lands on either side of
+            // it - measured, twice. What is being verified here is that
+            // `pageSmear` resolves and draws at all, which the duration has no
+            // bearing on; stretching it is the difference between a photograph
+            // and a guess.
+            .task {
+                guard let delay = DebugLaunch.advanceAfter, let next = step.next else { return }
+                try? await Task.sleep(for: .seconds(delay))
+                withAnimation(.easeInOut(duration: 1.6)) { step = next }
+            }
+            #endif
         }
     }
 

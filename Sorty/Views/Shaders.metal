@@ -79,3 +79,52 @@ using namespace metal;
     src.rgb += highlight * half(s) * src.a * 0.34h;
     return src;
 }
+
+// MARK: - Page transition
+//
+// The smear a page carries while it travels, in place of a page that simply
+// slides at constant sharpness.
+//
+// `progress` is signed and runs -1 … 0 … 1: zero is the settled page, negative
+// is a page that has left to the left, positive one that has not yet arrived
+// from the right. The sign carries the direction, which is why this takes a
+// number rather than an edge - the `push(from:)` family describes both halves of
+// a transition with one edge and reads backwards to almost everyone (ADR-0016).
+//
+// Only the blur lives here. The travel itself is an ordinary `offset`, so the
+// sampler never has to reach further than the smear - a shader that also did the
+// sliding would need `maxSampleOffset` the width of the screen, and would pay
+// for it on every pixel of every frame.
+[[ stitchable ]] half4 pageSmear(float2 position, SwiftUI::Layer layer,
+                                 float progress) {
+    float amount = abs(progress);
+    if (amount < 0.001) {
+        return layer.sample(position);
+    }
+
+    // Eased so the smear arrives fast and clears slowly. A linear ramp reads as
+    // the page being out of focus rather than as it moving.
+    //
+    // 18 points, and the number is anchored rather than picked. A page travels
+    // 120 points in 0.25s, which is about 8 points per frame at 60Hz - so 8
+    // would be the physically honest blur. This is a little over twice that: far
+    // enough to read as speed, not so far as to be a stylisation. The first
+    // attempt used 34 and, photographed mid-transition, streaked the heading
+    // into ribbons - which at a glance reads as a rendering fault rather than as
+    // motion.
+    float smear = pow(amount, 0.65) * 18.0;
+
+    // Seven taps trailing *behind* the direction of travel. Centring them would
+    // blur the page symmetrically, which looks like a soft edge; trailing them
+    // looks like speed.
+    const int taps = 7;
+    float direction = progress > 0.0 ? 1.0 : -1.0;
+
+    half4 total = half4(0.0h);
+    for (int i = 0; i < taps; ++i) {
+        float t = float(i) / float(taps - 1);
+        total += layer.sample(position + float2(direction * t * smear, 0.0));
+    }
+
+    return total / half(taps);
+}

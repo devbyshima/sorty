@@ -271,6 +271,20 @@ ui appearance light
 # the effect is simply skipped, and what is left looks like a perfectly
 # reasonable flat tile. These shots are the only thing between that and
 # shipping it.
+# The third shader, `pageSmear`, is **not** in this set and cannot be, because a
+# transition is not a screen. Verifying it needs a burst across a step change:
+#
+#   xcrun simctl launch $UDID com.fulltimestudio.sorty \
+#     -demo -screen connect -connectStep why -advanceAfter 6
+#   # then ~8 screenshots back to back, starting about 7.3s in
+#
+# `-advanceAfter` drives one step change and animates it over 1.6s rather than
+# the 0.25s a tap gets - deliberately, because `simctl io screenshot` takes about
+# 0.25s to return and a burst at the real speed lands on either side of the whole
+# transition. Measured, twice, before the argument was slowed.
+#
+# A single frame appended to this set would be worse than nothing: it would be
+# whichever moment the timing happened to land on, and would differ every run.
 echo "==> shaders"
 shoot 34-splash -demo -screen splash
 shoot 35-covers-pending -demo -screen playlists -layout grid2 -pendingCovers

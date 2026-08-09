@@ -175,3 +175,56 @@ full-screen looked like it should allow less - the card was insetting the conten
 and now the navigation bar does it - and 24 did look right on step 2. On step 1
 it put the spine straight back under the blur. Any future adjustment gets checked
 there, not on whichever step happens to be open.
+
+## Addendum, 2026-08-09: the pages fit, and they smear
+
+Two changes once the flow became a pushed page rather than a card.
+
+**The page fills the space it is given.** As a sheet this was never visible,
+because a card is only as tall as its content. A full-screen page is not: step 1
+is a heading and two short paragraphs, and top-aligned on a 6.3" display that
+left a hand's depth of nothing between the last line and Continue - which reads
+as a screen that failed to finish loading. The content is centred between the
+spine and the button now, via `minHeight` on the scroll content rather than a
+plain centre, so the two steps that genuinely overflow still scroll.
+
+**A page smears while it travels**, through `pageSmear` - a seven-tap directional
+blur trailing behind the direction of motion, driven by an `Animatable` modifier
+because a shader argument is not animatable on its own. `.float(progress)` is
+read once when SwiftUI builds the view; `animatableData` is what makes SwiftUI
+drive it frame by frame.
+
+### Two things this cost, both worth keeping
+
+**A `layerEffect` is not free when it is doing nothing.** Its presence forces an
+offscreen pass, and SwiftUI cannot rasterize a UIKit-backed view that way - it
+draws a yellow hatched placeholder with a prohibition sign instead. The Client ID
+`TextField` is exactly that, so step 3 rendered its only control as a warning
+label. `layerEffect(isEnabled: false)` did **not** fix it; the pass belongs to
+the wrapper, not the shader.
+
+The fix is structural rather than a gate: the controls travel with the page -
+same distance, same fade, same timing - and never go under the shader at all.
+Gating on progress would have fixed the resting case and still flashed the
+placeholder through every transition into and out of that step. Nothing is lost,
+because a text field smeared during a 250ms slide is not a legible text field
+either.
+
+**A transition cannot be photographed at the speed it runs.** `simctl io
+screenshot` takes about 0.25s to return and the animation is 0.25s long, so a
+burst lands on either side of it - measured, twice. `-advanceAfter N` drives one
+step change and animates it over 1.6s, which is a DEBUG-only argument whose whole
+purpose is to make the effect visible. What is verified is that `pageSmear`
+resolves and draws; the duration has no bearing on that, and stretching it is the
+difference between a photograph and a guess.
+
+It is deliberately **not** in the screenshot set. A transition is not a screen,
+and a single appended frame would be whichever moment the timing happened to land
+on and would differ every run. The recipe is in `scripts/screenshots.sh` instead.
+
+**The smear is 18 points, and the number is anchored.** A page travels 120 points
+in 0.25s, about 8 points per frame at 60Hz, so 8 would be the physically honest
+blur. Eighteen is a little over twice that: far enough to read as speed, not so
+far as to be a stylisation. The first attempt used 34 and, photographed
+mid-transition, streaked the heading into ribbons - which at a glance reads as a
+rendering fault rather than as motion.
