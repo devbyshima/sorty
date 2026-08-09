@@ -155,10 +155,7 @@ struct ConnectingView: View {
         TimelineView(.animation(paused: reduceMotion)) { timeline in
             let t = Float(timeline.date.timeIntervalSince(start))
 
-            ZStack {
-                SplashBackdrop()
-
-                SortyMarkTile(side: 84)
+            SortyMarkTile(side: 84)
                     .modifier(MarkShimmer(side: 84, time: t, on: !reduceMotion))
                     // The bloom is the mark's own accent thrown back onto the
                     // field, so the tile reads as lit rather than pasted on.
@@ -166,11 +163,11 @@ struct ConnectingView: View {
                             radius: settled ? 30 : 0)
                     // Arrives rather than appears: one settle, spring-weighted
                     // so it overshoots a little and stops.
-                    .scaleEffect(settled || reduceMotion ? 1 : 0.72)
-                    .opacity(settled || reduceMotion ? 1 : 0)
-            }
+                .scaleEffect(settled || reduceMotion ? 1 : 0.72)
+                .opacity(settled || reduceMotion ? 1 : 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { SplashBackdrop() }
         .ignoresSafeArea()
         .task {
             guard !reduceMotion else { return }

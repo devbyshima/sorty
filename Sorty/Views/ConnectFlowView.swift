@@ -28,48 +28,63 @@ struct ConnectFlowView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    stepSpine
+                    VStack(spacing: 24) {
+                        stepSpine
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(step.title)
-                            .font(.title2.bold())
-                            .fixedSize(horizontal: false, vertical: true)
+                        stepGlyph
 
-                        Text(step.body)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        VStack(spacing: 12) {
+                            Text(step.title)
+                                .font(.title2.bold())
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text(step.body)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        // Content slides in the direction of travel, so a step
+                        // forward and a step back are distinguishable without
+                        // reading anything.
+                        .id(step)
+                        .transition(
+                            reduceMotion
+                                ? .opacity
+                                : .asymmetric(
+                                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                                    removal: .move(edge: .leading).combined(with: .opacity)
+                                )
+                        )
+
+                        stepControls
+
+                        if let failure = session.connectFailure {
+                            ErrorRow(message: failure)
+                        }
                     }
-                    // Content slides in the direction of travel, so a step
-                    // forward and a step back are distinguishable without
-                    // reading anything.
-                    .id(step)
-                    .transition(
-                        reduceMotion
-                            ? .opacity
-                            : .asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            )
-                    )
-
-                    stepControls
-
-                    if let failure = session.connectFailure {
-                        ErrorRow(message: failure)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
+                // Clears the blur band below. Dropping the navigation title
+                // raised the spine into it, and a smeared progress track is
+                // worse than none - it reads as a rendering fault on the one
+                // element whose whole job is to be legible at a glance.
+                .padding(.top, 76)
+                .padding(.bottom, 20)
             }
-            .background(SortyTheme.background)
+            // See SignedOutView: a background, not a sibling, or the circle
+            // sizes the stack and the text runs off both edges.
+            .background { SplashBackdrop() }
             // Short tail: the step track sits close under the bar, and a long
             // fade smeared it and "Step 3 of 4" on a screen that never scrolls.
             .overlay(alignment: .top) { TopBlur(height: 44, overscan: 0) }
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) { advanceBar }
-            .navigationTitle("Connect Spotify")
+            // No navigation title. Beam's onboarding screens carry none, and the
+            // spine plus the step's own heading already say both what this is
+            // and how much of it is left - "Connect Spotify" above "Sorty needs
+            // your own Spotify app" was the same sentence twice.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -103,7 +118,7 @@ struct ConnectFlowView: View {
     /// *shape* of what is being asked before any of it is asked, which is the
     /// difference between a short errand and an unknown number of screens.
     private var stepSpine: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 8) {
             HStack(spacing: 6) {
                 ForEach(ConnectStep.allCases) { each in
                     Capsule()
@@ -117,6 +132,42 @@ struct ConnectFlowView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(step.position)
+    }
+
+    // MARK: - The step's glyph
+
+    /// One symbol per step, in the accent, above the heading.
+    ///
+    /// Beam opens every onboarding screen with a mark or a glyph and puts the
+    /// words underneath it, and the four steps here were a wall of left-aligned
+    /// prose. The symbol is the cheapest way to make four screens tell
+    /// themselves apart before any of them is read.
+    ///
+    /// **No pulse rings.** Beam puts them on the screen that is *searching* -
+    /// it is actively scanning the network and the rings say so. Sorty's last
+    /// step is not searching: it is a button waiting for a finger, and rings
+    /// behind it would claim the app is working when it is idle. The one moment
+    /// this screen genuinely waits is after the tap, and the advance button
+    /// already carries a spinner for exactly that.
+    private var stepGlyph: some View {
+        Image(systemName: symbol(for: step))
+            .font(.system(size: 44, weight: .medium))
+            .foregroundStyle(SortyTheme.accent.gradient)
+            .contentTransition(.symbolEffect(.replace.downUp))
+            .frame(height: 72)
+            .accessibilityHidden(true)
+    }
+
+    /// Presentation, so it lives here rather than on `ConnectStep`. SortyKit
+    /// holds the words because the words are the flow; an SF Symbol name is a
+    /// fact about this app's interface and nothing else.
+    private func symbol(for step: ConnectStep) -> String {
+        switch step {
+        case .why: "person.badge.key"
+        case .createApp: "hammer"
+        case .clientID: "document.on.clipboard"
+        case .authorize: "checkmark.shield"
+        }
     }
 
     // MARK: - Per-step controls
@@ -230,8 +281,11 @@ struct ConnectFlowView: View {
         .tint(step == .authorize ? SortyTheme.spotifyGreen : SortyTheme.accent)
         .controlSize(.large)
         .disabled(!canAdvance)
-        .padding(20)
-        .background(.bar)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        // No bar behind it. `safeAreaInset` already reserves the space, so
+        // nothing scrolls under the button, and a grey slab here would cut the
+        // bloom in half exactly where it is brightest.
     }
 
     private var canAdvance: Bool {

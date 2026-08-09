@@ -13,33 +13,29 @@ import SwiftUI
 /// flow opens on the five-listener cap and never gets round to what the app is
 /// for, and asking someone to register a developer application before telling
 /// them that is the wrong order.
-
+///
+/// Rebuilt on Beam's onboarding (ADR-0016): the three points cycle through a
+/// reel rather than sitting in a list, over the same bloom the splash rises
+/// from, so launch and way-in read as one screen continuing rather than two.
 struct SignedOutView: View {
     var onConnect: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var appeared = false
 
-    private struct Point: Identifiable {
-        let id = UUID()
-        let symbol: String
-        let title: String
-        let body: String
-    }
-
     /// Three, and each one a thing Sorty does rather than a thing it has.
     private let points = [
-        Point(
+        OnboardingReel.Phase(
             symbol: "slider.horizontal.3",
             title: "Arrange by how it sounds",
             body: "Tempo, energy, mood. Put a playlist in an order the music itself decides."
         ),
-        Point(
+        OnboardingReel.Phase(
             symbol: "person.2",
             title: "Spread out repeated artists",
             body: "Or shuffle properly. Both are arrangements, one tap away."
         ),
-        Point(
+        OnboardingReel.Phase(
             symbol: "square.and.arrow.down",
             title: "Save it back to Spotify",
             body: "Overwrite the playlist, or keep the original and save a new one."
@@ -48,25 +44,42 @@ struct SignedOutView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 12)
+            if reduceMotion {
+                stillPoints
+            } else {
+                OnboardingReel(phases: points)
+                    .opacity(appeared ? 1 : 0)
+            }
+
+            connect
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // `.background`, never a ZStack sibling. The backdrop's circle is far
+        // wider than the screen, and as a sibling it sizes the stack - which
+        // proposed every text child a width past both edges and clipped the
+        // value props and the small print. A background never drives layout.
+        .background { SplashBackdrop() }
+        .task {
+            guard !reduceMotion else { return }
+            withAnimation(.smooth(duration: 0.5)) { appeared = true }
+        }
+    }
+
+    // MARK: - Reduced
+
+    /// What the reel says, said all at once and holding still.
+    ///
+    /// Not a degraded reel - a reel with its animation removed is three lines of
+    /// text replacing each other on a timer, which is still movement and still
+    /// hides two thirds of the content behind a wait. The list was this screen's
+    /// original design and it remains the right answer for anyone who has asked
+    /// for less motion.
+    private var stillPoints: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 16)
 
             SortyMarkTile(side: 88)
-                .scaleEffect(shown ? 1 : 0.9)
-                .opacity(shown ? 1 : 0)
-                .padding(.bottom, 22)
-
-            VStack(spacing: 8) {
-                Text("Sorty")
-                    .font(.largeTitle.bold())
-                Text("Reorder a Spotify playlist by the character of its music.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 34)
-            .opacity(shown ? 1 : 0)
+                .padding(.bottom, 28)
 
             VStack(alignment: .leading, spacing: 20) {
                 ForEach(points) { point in
@@ -91,47 +104,43 @@ struct SignedOutView: View {
                 }
             }
             .padding(.horizontal, 32)
-            .opacity(shown ? 1 : 0)
 
             Spacer(minLength: 24)
-
-            VStack(spacing: 12) {
-                Button(action: onConnect) {
-                    Text("Connect Spotify")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .background(SortyTheme.accent, in: .capsule)
-                        .foregroundStyle(SortyTheme.onAccent)
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Starts the four steps for connecting your Spotify account.")
-
-                // Says the cost up front rather than letting it arrive at step
-                // two. Spotify caps a development-mode application at five
-                // listeners, so a shared Client ID would lock out every user
-                // past the fifth - which is why this cannot be a plain sign-in
-                // and why the flow has four steps instead of one.
-                Text("Spotify needs you to register a free developer application and paste its Client ID. The steps walk you through it.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 2)
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SortyTheme.background)
-        .task {
-            guard !reduceMotion else { return }
-            withAnimation(.snappy(duration: 0.5)) { appeared = true }
         }
     }
 
-    /// Reduced Motion gets the finished state immediately rather than a faded
-    /// one: the animation carries no information, so removing it must remove
-    /// only the movement.
-    private var shown: Bool { appeared || reduceMotion }
+    // MARK: - The action
+
+    private var connect: some View {
+        VStack(spacing: 12) {
+            Button(action: onConnect) {
+                Text("Connect Spotify")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 15)
+                    .background(SortyTheme.accent, in: .capsule)
+                    .foregroundStyle(SortyTheme.onAccent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Starts the four steps for connecting your Spotify account.")
+
+            // Says the cost up front rather than letting it arrive at step
+            // two. Spotify caps a development-mode application at five
+            // listeners, so a shared Client ID would lock out every user
+            // past the fifth - which is why this cannot be a plain sign-in
+            // and why the flow has four steps instead of one.
+            //
+            // It stays out of the reel deliberately. The reel is what the app
+            // does; this is what it costs, and a cost that appears for three
+            // seconds every nine is a cost being hidden.
+            Text("Spotify needs you to register a free developer application and paste its Client ID. The steps walk you through it.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 12)
+    }
 }

@@ -278,6 +278,13 @@ ui appearance dark
 shoot 36-dark-splash -demo -screen splash
 ui appearance light
 
+# ─── The last connect step ───────────────────────────────────────────────────
+# Step 4 was the only one of the four this set never photographed, which is how
+# it went unnoticed that nothing distinguished it from step 3. Appended rather
+# than filed with 11-13, for the same reason the withheld shots are: inserting
+# it there would renumber half the set for one addition.
+shoot 37-connect-authorize -demo -screen connect -connectStep authorize
+
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 
 # The swap. Everything this run produced replaces everything that was there.
