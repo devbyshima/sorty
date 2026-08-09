@@ -26,9 +26,6 @@ struct ConnectFlowView: View {
     @State private var clientID = ""
     @State private var isAuthenticating = false
     @State private var presenter = AuthPresenter()
-    /// Measured so the blur behind the pinned spine is exactly as tall as the
-    /// spine, the way the library's header does it.
-    @State private var spineHeight: CGFloat = 0
 
     private var check: ClientIDCheck { ClientIDCheck.check(clientID) }
 
@@ -109,15 +106,11 @@ struct ConnectFlowView: View {
             // See SignedOutView: a background, not a sibling, or the circle
             // sizes the stack and the text runs off both edges.
             .background { SplashBackdrop() }
-            // Pinned, and sitting *on* its blur rather than under it.
-            //
-            // The spine used to scroll with the content beneath a `TopBlur`
-            // overlay, which draws above everything - so the only way to keep the
-            // progress track sharp was to push it down far enough to clear the
-            // band, and it ended up 76 points below the chevron. Backing the
-            // spine with the blur instead is the library header's arrangement:
-            // the track stays crisp on top, and content passes under it.
-            .safeAreaInset(edge: .top, spacing: 0) { spineHeader }
+            // For content that scrolls under the toolbar. The dots do not need
+            // clearing from it - they are toolbar content, which draws above
+            // this - and the page is centred rather than top-aligned, so at rest
+            // nothing sits in the band at all.
+            .overlay(alignment: .top) { TopBlur(height: 44, overscan: 0) }
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) { advanceBar }
             // No navigation title. Beam's onboarding screens carry none, and the
@@ -138,6 +131,7 @@ struct ConnectFlowView: View {
                 // requires - a way in nobody can escape is a worse first
                 // impression than the way-in screen. It just takes the number of
                 // taps the depth implies, instead of one.
+                ToolbarItem(placement: .principal) { stepDots }
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         if let previous = step.previous {
@@ -178,44 +172,30 @@ struct ConnectFlowView: View {
         }
     }
 
-    // MARK: - Spine
+    // MARK: - Progress
 
-    /// Four segments, filled up to where you are.
+    /// Four dots, filled up to where you are, level with the back button.
     ///
-    /// The old flow said "Step 2 of 4" in small type. A spine says the same
-    /// thing without being read, and - the part that matters - shows the
-    /// *shape* of what is being asked before any of it is asked, which is the
-    /// difference between a short errand and an unknown number of screens.
-    private var stepSpine: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                ForEach(ConnectStep.allCases) { each in
-                    Capsule()
-                        .fill(each <= step ? AnyShapeStyle(SortyTheme.accent) : AnyShapeStyle(SortyTheme.raisedSurface))
-                        .frame(height: 4)
-                }
+    /// It was a row of four capsules stretched across the width, under the
+    /// chevron. That drew a *bar*, and a bar reads as a measure of how much work
+    /// is left - which four short screens do not need and which made the flow
+    /// look longer than it is. Dots say the same thing in the space between two
+    /// toolbar buttons: four things, this many done.
+    ///
+    /// In the toolbar rather than under it, which is what puts it level with the
+    /// chevron and also solves the blur problem the old spine had. Toolbar
+    /// content draws above the scroll view's overlay, so the dots stay sharp
+    /// with no padding pushing anything down (ADR-0016).
+    private var stepDots: some View {
+        HStack(spacing: 6) {
+            ForEach(ConnectStep.allCases) { each in
+                Circle()
+                    .fill(each <= step ? AnyShapeStyle(SortyTheme.accent) : AnyShapeStyle(SortyTheme.raisedSurface))
+                    .frame(width: 6, height: 6)
             }
-            Text(step.position)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(step.position)
-    }
-
-    /// The spine, pinned under the chevron.
-    private var spineHeader: some View {
-        stepSpine
-            .padding(.horizontal, 24)
-            .padding(.top, 6)
-            .padding(.bottom, 12)
-            .background(alignment: .top) {
-                // Eight points shorter than the header it backs, so the fade
-                // starts just below the track rather than level with it - the
-                // same trim, and the same reasoning, as `PlaylistsView`.
-                TopBlur(height: max(0, spineHeight - 8), maxBlur: 1.5)
-            }
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { spineHeight = $0 }
     }
 
     // MARK: - The step's glyph

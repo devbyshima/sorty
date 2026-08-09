@@ -269,11 +269,10 @@ as a screen that failed to finish loading. The content is centred between the
 spine and the button now, via `minHeight` on the scroll content rather than a
 plain centre, so the two steps that genuinely overflow still scroll.
 
-**A page smears while it travels**, through `pageSmear` - a seven-tap directional
-blur trailing behind the direction of motion, driven by an `Animatable` modifier
-because a shader argument is not animatable on its own. `.float(progress)` is
-read once when SwiftUI builds the view; `animatableData` is what makes SwiftUI
-drive it frame by frame.
+**A page blurs while it travels**, through a shader driven by an `Animatable`
+modifier - because a shader argument is not animatable on its own.
+`.float(progress)` is read once when SwiftUI builds the view; `animatableData` is
+what makes SwiftUI drive it frame by frame.
 
 ### Two things this cost, both worth keeping
 
@@ -303,9 +302,41 @@ It is deliberately **not** in the screenshot set. A transition is not a screen,
 and a single appended frame would be whichever moment the timing happened to land
 on and would differ every run. The recipe is in `scripts/screenshots.sh` instead.
 
-**The smear is 18 points, and the number is anchored.** A page travels 120 points
-in 0.25s, about 8 points per frame at 60Hz, so 8 would be the physically honest
-blur. Eighteen is a little over twice that: far enough to read as speed, not so
-far as to be a stylisation. The first attempt used 34 and, photographed
-mid-transition, streaked the heading into ribbons - which at a glance reads as a
-rendering fault rather than as motion.
+**The blur's strength was anchored rather than picked.** In the sideways version
+a page travelled 120 points in 0.25s, about 8 points per frame at 60Hz, so 8 was
+the physically honest smear; 18 was a little over twice that, and the first
+attempt at 34 streaked the heading into ribbons, which at a glance reads as a
+rendering fault rather than as motion. The radial version that replaced it keeps
+the same discipline: its reach is 7.5% of each pixel's distance from the centre,
+so the blur lengthens toward the edges as real radial motion does rather than
+fogging the middle as hard as the corners.
+
+## Addendum, 2026-08-10: dots, and depth instead of sideways
+
+**The progress track is four dots in the toolbar**, level with the chevron. It
+was four capsules stretched across the width, which drew a *bar* - and a bar
+reads as a measure of how much work is left, which four short screens do not need
+and which made the flow look longer than it is.
+
+Moving it into the toolbar also retires the blur problem for good. Toolbar
+content draws above the scroll view's overlay, so the dots stay sharp with
+nothing pushing anything down - the pinned-header arrangement above was the right
+fix for a spine that had to live *in* the page, and the better fix was for it not
+to.
+
+**Pages now arrive through depth rather than from the side.** The incoming one
+grows in from slightly behind while the outgoing one carries on past the viewer,
+both blurring radially. Two reasons beyond taste: four steps are a stack you
+advance through rather than a filmstrip you pan along, and the sideways version
+made a page change the same gesture as the flow's own arrival, which pushes in
+from the right. A screen that enters exactly like the thing inside it changes is
+a screen whose two motions say nothing different.
+
+The blur had to change with it. Directional smearing suits a page with one
+direction of travel; a page that *scales* has none - every pixel moves along its
+own line out from the centre, and blurring along that line is what makes a scale
+read as movement instead of as a resize.
+
+**The scale is 6%, and small on purpose.** A page is a screenful of type, and
+type that grows or shrinks by more than a few percent stops reading as
+approaching and starts reading as a zoom effect applied to a document.

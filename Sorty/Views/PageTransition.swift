@@ -2,9 +2,15 @@ import SwiftUI
 
 /// How one onboarding page leaves and the next arrives.
 ///
-/// A page travels, smears with the travel, and fades - rather than sliding at
-/// constant sharpness, which is what `.move(edge:)` gives and what reads as a
-/// card being dragged across a table.
+/// A page arrives *through depth* rather than across the screen: the incoming
+/// one grows in from slightly behind while the outgoing one carries on past the
+/// viewer, both blurring radially as they move.
+///
+/// It replaced a horizontal slide, which is what `.move(edge:)` gives and reads
+/// as a card being dragged across a table. Depth suits a sequence better - four
+/// steps are a stack you advance through, not a filmstrip you pan along - and it
+/// stops the flow's page change from being the same gesture as the flow's own
+/// arrival, which pushes in from the right.
 ///
 /// **Why a modifier rather than one of SwiftUI's transitions.** A shader
 /// argument is not animatable on its own: `.float(progress)` is read once, when
@@ -13,9 +19,9 @@ import SwiftUI
 /// rebuilds the effect with the current number. `.transition(.modifier(active:
 /// identity:))` supplies the two ends.
 ///
-/// The sign carries the direction: `+1` is a page waiting off to the right, `-1`
-/// one that has left to the left, `0` a page at rest. A number rather than an
-/// edge is deliberate - `push(from:)` describes *both* halves of a transition
+/// The sign carries the direction: `+1` is a page still behind the viewer, `-1`
+/// one that has passed and is receding, `0` a page at rest. A number rather than
+/// an edge is deliberate - `push(from:)` describes *both* halves of a transition
 /// with a single edge and reads backwards to almost everyone, which cost this
 /// project one wrong-direction bug already (ADR-0016).
 struct PageTransition: ViewModifier, Animatable {
@@ -33,19 +39,16 @@ struct PageTransition: ViewModifier, Animatable {
     /// flashed the placeholder for the length of every transition into and out
     /// of that step. So the controls travel with the rest of the page - same
     /// distance, same fade, same timing - and simply never go under the shader.
-    /// Nothing is lost: a text field smeared during a 300ms slide is not a
+    /// Nothing is lost: a text field blurred during a 250ms move is not a
     /// legible text field either.
     var smears: Bool = true
 
-    /// A fixed distance rather than a fraction of the width.
+    /// How far a page is from its resting size at either end of the journey.
     ///
-    /// It keeps this off `visualEffect`, which is the only reason the geometry
-    /// proxy was here - and `visualEffect` rasterizes too, so reading the width
-    /// reintroduced exactly the problem `smears` exists to avoid. Less than a
-    /// screen width on purpose: a page travelling its own width leaves a gap of
-    /// bare background mid-transition, because the page behind it is doing the
-    /// same thing.
-    private static let travel: Double = 120
+    /// Small on purpose. A page is a screenful of type, and type that grows or
+    /// shrinks by more than a few percent stops reading as *approaching* and
+    /// starts reading as a zoom effect applied to a document.
+    private static let depth: Double = 0.06
 
     var animatableData: Double {
         get { progress }
@@ -54,8 +57,9 @@ struct PageTransition: ViewModifier, Animatable {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        smeared(content)
-            .offset(x: progress * Self.travel)
+        blurred(content)
+            // Behind the viewer when arriving, past them when leaving.
+            .scaleEffect(1 - (progress * Self.depth))
             // Squared, so a page stays legible for most of its journey and only
             // gives up at the end. Linear opacity leaves both pages looking
             // half-there for the whole transition.
@@ -63,14 +67,21 @@ struct PageTransition: ViewModifier, Animatable {
     }
 
     @ViewBuilder
-    private func smeared(_ content: Content) -> some View {
+    private func blurred(_ content: Content) -> some View {
         if smears, abs(progress) > 0.001 {
-            content.layerEffect(
-                ShaderLibrary.pageSmear(.float(progress)),
-                // Only as far as the smear reaches. The travel above is an
-                // ordinary offset, so the sampler never needs the screen's width.
-                maxSampleOffset: CGSize(width: 40, height: 0)
-            )
+            content.visualEffect { view, proxy in
+                view.layerEffect(
+                    ShaderLibrary.pageZoom(
+                        .float2(proxy.size),
+                        .float(progress)
+                    ),
+                    // The radial reach is a fraction of each pixel's distance
+                    // from the centre, so the furthest sample is bounded by the
+                    // half-diagonal times that fraction. 60 covers a full-screen
+                    // page with room to spare.
+                    maxSampleOffset: CGSize(width: 60, height: 60)
+                )
+            }
         } else {
             content
         }
@@ -78,11 +89,11 @@ struct PageTransition: ViewModifier, Animatable {
 }
 
 extension AnyTransition {
-    /// A page arriving from the right and leaving to the left.
+    /// A page arriving from behind and leaving past the viewer.
     ///
-    /// Reduce Motion gets a cross-fade. The smear is the *point* of this
-    /// transition, so a shortened or gentler version would be a weaker form of
-    /// exactly the thing somebody has asked not to see.
+    /// Reduce Motion gets a cross-fade. Scaling type toward and away from the
+    /// viewer is precisely the kind of movement the setting exists to stop, and
+    /// a gentler version of it would be a weaker form of the same thing.
     static func page(reduceMotion: Bool, smears: Bool = true) -> AnyTransition {
         guard !reduceMotion else { return .opacity }
 

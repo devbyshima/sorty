@@ -82,48 +82,46 @@ using namespace metal;
 
 // MARK: - Page transition
 //
-// The smear a page carries while it travels, in place of a page that simply
-// slides at constant sharpness.
+// The blur a page carries while it travels *through depth* rather than across
+// the screen.
 //
-// `progress` is signed and runs -1 … 0 … 1: zero is the settled page, negative
-// is a page that has left to the left, positive one that has not yet arrived
-// from the right. The sign carries the direction, which is why this takes a
-// number rather than an edge - the `push(from:)` family describes both halves of
-// a transition with one edge and reads backwards to almost everyone (ADR-0016).
+// `progress` is signed and runs -1 … 0 … 1: zero is the settled page, positive
+// is a page still behind the viewer and growing toward them, negative one that
+// has passed and is receding. The sign is the direction, which is why this takes
+// a number rather than an edge - the `push(from:)` family describes both halves
+// of a transition with one edge and reads backwards to almost everyone
+// (ADR-0016).
 //
-// Only the blur lives here. The travel itself is an ordinary `offset`, so the
-// sampler never has to reach further than the smear - a shader that also did the
-// sliding would need `maxSampleOffset` the width of the screen, and would pay
-// for it on every pixel of every frame.
-[[ stitchable ]] half4 pageSmear(float2 position, SwiftUI::Layer layer,
-                                 float progress) {
+// Radial, not directional. The earlier version smeared sideways because the page
+// slid sideways; a page that scales has no single direction of travel - every
+// pixel moves along its own line out from the centre, and blurring along that
+// line is what makes the scale read as movement instead of as a resize.
+//
+// Only the blur lives here. The scale itself is an ordinary `scaleEffect`, so
+// the sampler never reaches beyond the smear.
+[[ stitchable ]] half4 pageZoom(float2 position, SwiftUI::Layer layer,
+                                float2 size, float progress) {
     float amount = abs(progress);
     if (amount < 0.001) {
         return layer.sample(position);
     }
 
-    // Eased so the smear arrives fast and clears slowly. A linear ramp reads as
-    // the page being out of focus rather than as it moving.
+    float2 centre = size * 0.5;
+    float2 delta = position - centre;
+
+    // A fraction of each pixel's own distance from the centre, so the blur
+    // lengthens toward the edges exactly as real radial motion does - a constant
+    // length would smear the middle as hard as the corners and read as fog.
     //
-    // 18 points, and the number is anchored rather than picked. A page travels
-    // 120 points in 0.25s, which is about 8 points per frame at 60Hz - so 8
-    // would be the physically honest blur. This is a little over twice that: far
-    // enough to read as speed, not so far as to be a stylisation. The first
-    // attempt used 34 and, photographed mid-transition, streaked the heading
-    // into ribbons - which at a glance reads as a rendering fault rather than as
-    // motion.
-    float smear = pow(amount, 0.65) * 18.0;
+    // Eased so it arrives fast and clears slowly; a linear ramp reads as the
+    // page being out of focus rather than as it moving.
+    float reach = pow(amount, 0.65) * 0.075 * (progress > 0.0 ? 1.0 : -1.0);
 
-    // Seven taps trailing *behind* the direction of travel. Centring them would
-    // blur the page symmetrically, which looks like a soft edge; trailing them
-    // looks like speed.
     const int taps = 7;
-    float direction = progress > 0.0 ? 1.0 : -1.0;
-
     half4 total = half4(0.0h);
     for (int i = 0; i < taps; ++i) {
         float t = float(i) / float(taps - 1);
-        total += layer.sample(position + float2(direction * t * smear, 0.0));
+        total += layer.sample(centre + delta * (1.0 - reach * t));
     }
 
     return total / half(taps);

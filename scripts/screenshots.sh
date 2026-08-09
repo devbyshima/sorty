@@ -271,7 +271,7 @@ ui appearance light
 # the effect is simply skipped, and what is left looks like a perfectly
 # reasonable flat tile. These shots are the only thing between that and
 # shipping it.
-# The third shader, `pageSmear`, is **not** in this set and cannot be, because a
+# The third shader, `pageZoom`, is **not** in this set and cannot be, because a
 # transition is not a screen. Verifying it needs a burst across a step change:
 #
 #   xcrun simctl launch $UDID com.fulltimestudio.sorty \
