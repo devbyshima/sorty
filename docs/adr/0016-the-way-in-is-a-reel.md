@@ -99,6 +99,34 @@ The general lesson: **in a ported layout, the odd-looking wrapper is load-bearin
 until proven otherwise.** Beam's author did not write `Rectangle().overlay` for
 fun.
 
+## The onboarding travels one way, sideways
+
+Both halves now move horizontally, and a step is a *page* rather than a screen
+rearranging itself.
+
+**In the reel**, the props enter from the right and leave to the left. Beam
+pushes its own up from the bottom; read as pages, which is what a reel is, the
+travel belongs on the same axis the connect flow's steps already used.
+
+**In the connect flow**, the glyph, the words and the controls now travel
+together under one `.id(step)`. Only the two `Text`s carried the transition
+before, so a step change slid the heading sideways while the symbol above it and
+the field below it were replaced in place. The error row deliberately stays put:
+a failure belongs to the attempt, not to the step it happened on, and sliding it
+away would take the explanation with it.
+
+**`push(from:)` describes both halves of a transition, not one.** It enters from
+the named edge and exits to the *opposite* one, so
+`insertion: .trailing, removal: .leading` reads like "in from the right, out to
+the left" and means the reverse - the outgoing prop left rightwards, into the one
+arriving. One edge for both is correct, which is exactly what Beam wrote and what
+I "improved" into an asymmetric pair.
+
+This was caught by shooting ten frames 0.35s apart across a phase change and
+stacking the crops, not by reading the code, which looked right. **A transition
+is not verifiable from a still**, and the burst is the cheapest thing that makes
+it verifiable at all.
+
 ## Consequences
 
 **The app's name no longer appears on the way in.** The reel replaced the title
@@ -112,6 +140,10 @@ nothing to distinguish it from step three. It is appended rather than filed
 beside `11`-`13`, because inserting it there collided with `14-playlists-two-up`
 and would have renumbered half the set for one addition - the same reason the
 withheld shots sit at the end.
+
+**Back and Not Now are icons**, `chevron.left` and `xmark`, with their words kept
+as accessibility labels. A bare glyph with no accessible name is a button that
+announces itself as "button".
 
 **`Not Now` is now the only way out.** A full-screen cover has no
 swipe-to-dismiss, so the button this ADR kept against Beam's two-affordance

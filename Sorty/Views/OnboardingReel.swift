@@ -49,12 +49,25 @@ struct OnboardingReel: View {
                         ForEach(phases.indices, id: \.self) { phase in
                             if phase == index {
                                 text(phases[phase])
+                                    // Sideways, not up from the bottom: the next
+                                    // prop arrives from the right and the last
+                                    // one leaves to the left, which is the
+                                    // direction the connect flow's steps travel
+                                    // too, so the whole onboarding moves one way.
+                                    //
+                                    // **One edge, not an asymmetric pair.**
+                                    // `push(from:)` already describes both
+                                    // halves - it enters from the named edge and
+                                    // exits to the *opposite* one. Writing
+                                    // `insertion: .trailing, removal: .leading`
+                                    // reads like "in from the right, out to the
+                                    // left" and means the reverse: the outgoing
+                                    // prop left rightwards, into the one
+                                    // arriving. Caught in a burst of frames
+                                    // across the change, not by reading it.
                                     .transition(
-                                        .asymmetric(
-                                            insertion: .push(from: .bottom),
-                                            removal: .push(from: .bottom)
-                                        )
-                                        .combined(with: AnyTransition(.blurReplace))
+                                        .push(from: .trailing)
+                                            .combined(with: AnyTransition(.blurReplace))
                                     )
                             }
                         }

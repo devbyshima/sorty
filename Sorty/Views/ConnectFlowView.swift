@@ -31,23 +31,37 @@ struct ConnectFlowView: View {
                     VStack(spacing: 24) {
                         stepSpine
 
-                        stepGlyph
+                        // The glyph, the words and the controls travel as one
+                        // page.
+                        //
+                        // Only the two `Text`s used to carry the transition, so
+                        // a step change slid the heading sideways while the
+                        // symbol above it and the field below it were simply
+                        // replaced in place. That reads as a screen rearranging
+                        // itself rather than as one page leaving and the next
+                        // arriving, which is what the spine above has already
+                        // promised.
+                        VStack(spacing: 24) {
+                            stepGlyph
 
-                        VStack(spacing: 12) {
-                            Text(step.title)
-                                .font(.title2.bold())
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
+                            VStack(spacing: 12) {
+                                Text(step.title)
+                                    .font(.title2.bold())
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
 
-                            Text(step.body)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
+                                Text(step.body)
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+
+                            stepControls
                         }
-                        // Content slides in the direction of travel, so a step
-                        // forward and a step back are distinguishable without
-                        // reading anything.
+                        // Slides in the direction of travel, so a step forward
+                        // and a step back are distinguishable without reading
+                        // anything.
                         .id(step)
                         .transition(
                             reduceMotion
@@ -58,8 +72,10 @@ struct ConnectFlowView: View {
                                 )
                         )
 
-                        stepControls
-
+                        // Outside the page, and stays put while pages move: a
+                        // failure belongs to the attempt rather than to the step
+                        // it happened on, and sliding it away would take the
+                        // explanation with it.
                         if let failure = session.connectFailure {
                             ErrorRow(message: failure)
                         }
@@ -94,9 +110,15 @@ struct ConnectFlowView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     if let previous = step.previous {
-                        Button("Back") {
+                        Button {
                             withAnimation(.snappy(duration: 0.25)) { step = previous }
+                        } label: {
+                            Image(systemName: "chevron.left")
                         }
+                        // The word is gone from the screen and kept here. A
+                        // bare glyph with no accessible name is a button that
+                        // announces itself as "button".
+                        .accessibilityLabel("Back")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -104,7 +126,12 @@ struct ConnectFlowView: View {
                     // now the only way in (ADR-0007). A modal nobody can escape
                     // is a worse first impression than the way-in screen, which
                     // at least names its own remedy and can be returned to.
-                    Button("Not Now") { dismiss() }
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel("Not Now")
                 }
             }
             .onAppear {
