@@ -79,39 +79,47 @@ public enum ConnectStep: Int, CaseIterable, Identifiable, Sendable, Comparable {
 
     /// The point of the step, in the fewest words that still explain rather
     /// than instruct.
+    ///
+    /// Shortened once these became full-screen pages. As a sheet the length was
+    /// invisible - a card is only as tall as its content - but a page presents
+    /// its whole paragraph at once, and four screens of it read as a form to be
+    /// got through rather than four short things to do.
+    ///
+    /// What went was explanation the listener had not asked for: the worked
+    /// example of the sixth person being locked out, and a repeat of the
+    /// five-listener cap on the step after the one that introduces it. What
+    /// stayed is every fact that changes what somebody does - the cap, why it
+    /// cannot simply be lifted, the Premium requirement, and which of the two
+    /// credentials Sorty wants.
     public var body: String {
         switch self {
         case .why:
             """
-            Spotify caps a single application at five listeners. If Sorty \
-            shipped with one Client ID built in, the sixth person to open it \
-            would be locked out, and lifting the cap needs 250,000 monthly \
-            listeners, which an app that can't reach its sixth user will never \
-            have.
+            Spotify caps any single app at five listeners, so Sorty can't ship \
+            with one built in. Lifting that cap needs 250,000 monthly listeners.
 
-            So everyone brings their own. It's free, and it takes about two \
+            Everyone brings their own instead. It's free, and takes about two \
             minutes.
             """
         case .createApp:
             """
-            On Spotify's developer dashboard, create an app. Any name and \
-            description will do. Add the redirect URI below exactly as it \
-            appears, then add your own Spotify account under Users Management.
+            Create an app on Spotify's dashboard. Any name will do. Add the \
+            redirect URI below exactly as it appears, then add your own account \
+            under Users Management.
 
-            Two things worth knowing before you start: a development-mode app \
-            admits at most five listeners, and its owner needs Spotify Premium.
+            Its owner needs Spotify Premium.
             """
         case .clientID:
             """
-            Your app's page shows a Client ID and a Client Secret. Sorty \
-            needs the Client ID. The secret never leaves Spotify's dashboard \
-            and Sorty will never ask for it.
+            Your app's page shows a Client ID and a Client Secret. Sorty needs \
+            the ID. The secret never leaves Spotify, and Sorty will never ask \
+            for it.
             """
         case .authorize:
             """
-            Sign-in runs in Apple's own web authentication sheet, so Sorty \
-            never sees your password. This is also where the Client ID gets \
-            proved: if it's wrong, Spotify says so here.
+            Sign-in runs in Apple's own web sheet, so Sorty never sees your \
+            password. It is also where the Client ID is proved: if it's wrong, \
+            Spotify says so here.
             """
         }
     }

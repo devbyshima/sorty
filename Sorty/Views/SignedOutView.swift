@@ -133,7 +133,7 @@ struct SignedOutView: View {
             // It stays out of the reel deliberately. The reel is what the app
             // does; this is what it costs, and a cost that appears for three
             // seconds every nine is a cost being hidden.
-            Text("Spotify needs you to register a free developer application and paste its Client ID. The steps walk you through it.")
+            Text("Spotify requires each listener to register a free developer app. The steps walk you through it.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
