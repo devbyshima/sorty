@@ -106,10 +106,17 @@ enum SortifyTheme {
     /// edge is here to make a capsule read as an object, not to carry meaning,
     /// and an outline heavy enough for 3:1 would turn a delicate row of chips
     /// into a row of bordered buttons.
+    /// **Nothing at all in dark, and that is what the measurement said.** Dark
+    /// glass already separates from its field by about twelve L\* steps against
+    /// light's one, so it never needed an edge; a token white 6% was added
+    /// anyway, for symmetry rather than for a reason, and on a dark capsule it
+    /// reads as a second outline drawn inside the material's own. Removing it
+    /// leaves dark exactly as it was before ADR-0011, which is where the
+    /// measurement already put it.
     static var glassEdge: Color {
         Color(uiColor: UIColor { traits in
             traits.userInterfaceStyle == .dark
-                ? UIColor(white: 1, alpha: 0.06)
+                ? .clear
                 : UIColor(white: 0, alpha: 0.12)
         })
     }

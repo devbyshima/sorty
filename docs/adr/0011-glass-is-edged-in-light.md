@@ -107,3 +107,24 @@ differently". Once the chips exempt their applied state, the inverse became true
 keeping the armed circle edged would have made *it* the odd one out. The
 principle is the same one either way - every accent-filled surface behaves alike -
 and it now costs one fewer special case.
+
+## Second correction, 2026-08-09
+
+**Dark gets no edge at all.** The token was black at 12% in light and white at 6%
+in dark; the dark half is now nothing.
+
+This ADR's own measurement said dark did not need one - glass separates from its
+field by about twelve L\* steps there against light's one - and then it added a
+faint edge anyway, for symmetry rather than for a reason. On a dark capsule that
+6% is about thirteen levels of lift, which is enough to read as a distinct ring
+drawn *inside* the material's own soft boundary. Two outlines, where the point
+was to give a shape one.
+
+So dark returns to exactly what it was before this ADR, which is where the
+measurement had already put it, and the decision reduces to what its own title
+says: **glass is edged in light.**
+
+Worth knowing for anyone reviewing screenshots after this: the change is real but
+low-amplitude, a maximum of about 14 channel levels, so it sits under the
+usual >60 threshold for a "content change" and shows up only when the crop is
+stretched. Absence of a flag in that check is not evidence it did nothing.
