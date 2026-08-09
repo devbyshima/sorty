@@ -8,3 +8,5 @@ build/
 xcuserdata/
 .DS_Store
 .build-device/
+.build-release/
+.build-sim/

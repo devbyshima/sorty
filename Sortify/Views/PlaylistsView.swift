@@ -60,6 +60,13 @@ struct PlaylistsView: View {
                     case .list:
                         list
                     }
+
+                    // Required wherever Spotify's metadata is shown, and every
+                    // playlist name and cover above is exactly that. Inside the
+                    // `else` because the requirement attaches to the metadata:
+                    // there is none to attribute while the library is loading,
+                    // failing, or filtered down to nothing.
+                    SpotifyAttribution()
                 }
             }
             // Longer than the blur's fade, so the ramp finishes in the gap

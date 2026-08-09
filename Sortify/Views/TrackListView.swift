@@ -582,6 +582,14 @@ struct TrackListView: View {
                 }
             }
 
+            // Required wherever Spotify's metadata is shown, which every row
+            // above is. The link back is this playlist rather than the service:
+            // Developer Policy § II.4 asks for "a link back to the applicable
+            // album, content or playlist". The https form and not the
+            // `spotify:` URI the rest of the screen uses, because a universal
+            // link opens the app when it is installed and the web player when
+            // it is not, and this one has to work either way.
+            SpotifyAttribution(url: URL(string: "https://open.spotify.com/playlist/\(model.playlist.id)"))
         }
         .padding(.bottom, 24)
     }

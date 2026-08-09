@@ -115,12 +115,21 @@ struct TrackDetailSheet: View {
                 // PLAY ON SPOTIFY and LISTEN ON SPOTIFY; "Open on Spotify" sits
                 // between the first two rather than on the list, which is worth
                 // knowing but is the dev's call.
+                //
+                // Sortify's accent, not Spotify's green, and the reason is
+                // arithmetic rather than identity (ADR-0013). `onAccent`
+                // resolves to `systemBackground` - white in light - which on
+                // `#1DB954` measured 2.59:1, under AA for this weight. That is
+                // precisely the failure ADR-0006 built the token to prevent,
+                // pointed at a background that ADR never measured: the token is
+                // only correct against the accent it is named for. On the accent
+                // it is 5.95:1 light and 6.37:1 dark, by that ADR's own table.
                 Text("Open on Spotify")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(SortifyTheme.onAccent)
                     .padding(.horizontal, 22)
                     .padding(.vertical, 11)
-                    .background(SortifyTheme.spotifyGreen, in: .capsule)
+                    .background(SortifyTheme.accent, in: .capsule)
             }
             .buttonStyle(.plain)
             .padding(.bottom, 22)

@@ -227,6 +227,32 @@ shoot 30-tracks-withheld -demo -screen tracks -playlist demo-borrowed
 # no other shot in this set contains.
 shoot 31-playlists-list -demo -screen playlists -layout list
 
+# ─── Attribution ─────────────────────────────────────────────────────────────
+# The Spotify mark at the foot of both list screens, which is mandatory wherever
+# their metadata is shown and which nothing else in this set can see: it sits
+# below the last row, and every other shot stops above it.
+#
+# It is here because it was *silently lost* once already - the library and
+# track-list rebuild in `b15aa47` replaced the containers it sat in, and no shot
+# in the set could have caught that. These two can.
+#
+# Scrolled by an absurd offset on purpose: `scrollTo` clamps to the content, so
+# this reliably means "the bottom" for a list of any length.
+#
+# One in each appearance, because the mark is not one image. The guidelines
+# require monochrome on a background that is neither black nor white, so the
+# catalogue carries Spotify's black file and their white one and the appearance
+# picks. **What to check is that the dark shot shows a white logo** - if it
+# renders black it has vanished into a #0D0D0D background, and that failure is
+# invisible to anything but the eye.
+echo "==> attribution"
+ui content_size accessibility-extra-extra-extra-large
+shoot 32-playlists-attribution -demo -screen playlists -layout grid2 -scrolled 99999
+ui content_size medium
+ui appearance dark
+shoot 33-dark-tracks-attribution -demo -screen tracks -playlist demo-longrun -scrolled 99999
+ui appearance light
+
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 
 # The swap. Everything this run produced replaces everything that was there.

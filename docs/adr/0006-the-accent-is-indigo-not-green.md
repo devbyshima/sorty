@@ -131,3 +131,23 @@ verbatim.
 Established by `.scratch/ui-redesign-2/issues/12-how-close-to-spotify.md`, which
 read the Developer Policy and Design Guidelines rather than the branding page
 alone.
+
+## Correction, 2026-08-09
+
+Two statements above are now out of date. **ADR-0013 supersedes both.**
+
+"**Spotify green survives in exactly two places**" is now one - the connect
+affordance. The attribution mark gave its green up: the guidelines permit the
+green logo only on a black or white background, and this app's background is
+neither in either appearance. The mark is monochrome, from Spotify's own files.
+(The sentence was also incomplete when written: `spotifyGreen` had a third caller
+it did not list, the Open on Spotify capsule in `TrackDetailSheet`.)
+
+"`SpotifyAttribution` **now sits at the foot of both**" was true when written and
+stopped being true at `b15aa47`, where the library and track-list rebuild
+replaced the containers holding both call sites and dropped them. It was restored
+in ADR-0013, along with two screenshots that can see the foot of a screen - which
+nothing in the set could, which is why eleven commits shipped with no attribution
+at all.
+
+The outstanding item this ADR left open - the real logo asset - is **closed**.
