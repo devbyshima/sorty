@@ -10,7 +10,7 @@ import SwiftUI
 ///
 /// Every screen in Sorty that lists tracks is showing exactly that metadata,
 /// so this belongs at the foot of each of them. It was dropped from both list
-/// screens as collateral of the library and track-list rebuild in `b15aa47`,
+/// screens as collateral of the library and track-list rebuild in `32b9a9c`,
 /// which is the failure this doc comment exists to make expensive to repeat:
 /// **if you are rewriting a screen that lists Spotify's data, it keeps this.**
 ///

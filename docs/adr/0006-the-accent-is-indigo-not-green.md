@@ -160,7 +160,7 @@ stale silently.** Both errors here were introduced by ordinary edits to screens,
 neither of which had any reason to come back and read this list.
 
 "`SpotifyAttribution` **now sits at the foot of both**" was true when written and
-stopped being true at `b15aa47`, where the library and track-list rebuild
+stopped being true at `32b9a9c`, where the library and track-list rebuild
 replaced the containers holding both call sites and dropped them. It was restored
 in ADR-0013, along with two screenshots that can see the foot of a screen - which
 nothing in the set could, which is why eleven commits shipped with no attribution

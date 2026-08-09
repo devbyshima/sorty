@@ -233,7 +233,7 @@ shoot 31-playlists-list -demo -screen playlists -layout list
 # below the last row, and every other shot stops above it.
 #
 # It is here because it was *silently lost* once already - the library and
-# track-list rebuild in `b15aa47` replaced the containers it sat in, and no shot
+# track-list rebuild in `32b9a9c` replaced the containers it sat in, and no shot
 # in the set could have caught that. These two can.
 #
 # Scrolled by an absurd offset on purpose: `scrollTo` clamps to the content, so

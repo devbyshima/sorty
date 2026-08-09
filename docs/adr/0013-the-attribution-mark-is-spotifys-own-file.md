@@ -19,7 +19,7 @@ only after the ADR was written.
 
 **The attribution was not being shown at all.** ADR-0006 records that
 `SpotifyAttribution` "now sits at the foot of both" list screens. It did, at
-`85edf73`. The library and track-list rebuild in `b15aa47` replaced the
+`79c3284`. The library and track-list rebuild in `32b9a9c` replaced the
 containers both call sites lived in, and both went with them - along with the
 comment that said "Required wherever Spotify's metadata is shown, which every row
 above is." The component survived, declared and referenced by nothing, for eleven
