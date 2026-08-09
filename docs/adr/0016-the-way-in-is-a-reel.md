@@ -34,11 +34,12 @@ Beam's posture.**
   continuing rather than two screens meeting.
 - **The connect flow** gains that backdrop, a per-step glyph, centred type, and a
   button that floats rather than sitting on a bar.
-- **It is presented as a screen, not a sheet.** `fullScreenCover`, not `sheet`.
-  The flow *is* the onboarding, and a card framed it as an errand that could be
-  put down - something sitting on top of the app rather than the way into it. It
-  also spent the top of every step on the card inset and grabber, which is where
-  the step spine has to live.
+- **It is a page that pushes, not a modal that rises.** Neither `sheet` nor
+  `fullScreenCover`: both animate up from the bottom and iOS offers no way to
+  change that. The flow is a sequence of pages, so it arrives from the right -
+  an overlay carrying `.move(edge: .trailing)`, which is the only thing that
+  pushes. A card also spent the top of every step on the inset and grabber,
+  which is where the step spine has to live.
 
 ## What was deliberately *not* taken from Beam
 
@@ -104,9 +105,13 @@ fun.
 Both halves now move horizontally, and a step is a *page* rather than a screen
 rearranging itself.
 
-**In the reel**, the props enter from the right and leave to the left. Beam
-pushes its own up from the bottom; read as pages, which is what a reel is, the
-travel belongs on the same axis the connect flow's steps already used.
+**In the reel, the props still rise from the bottom**, as Beam has them, and
+that is deliberately a *different* axis from the pages. The two are different
+kinds of movement: a page replaces what came before it and slides in from the
+side to say so, while the three props are one screen's worth of copy rotating in
+place with nothing being navigated. They were briefly moved sideways to match the
+pages, which made the way-in screen look like it was advancing through something
+it was not.
 
 **In the connect flow**, the glyph, the words and the controls now travel
 together under one `.id(step)`. Only the two `Text`s carried the transition
@@ -141,13 +146,23 @@ beside `11`-`13`, because inserting it there collided with `14-playlists-two-up`
 and would have renumbered half the set for one addition - the same reason the
 withheld shots sit at the end.
 
-**Back and Not Now are icons**, `chevron.left` and `xmark`, with their words kept
-as accessibility labels. A bare glyph with no accessible name is a button that
-announces itself as "button".
+**One button, and it is a back button all the way down.** `chevron.left`, with
+its word kept as an accessibility label - a bare glyph with no accessible name is
+a button that announces itself as "button".
 
-**`Not Now` is now the only way out.** A full-screen cover has no
-swipe-to-dismiss, so the button this ADR kept against Beam's two-affordance
-pattern turned out to be load-bearing rather than merely defensible.
+The `xmark` beside it is gone, and pushing is what removed the need for it. A
+modal that rises needs a dismiss affordance because there is no "back" from a
+thing that came from nowhere. Pages that push have exactly one way back, and
+going back off the first page is how you leave. So the chevron pops a step until
+there are none, then closes.
+
+The flow stays leavable at every step, which ADR-0007 requires - a way in nobody
+can escape is a worse first impression than the way-in screen. It now takes the
+number of taps the depth implies rather than one, which is the ordinary cost of a
+stack and the reason iOS does not put an X on pushed screens either.
+
+**Pushing costs the free `dismiss()`**, since nothing is being presented. Leaving
+is handed in as a closure so the animation out matches the animation in.
 
 **`padding(.top, 76)` on the flow's content is a measurement**, not a margin.
 Dropping the navigation title raised the spine into `TopBlur`'s band - 44pt solid

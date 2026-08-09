@@ -17,6 +17,7 @@ struct RootView: View {
     /// the user says otherwise. Applied at the root so sheets inherit it, which
     /// they would not if it were applied per screen.
     @AppStorage("appearance") private var appearance: AppearanceChoice = .system
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -41,17 +42,30 @@ struct RootView: View {
         .preferredColorScheme(appearance.colorScheme)
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $showingFAQ) { FAQView() }
-        // A screen, not a card. The connect flow *is* the onboarding
-        // (`CONTEXT.md`), and a sheet framed it as an errand you could put down
-        // - a detail sitting on top of the app rather than the way into it. It
-        // also cost the flow the top of every screen to the card inset and the
-        // grabber, which is where its own step spine has to live.
+        // The connect flow arrives from the right, like a page being pushed.
         //
-        // `Not Now` matters more here than it did: a full-screen cover has no
-        // swipe-to-dismiss, so that button is now the *only* way out, which is
-        // exactly why ADR-0016 kept it when Beam's own screens have no such
-        // affordance.
-        .fullScreenCover(isPresented: $showingConnect) { ConnectFlowView() }
+        // Not a `sheet` and not a `fullScreenCover` either: both animate up from
+        // the bottom, and iOS gives no way to change that. The flow *is* the
+        // onboarding (`CONTEXT.md`), a sequence of pages you move through, and
+        // a modal rising from the bottom framed it as an errand laid on top of
+        // the app rather than the way into it.
+        //
+        // An overlay with a `.move(edge: .trailing)` transition is the only
+        // thing that pushes. It costs the free `dismiss()` a presentation gives,
+        // so leaving is handed in as a closure - which is also what lets the
+        // back chevron double as the way out (see `ConnectFlowView`).
+        .overlay {
+            if showingConnect {
+                ConnectFlowView(onClose: { closeConnect() })
+                    .transition(
+                        reduceMotion
+                            ? .opacity
+                            : .move(edge: .trailing)
+                    )
+                    .zIndex(1)
+            }
+        }
+        .animation(.snappy(duration: 0.3), value: showingConnect)
         .task {
             guard !didRestore else { return }
             didRestore = true
@@ -90,6 +104,12 @@ struct RootView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: session.stage)
+    }
+
+    /// Leaving the connect flow. Animated here rather than at the call site so
+    /// the push out matches the push in.
+    private func closeConnect() {
+        withAnimation(.snappy(duration: 0.3)) { showingConnect = false }
     }
 
     private var library: some View {

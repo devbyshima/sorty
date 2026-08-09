@@ -13,8 +13,12 @@ import SwiftUI
 /// and a bottom bar that never moves. The words themselves were already right;
 /// what they lacked was somewhere to stand.
 struct ConnectFlowView: View {
+    /// Leaving. Handed in rather than taken from the environment because this
+    /// is pushed in as an overlay, not presented - so there is no `dismiss` to
+    /// call and the animation out has to match the one in.
+    var onClose: () -> Void = {}
+
     @Environment(SessionModel.self) private var session
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -108,30 +112,32 @@ struct ConnectFlowView: View {
             // your own Spotify app" was the same sentence twice.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // One button, and it is a back button all the way down.
+                //
+                // There was an X beside it for leaving. Once the flow pushes in
+                // from the right rather than rising from the bottom, that second
+                // affordance stops making sense: pages that push have one way
+                // back, and going back off the first page is how you leave. So
+                // the chevron pops a step until there are none, then closes.
+                //
+                // The flow is still leavable at every step, which ADR-0007
+                // requires - a way in nobody can escape is a worse first
+                // impression than the way-in screen. It just takes the number of
+                // taps the depth implies, instead of one.
                 ToolbarItem(placement: .topBarLeading) {
-                    if let previous = step.previous {
-                        Button {
-                            withAnimation(.snappy(duration: 0.25)) { step = previous }
-                        } label: {
-                            Image(systemName: "chevron.left")
-                        }
-                        // The word is gone from the screen and kept here. A
-                        // bare glyph with no accessible name is a button that
-                        // announces itself as "button".
-                        .accessibilityLabel("Back")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    // Still leavable at every step, even though connecting is
-                    // now the only way in (ADR-0007). A modal nobody can escape
-                    // is a worse first impression than the way-in screen, which
-                    // at least names its own remedy and can be returned to.
                     Button {
-                        dismiss()
+                        if let previous = step.previous {
+                            withAnimation(.snappy(duration: 0.25)) { step = previous }
+                        } else {
+                            onClose()
+                        }
                     } label: {
-                        Image(systemName: "xmark")
+                        Image(systemName: "chevron.left")
                     }
-                    .accessibilityLabel("Not Now")
+                    // The word is gone from the screen and kept here. A bare
+                    // glyph with no accessible name is a button that announces
+                    // itself as "button".
+                    .accessibilityLabel(step.previous == nil ? "Close" : "Back")
                 }
             }
             .onAppear {
@@ -357,7 +363,7 @@ struct ConnectFlowView: View {
             )
             await session.handleAuthCallback(url: callback)
             if session.connectFailure == nil, session.isConnected {
-                dismiss()
+                onClose()
             }
         } catch {
             await session.signInFailed(error)

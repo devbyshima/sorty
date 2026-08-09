@@ -49,24 +49,27 @@ struct OnboardingReel: View {
                         ForEach(phases.indices, id: \.self) { phase in
                             if phase == index {
                                 text(phases[phase])
-                                    // Sideways, not up from the bottom: the next
-                                    // prop arrives from the right and the last
-                                    // one leaves to the left, which is the
-                                    // direction the connect flow's steps travel
-                                    // too, so the whole onboarding moves one way.
+                                    // Up from the bottom, as Beam has it, and
+                                    // deliberately *not* the sideways travel the
+                                    // pages use.
+                                    //
+                                    // The two are different kinds of movement.
+                                    // A page replaces what came before it and
+                                    // slides in from the side to say so. These
+                                    // three props are one screen's worth of copy
+                                    // rotating in place - nothing is being
+                                    // navigated - and rising from below reads as
+                                    // the same screen still talking.
                                     //
                                     // **One edge, not an asymmetric pair.**
-                                    // `push(from:)` already describes both
-                                    // halves - it enters from the named edge and
-                                    // exits to the *opposite* one. Writing
-                                    // `insertion: .trailing, removal: .leading`
-                                    // reads like "in from the right, out to the
-                                    // left" and means the reverse: the outgoing
-                                    // prop left rightwards, into the one
-                                    // arriving. Caught in a burst of frames
-                                    // across the change, not by reading it.
+                                    // `push(from:)` describes both halves: it
+                                    // enters from the named edge and exits to
+                                    // the *opposite* one. Writing
+                                    // `insertion: .bottom, removal: .top` looks
+                                    // like "in from below, out through the top"
+                                    // and means the reverse.
                                     .transition(
-                                        .push(from: .trailing)
+                                        .push(from: .bottom)
                                             .combined(with: AnyTransition(.blurReplace))
                                     )
                             }
