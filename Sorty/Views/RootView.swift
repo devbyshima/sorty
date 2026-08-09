@@ -26,6 +26,11 @@ struct RootView: View {
             // its own service rather than signing in to anything.
             if DebugLaunch.screen == .profile {
                 ReorderProfileView(count: DebugLaunch.profileCount ?? 200)
+            } else if DebugLaunch.screen == .splash {
+                // Held, rather than passed through. The splash is a state that
+                // lasts as long as `restore()` does, and against the demo
+                // catalogue that is no time at all.
+                ConnectingView()
             } else {
                 sessionContent
             }
@@ -105,6 +110,9 @@ struct RootView: View {
             // Reached by not connecting, which is the default state, so there
             // is nothing to drive.
             break
+        case .splash:
+            // Short-circuited above, before any session exists to drive.
+            break
         case .playlists:
             break
         case .faq:
@@ -141,32 +149,77 @@ struct RootView: View {
 struct ConnectingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var settled = false
+    @State private var start = Date()
 
     var body: some View {
-        VStack(spacing: 22) {
-            SortyMarkTile(side: 84)
-                // The mark arrives rather than appearing: a small settle, once,
-                // that reads as the app assembling itself. Reduced Motion gets
-                // the same screen without it, because this carries no meaning
-                // that motion is required to convey.
-                .scaleEffect(settled || reduceMotion ? 1 : 0.92)
-                .opacity(settled || reduceMotion ? 1 : 0)
+        TimelineView(.animation(paused: reduceMotion)) { timeline in
+            let t = Float(timeline.date.timeIntervalSince(start))
 
-            VStack(spacing: 10) {
-                Text("Connecting to Spotify")
-                    .font(.headline)
-                ProgressView()
-                    .controlSize(.small)
+            ZStack {
+                SplashBackdrop()
+
+                SortyMarkTile(side: 84)
+                    .modifier(MarkShimmer(side: 84, time: t, on: !reduceMotion))
+                    // The bloom is the mark's own accent thrown back onto the
+                    // field, so the tile reads as lit rather than pasted on.
+                    .shadow(color: SortyTheme.accent.opacity(settled ? 0.45 : 0),
+                            radius: settled ? 30 : 0)
+                    // Arrives rather than appears: one settle, spring-weighted
+                    // so it overshoots a little and stops.
+                    .scaleEffect(settled || reduceMotion ? 1 : 0.72)
+                    .opacity(settled || reduceMotion ? 1 : 0)
             }
-            .opacity(settled || reduceMotion ? 1 : 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SortyTheme.background)
+        .ignoresSafeArea()
         .task {
             guard !reduceMotion else { return }
-            withAnimation(.snappy(duration: 0.45)) { settled = true }
+            withAnimation(.spring(response: 0.75, dampingFraction: 0.58)) { settled = true }
         }
+        // The words are gone from the screen and kept for VoiceOver. Sighted
+        // listeners get a mark on a field for a beat; a listener who cannot see
+        // it would otherwise get an unlabelled screen that simply waits.
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Connecting to Spotify")
+    }
+}
+
+/// The field the splash sits on: the app's own background with a single wide
+/// bloom of accent rising from below the bottom edge.
+///
+/// Lifted from Beam's `SplashBackground`, in Sorty's colour. The circle is
+/// pushed past the bottom on purpose - what shows is the top of a glow whose
+/// source is off-screen, which is why it reads as light rather than as a shape.
+struct SplashBackdrop: View {
+    var body: some View {
+        ZStack {
+            SortyTheme.background
+            Circle()
+                .fill(SortyTheme.accent.gradient)
+                .visualEffect { content, proxy in
+                    content.offset(y: proxy.size.height * 1.07)
+                }
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .blur(radius: 90)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// The sweep across the mark, applied only when motion is allowed.
+private struct MarkShimmer: ViewModifier {
+    let side: Double
+    let time: Float
+    let on: Bool
+
+    func body(content: Content) -> some View {
+        if on {
+            content.layerEffect(
+                ShaderLibrary.markShimmer(.float2(CGSize(width: side, height: side)), .float(time)),
+                maxSampleOffset: .zero
+            )
+        } else {
+            content
+        }
     }
 }

@@ -253,6 +253,31 @@ ui appearance dark
 shoot 33-dark-tracks-attribution -demo -screen tracks -playlist demo-longrun -scrolled 99999
 ui appearance light
 
+# ─── Shaders ─────────────────────────────────────────────────────────────────
+# Two Metal effects, and **neither can be seen in any other shot in this set**,
+# because both live in states that are over before a screenshot could land.
+#
+# The splash is a state, not a destination: it lasts exactly as long as
+# `restore()`, which against the demo catalogue is no time at all. `-screen
+# splash` holds it.
+#
+# The cover ripple replaces the spinner on a cover that has not arrived, and
+# demo covers are drawn on device in a frame or two. `-pendingCovers` stops
+# every cover resolving for the whole launch, so the placeholder is all there
+# is to photograph.
+#
+# What to check is that either shot shows anything at all. A `[[stitchable]]`
+# function that fails to resolve at runtime does not crash and does not warn -
+# the effect is simply skipped, and what is left looks like a perfectly
+# reasonable flat tile. These shots are the only thing between that and
+# shipping it.
+echo "==> shaders"
+shoot 34-splash -demo -screen splash
+shoot 35-covers-pending -demo -screen playlists -layout grid2 -pendingCovers
+ui appearance dark
+shoot 36-dark-splash -demo -screen splash
+ui appearance light
+
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 
 # The swap. Everything this run produced replaces everything that was there.

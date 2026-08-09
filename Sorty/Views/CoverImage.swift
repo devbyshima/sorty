@@ -60,18 +60,27 @@ struct CoverImage: View {
                         .interpolation(.high)
                         .antialiased(true)
                         .scaledToFill()
-                        // Both branches carry it, or the spinner vanishes on the
-                        // first frame while the artwork is still fading in
+                        // Both branches carry it, or the placeholder vanishes on
+                        // the first frame while the artwork is still fading in
                         // behind it. Whether this plays at all is decided in
                         // `load`, not here.
                         .transition(.opacity)
                 } else if url != nil {
-                    ProgressView()
+                    CoverRipple(phase: ripplePhase(for: url))
                         .transition(.opacity)
                 }
             }
             .task(id: key) { await load(key) }
         }
+    }
+
+    /// A stable per-cover offset into the ripple, so a screen full of loading
+    /// covers does not pulse in unison - which reads as an error state rather
+    /// than as waiting. Derived from the URL so a given tile keeps its phase
+    /// across a recycle instead of jumping when the cell is reused.
+    private func ripplePhase(for url: URL?) -> Double {
+        guard let url else { return 0 }
+        return Double(abs(url.absoluteString.hashValue) % 1000) / 1000 * 6
     }
 
     private func load(_ key: LoadKey) async {
@@ -82,6 +91,12 @@ struct CoverImage: View {
             loadedFor = nil
         }
         guard let url = key.url, key.pixels > 0 else { return }
+
+        #if DEBUG
+        // `-pendingCovers`: never resolve, so the ripple can be photographed.
+        // No-op in a shipping build, where `holdsCovers` is a constant false.
+        if DebugLaunch.holdsCovers { return }
+        #endif
 
         let started = ContinuousClock.now
         let resolved = await CoverImageLoader.shared.image(for: url, pixels: key.pixels)
@@ -106,5 +121,58 @@ struct CoverImage: View {
             image = resolved
             loadedFor = key
         }
+    }
+}
+
+/// What a cover looks like while its file is on the way: a slow ripple over the
+/// empty tile, in place of a spinner.
+///
+/// > Important: this draws on the *placeholder*, never on artwork. Spotify's
+/// > guidelines require artwork be "kept in its original form" with no
+/// > animation, distortion, overlay or blur, so a shader over a loaded cover
+/// > would be the prohibition itself rather than a near miss (ADR-0015).
+/// > `CoverImage` swaps this out the moment the image resolves, and that
+/// > ordering is the compliance boundary - not a detail of the transition.
+///
+/// Reduce Motion gets the same surface holding still. The ripple carries no
+/// information the stillness doesn't; it is texture, and a listener who has
+/// asked for less movement loses nothing by not seeing it.
+struct CoverRipple: View {
+    var phase: Double = 0
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// The two greys the ripple moves between.
+    ///
+    /// The separation is small but it cannot be *too* small, and the first
+    /// attempt was: 0.925 against a pure-white `surface` is seven percent, which
+    /// the falloff and the breath then cut to about three, and the shot came
+    /// back looking like the shader had failed to load. These are wide enough to
+    /// be seen and narrow enough that a grid of twenty waiting tiles still reads
+    /// as one calm surface rather than as twenty things happening.
+    private var low: Color { SortyTheme.surface }
+    private var high: Color {
+        colorScheme == .dark ? Color(white: 0.26) : Color(white: 0.87)
+    }
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            Rectangle()
+                .fill(low)
+                .visualEffect { content, proxy in
+                    content.colorEffect(
+                        ShaderLibrary.coverRipple(
+                            .float2(proxy.size),
+                            .float(reduceMotion ? 0 : t),
+                            .float(phase),
+                            .color(low),
+                            .color(high)
+                        )
+                    )
+                }
+        }
+        .accessibilityHidden(true)
     }
 }

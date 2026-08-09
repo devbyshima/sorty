@@ -208,12 +208,14 @@ struct PlaylistsView: View {
     // MARK: - Controls
 
     @ViewBuilder
+    /// Failures only. **Loading shows nothing** - the library simply arrives.
+    ///
+    /// There was a counting row here, "Loaded 12 of 40 playlists…" over a
+    /// determinate bar. It was accurate and it was noise: the number is not
+    /// actionable, nobody waits differently for knowing it, and it made an
+    /// ordinary two-second fetch look like an operation with a status. A
+    /// failure still speaks, because that one *is* actionable.
     private var loadState: some View {
-        if case .loading(let loaded, let total) = session.playlistLoad {
-            LoadProgressRow(loaded: loaded, total: total, noun: "playlists")
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-        }
         if case .failed(let message) = session.playlistLoad {
             ErrorRow(message: message) {
                 Task { await session.loadPlaylists() }
@@ -386,28 +388,6 @@ private struct PlaylistRow: View {
 }
 
 // MARK: - Shared rows
-
-struct LoadProgressRow: View {
-    let loaded: Int
-    let total: Int?
-    let noun: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small)
-                Text(total.map { "Loaded \(loaded) of \($0) \(noun)…" } ?? "Loaded \(loaded) \(noun)…")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            if let total, total > 0 {
-                ProgressView(value: Double(min(loaded, total)), total: Double(total))
-                    .progressViewStyle(.linear)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
 
 struct ErrorRow: View {
     let message: String

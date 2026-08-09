@@ -496,7 +496,15 @@ struct TrackListView: View {
         Group {
             switch model.phase {
             case .idle, .loading:
-                loadingState
+                // Nothing. The tracks simply arrive.
+                //
+                // This was a large spinner over "Loaded 40 of 120 tracks…". The
+                // count was honest and useless - a listener cannot act on it,
+                // and it turned a short fetch into a screen reporting on itself.
+                // What remains is the cover and the title, already drawn above,
+                // and then rows.
+                Color.clear
+                    .frame(height: 1)
                     .transition(.opacity)
 
             case .failed(let message):
@@ -546,19 +554,6 @@ struct TrackListView: View {
         } else {
             list
         }
-    }
-
-    private var loadingState: some View {
-        VStack(spacing: 14) {
-            ProgressView().controlSize(.large)
-            if case .loading(let loaded, let total) = model.phase {
-                Text(total > 0 ? "Loaded \(loaded) of \(total) tracks…" : "Loading tracks…")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
     }
 
     private var list: some View {

@@ -20,6 +20,12 @@ enum DebugLaunch {
         /// 09, which drives the real list at a size the demo catalogue has no
         /// playlist for.
         case profile
+        /// The launch splash. It is a *state*, not a destination: it lives
+        /// exactly as long as `session.restore()` takes, which against the demo
+        /// catalogue is no time at all. Naming it holds it still long enough to
+        /// be photographed, which is the only way to see whether the shader on
+        /// the mark is running.
+        case splash
     }
 
     enum Sheet: String {
@@ -137,6 +143,16 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "layout").flatMap(LibraryLayout.init(rawValue:))
     }
 
+    /// `-pendingCovers` - every cover stays unresolved for the whole launch.
+    ///
+    /// The ripple that stands in for a loading cover is, by design, on screen
+    /// only until the file arrives, and against the demo catalogue covers are
+    /// drawn on device in a frame or two. So the one state the shader exists
+    /// for is the one state no screenshot could ever catch. This holds it.
+    static var holdsCovers: Bool {
+        CommandLine.arguments.contains("-pendingCovers")
+    }
+
     static var isActive: Bool { screen != nil }
     #else
     static var screen: Screen? { nil }
@@ -150,6 +166,7 @@ enum DebugLaunch {
     static var scrollOffset: CGFloat? { nil }
     static var libraryLayout: LibraryLayout? { nil }
     static var usesDemoData: Bool { false }
+    static var holdsCovers: Bool { false }
     static var isActive: Bool { false }
     #endif
 }
