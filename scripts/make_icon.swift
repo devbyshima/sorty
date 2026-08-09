@@ -1,17 +1,17 @@
 #!/usr/bin/env swift
 //
-// Draws Sortify's app icon.
+// Draws Sorty's app icon.
 //
 // The icon is generated rather than drawn by hand so it can be regenerated
 // instead of being a mystery PNG in the asset catalogue: change the geometry
-// here, re-run, and every appearance updates together. `SortifyMark` in the app
+// here, re-run, and every appearance updates together. `SortyMark` in the app
 // draws the same shape from the same numbers, so the icon and the in-app mark
 // cannot drift apart.
 //
-// **The mark.** Four pills of descending length. Sortify's subject is
+// **The mark.** Four pills of descending length. Sorty's subject is
 // *reordering*, and its own visual signature is already the position bar, so
 // the icon is that motif taken to its conclusion: a set of things put in order.
-// A musical note would say "music", which is the one thing Sortify is not about.
+// A musical note would say "music", which is the one thing Sorty is not about.
 //
 // **What it deliberately is not.** Not green, not a circle, not waves. Spotify's
 // guidelines forbid a third-party logo that includes or resembles their brand

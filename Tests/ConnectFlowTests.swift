@@ -77,7 +77,7 @@ struct ConnectFlowTests {
         }
     }
 
-    /// Sortify never wants the secret, and the step where the two strings sit
+    /// Sorty never wants the secret, and the step where the two strings sit
     /// side by side is where saying so is worth anything.
     @Test("The Client ID step says the secret is never asked for")
     func clientIDStepDisownsTheSecret() {

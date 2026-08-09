@@ -8,7 +8,7 @@ Accepted.
 
 ## Context
 
-The accent Sortify shipped with was `#1DB966`. Spotify's brand green is
+The accent Sorty shipped with was `#1DB966`. Spotify's brand green is
 `#1DB954`. Those share the *exact* red and green channel values and differ by
 eighteen points of blue - which is not an independent choice that happened to
 land nearby.
@@ -72,7 +72,7 @@ accent:
 
 There is no constant that clears 4.5:1 against both - arithmetically there
 cannot be, since one needs the accent dark and the other needs it light. So
-`SortifyTheme.onAccent` is a token resolving to `Color(.systemBackground)`:
+`SortyTheme.onAccent` is a token resolving to `Color(.systemBackground)`:
 white in light, near-black in dark. Writing `.white` at the call site, as the
 chip used to, is the failure this prevents.
 
@@ -96,8 +96,11 @@ came out of it, only one of which the ticket anticipated:
    exactly that metadata. `SpotifyAttribution` now sits at the foot of both.
 3. **Naming is constrained**, which nobody had checked: *"The app name should
    not include 'Spotify' or be similar to 'Spotify' in sound or spelling."*
-   "Sortify" is one letter from "Spotify". This ADR does not decide that - it
-   records that the guideline exists and that the name sits close to it.
+   "Sortify" - the app's name when this was written - is one letter from
+   "Spotify". This ADR does not decide that; it records that the guideline
+   exists and that the name sits close to it. ADR-0014 decided it, and the app
+   is called Sorty. **This sentence keeps the old spelling on purpose: it is a
+   claim about a name, not about the app, and rewriting it would make it false.**
 
 ## Consequences
 
@@ -136,12 +139,25 @@ alone.
 
 Two statements above are now out of date. **ADR-0013 supersedes both.**
 
-"**Spotify green survives in exactly two places**" is now one - the connect
-affordance. The attribution mark gave its green up: the guidelines permit the
-green logo only on a black or white background, and this app's background is
-neither in either appearance. The mark is monochrome, from Spotify's own files.
-(The sentence was also incomplete when written: `spotifyGreen` had a third caller
-it did not list, the Open on Spotify capsule in `TrackDetailSheet`.)
+"**Spotify green survives in exactly two places**" was wrong when written and is
+wrong now, in both directions. Counted honestly today, `spotifyGreen` has exactly
+two callers and **neither is the one this ADR named**:
+
+1. "Open the Spotify Dashboard" in the connect flow.
+2. The advance button on that flow's final step, the one that authorizes.
+
+The landing screen's Connect Spotify button - "the connect affordance", as
+written above - draws the *accent*, and appears to have done so since it was
+built. The attribution mark, listed here as the second place, has now given its
+green up: the guidelines permit the green logo only on a black or white
+background, and this app's background is neither in either appearance, so the
+mark is monochrome from Spotify's own files. And a third caller existed that this
+ADR never listed - the Open on Spotify capsule in `TrackDetailSheet` - which
+ADR-0013 moved to the accent on contrast grounds.
+
+The lesson is narrower than the correction: **an inventory written in prose goes
+stale silently.** Both errors here were introduced by ordinary edits to screens,
+neither of which had any reason to come back and read this list.
 
 "`SpotifyAttribution` **now sits at the foot of both**" was true when written and
 stopped being true at `b15aa47`, where the library and track-list rebuild

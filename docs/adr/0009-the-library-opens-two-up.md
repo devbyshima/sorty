@@ -24,7 +24,7 @@ before the code was checked.
 **ADR-0001 says nothing about the library.** It removes the fifteen-column
 *track table*, and `.scratch/ui-redesign/spec.md` does not discuss a grid
 either. **The measurement is real, and it lives in a code comment**, at
-`SortifyKit/Models/LibraryView.swift:61-68`: the first redesign removed a two-up
+`SortyKit/Models/LibraryView.swift:61-68`: the first redesign removed a two-up
 grid because a list showed about seven playlists per screen against the grid's
 four. So there *is* a prior finding to answer, it is about **density**, and it
 is answered below rather than ignored.
@@ -45,7 +45,7 @@ Three arguments, none of which apply to the reference:
 **The reference's library is not this library.** Spotify's holds albums,
 artists, podcasts and downloads - overwhelmingly commercial artwork,
 commissioned to be legible at thumbnail size, where the picture *is* the
-identifier. Sortify's holds playlists and nothing else. A playlist cover is
+identifier. Sorty's holds playlists and nothing else. A playlist cover is
 either a four-up mosaic Spotify generated or something its owner made, and in
 neither case does it identify the playlist. **The name does**, which makes the
 name the thing the layout has to protect.
@@ -63,7 +63,7 @@ not a case for three-up: three-up pays the legibility cost of a small cover
 *and* still shows fewer playlists per screen than the list it lost to. The
 density argument, followed honestly, ends at the list rather than at a tighter
 grid. Beyond that, Spotify's library can hold hundreds of saved items, where a
-Sortify library is one listener's own playlists, which is tens - so the scroll
+Sorty library is one listener's own playlists, which is tens - so the scroll
 being saved is small in absolute terms whichever grid wins.
 
 ## Consequences

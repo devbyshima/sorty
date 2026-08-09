@@ -177,7 +177,7 @@ struct TrackListModelTests {
         let created = await service.createdPlaylists
         #expect(created.count == 1)
         #expect(created.first?.name == "Test Playlist ordered by increasing BPM")
-        #expect(created.first?.description == "Original - Sorted by increasing BPM with Sortify")
+        #expect(created.first?.description == "Original - Sorted by increasing BPM with Sorty")
 
         let writes = await service.writes
         #expect(writes.count == 1)
@@ -290,7 +290,7 @@ struct TrackListModelTests {
         #expect(model.unrankableGroups.isEmpty)
     }
 
-    /// The invariant behind the whole group: using Sortify must never cost a
+    /// The invariant behind the whole group: using Sorty must never cost a
     /// listener tracks, so a track the provider had nothing for is still
     /// written back - appended at the end, not dropped.
     @Test("Unrankable tracks are saved too, appended after the ranked ones")

@@ -14,7 +14,7 @@ that putting the highest-friction moment in the product before any demonstration
 of its value was the wrong order. That reasoning was sound and is not disputed
 here. What changed is what the product is for.
 
-Sortify arranges *your* playlists. Everything the demo catalogue demonstrates -
+Sorty arranges *your* playlists. Everything the demo catalogue demonstrates -
 an arrangement being produced, a position bar, a track's readings - it
 demonstrates against seven invented playlists by invented artists, which no one
 came here to reorder. The one thing Demo Mode cannot do is the thing the app
@@ -31,24 +31,24 @@ genuinely load-bearing and is not in question.
 
 **Demo Mode is removed from the shipped app.** There is no sample catalogue in a
 release build, no way to choose it, and no state the app falls back into when an
-account is unreachable. Connecting a Spotify account is how Sortify starts.
+account is unreachable. Connecting a Spotify account is how Sorty starts.
 
 **The demo catalogue survives as scaffolding.** `DemoCatalog`,
 `DemoMusicService`, `DemoArtwork` and the demo feature provider stay in the
 repository, compiled under `#if DEBUG`, where the test target and the screenshot
-harness both reach them. `SortifyKit` is compiled into both the app and the
+harness both reach them. `SortyKit` is compiled into both the app and the
 hostless test target, and `DEBUG` is defined by Xcode's own default for the Debug
 configuration and empty in Release - the project does not set
 `SWIFT_ACTIVE_COMPILATION_CONDITIONS` itself. So one conditional serves all three
 consumers and excludes the whole of it from Release.
 
-The listener-facing consequence of this is that Sortify now has a signed-out
+The listener-facing consequence of this is that Sorty now has a signed-out
 state, which ADR-0003 explicitly removed. The connect flow is no longer an
 upgrade reached from Save; it is the way in.
 
 ## Consequences
 
-**Lost:** the ability to evaluate Sortify without a Spotify developer account.
+**Lost:** the ability to evaluate Sorty without a Spotify developer account.
 The friction ADR-0003 identified is real and is now unmitigated - a new listener
 meets "create a developer application and paste a Client ID" before seeing
 anything work. Anyone who is not already committed will not get past it. This is

@@ -16,10 +16,10 @@ a collaborator of the playlist". The same migration renamed
 `/playlists/{id}/tracks` to `/playlists/{id}/items` and, from 9 March 2026,
 removed the old spelling for Development Mode apps entirely.
 
-Every Sortify listener is a Development Mode app. That is not a phase the product
+Every Sorty listener is a Development Mode app. That is not a phase the product
 is passing through: a single application is capped at five authorised listeners,
 which is exactly why each listener brings a Client ID of their own. There is no
-version of Sortify in which this rule does not apply.
+version of Sorty in which this rule does not apply.
 
 Three separate things followed from that, and all three reached the listener as
 something other than what they were.
@@ -28,7 +28,7 @@ something other than what they were.
 playlists with nothing in them, reading `tracks.total > 0`. Since February 2026 a
 playlist's contents object is returned only for playlists the listener owns or
 collaborates on, and the count lives inside it, so every other listener's
-playlist now arrives with no count at all. Sortify defaulted the missing count to
+playlist now arrives with no count at all. Sorty defaulted the missing count to
 zero and then filtered on it, so the playlists were not refused, or explained, or
 marked: they were deleted before anything drew them.
 
@@ -47,7 +47,7 @@ date, and nothing the listener can do.
 
 ## Decision
 
-**Sortify knows which playlists Spotify will open, and says so before the tap.**
+**Sorty knows which playlists Spotify will open, and says so before the tap.**
 `Playlist.contentsAreReadable(byUserID:)` holds the rule in one place: owned, or
 collaborative, and neither Spotify's own nor algorithmic. The library marks what
 fails it with a *Can't open* badge, which replaces *Read-only* on those rows -
@@ -80,7 +80,7 @@ is the one from the endpoint the app means to use.
 
 ## Consequences
 
-**Sortify cannot arrange another listener's playlist, and now says so plainly
+**Sorty cannot arrange another listener's playlist, and now says so plainly
 instead of appearing to try.** No workaround exists at this quota tier. Reading
 one through Spotify's public web pages would mean scraping an undocumented
 endpoint, which is not something this app will do while it is also arguing, in
@@ -92,7 +92,7 @@ writes: ADR-0002 makes Overwrite replace the whole playlist, and doing that to
 someone else's is not a thing to enable quietly, whatever the API permits.
 
 **A pre-check can be wrong where Spotify is more generous than documented.** An
-extended-quota app can read anything, and Sortify would refuse on its behalf. No
+extended-quota app can read anything, and Sorty would refuse on its behalf. No
 such app exists here, and the alternative is a doomed request and a spinner in
 front of a sentence that was true on arrival.
 

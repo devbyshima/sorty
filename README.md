@@ -1,4 +1,4 @@
-# Sortify
+# Sorty
 
 A native iOS app that reorders a Spotify playlist by the musical character of its tracks - tempo,
 energy, mood - and saves the result back. Originally a port of
@@ -38,7 +38,7 @@ that already held extended quota, and has shipped **no replacement** since. A Sp
 today gets `403` on every call, and extended quota now requires a registered company with 250k+
 monthly active users - a hobby app can never qualify.
 
-Sortify treats the feature source as swappable (`AudioFeatureProviding`) and defaults to
+Sorty treats the feature source as swappable (`AudioFeatureProviding`) and defaults to
 **[ReccoBeats](https://reccobeats.com)**, which is free, needs no API key, is keyed by Spotify track
 ID, and returns values on Spotify's exact scale. Coverage is strong for catalogue released up to 2024
 and thin for 2025-onward releases; anything it misses is shown as unavailable and gathered into a
@@ -50,7 +50,7 @@ None.
 Two more Spotify constraints worth knowing before you try to connect:
 
 - **A development-mode app admits at most five listeners**, and its owner needs Spotify Premium.
-  That's why Sortify asks for *your* Client ID rather than shipping one - a shared ID would be full
+  That's why Sorty asks for *your* Client ID rather than shipping one - a shared ID would be full
   after five people.
 - **February 2026 renamed and removed endpoints** for newly registered Client IDs:
   `/playlists/{id}/tracks` → `/playlists/{id}/items`, `POST /users/{id}/playlists` →
@@ -63,7 +63,7 @@ Two more Spotify constraints worth knowing before you try to connect:
 Connecting is how the app starts - see [ADR-0007](docs/adr/0007-connecting-is-the-front-door.md).
 
 1. Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).
-2. Register the redirect URI **exactly** as Sortify shows it (default `sortify://callback`).
+2. Register the redirect URI **exactly** as Sorty shows it (default `sorty://callback`).
 3. Add your own Spotify account under **Users Management**.
 4. Paste the Client ID into the connect flow, which walks these four steps.
 
@@ -71,9 +71,9 @@ Scopes requested: `playlist-read-private`, `playlist-read-collaborative`, `playl
 `playlist-modify-public` - enough to read your playlists and write an arrangement back, and nothing
 more.
 
-`playlist-read-collaborative` is what lets Sortify see playlists shared with you. Without it Spotify
+`playlist-read-collaborative` is what lets Sorty see playlists shared with you. Without it Spotify
 leaves them out of its response altogether, so they cannot be arranged and the Collaborative filter is
-always empty. If you connected before Sortify asked for it, the library offers you a reconnect, and
+always empty. If you connected before Sorty asked for it, the library offers you a reconnect, and
 Settings shows whether the current token actually carries the permission.
 
 **On the redirect URI:** Spotify's docs permit custom schemes, but dashboards have been rejecting
@@ -143,7 +143,7 @@ Artist separation and Shuffle. 28 distinct orderings in total.
 
 ### Deliberate differences from the reference
 
-| | Reference | Sortify | Why |
+| | Reference | Sorty | Why |
 |---|---|---|---|
 | Audio features | Spotify `/v1/audio-features` | ReccoBeats by default, pluggable | The Spotify endpoint 403s for any new app |
 | Layout | 15-column HTML table | One attribute at a time on a list, with arrangements as the primary control | 15 fixed-width columns sum to ~3.4 screens on a phone; the sorted column auto-centring pushed track identity off the left edge (ADR-0001) |
@@ -168,7 +168,7 @@ Architecture decisions live in [`docs/adr/`](docs/adr/), vocabulary in [`CONTEXT
 ## Architecture
 
 ```
-SortifyKit/          pure logic - compiled into the app AND the test target
+SortyKit/          pure logic - compiled into the app AND the test target
   Models/            Spotify payloads, plus the copy layer: EmptyState, PlaylistRowText,
                      LoadFailure, ReconnectNotice, LibraryView (order/layout/preferences)
   Sorting/           Arrangement, Attribute, ArrangementChip, PlaylistSorter, ArtistSeparation,
@@ -179,15 +179,15 @@ SortifyKit/          pure logic - compiled into the app AND the test target
   Features/          AudioFeatureProviding: ReccoBeats, Spotify, None
   Auth/              PKCE, Keychain token store, authenticator, configuration, ConnectFlow
   ViewModels/        SessionModel, TrackListModel (@Observable, @MainActor)
-Sortify/             SwiftUI app target
+Sorty/             SwiftUI app target
 Tests/               Swift Testing, hostless
 ```
 
 **User-facing copy is a testable layer.** Anything a screen *says* - empty states, row text, badges,
-unrankable-group reasons, save-action titles, the reconnect prompt - is decided in `SortifyKit` where
+unrankable-group reasons, save-action titles, the reconnect prompt - is decided in `SortyKit` where
 a test can assert on it, not typed into a view. Views render what they are handed.
 
-The test target compiles `SortifyKit` directly and runs without an app process, so sorting, decoding,
+The test target compiles `SortyKit` directly and runs without an app process, so sorting, decoding,
 PKCE and save behaviour are all testable with no simulator UI and no network.
 
 ## iOS 26/27 API in use
@@ -218,7 +218,7 @@ Xcode 27 builds are TestFlight-only until Apple opens submissions.
 
 ```sh
 xcodegen generate                    # after changing project.yml; never hand-edit the .xcodeproj
-xcodebuild -project Sortify.xcodeproj -scheme Sortify \
+xcodebuild -project Sorty.xcodeproj -scheme Sorty \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' test
 ./scripts/screenshots.sh             # headless screenshots of every screen
 SETTLE=6 ./scripts/screenshots.sh    # slower machine

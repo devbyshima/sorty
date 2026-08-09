@@ -11,7 +11,7 @@
 # persisted by the previous run survives, and two launches of the same shot
 # produce identical pixels. The *screenshots* are not byte-identical between
 # runs, and chasing that is not worth it - measured, the residue is two things,
-# neither of them Sortify:
+# neither of them Sorty:
 #
 #   - The Dynamic Island region, 378x112px at (414,41), flips wholesale between
 #     runs. A simulator artifact.
@@ -41,7 +41,7 @@ set -euo pipefail
 
 DEVICE="${DEVICE:-iPhone 17 Pro}"
 OS="${OS:-27.0}"
-BUNDLE_ID="com.fulltimestudio.sortify"
+BUNDLE_ID="com.fulltimestudio.sorty"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${OUT:-$ROOT/screenshots}"
 
@@ -52,11 +52,11 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
 echo "==> Building"
-xcodebuild -project "$ROOT/Sortify.xcodeproj" -scheme Sortify \
+xcodebuild -project "$ROOT/Sorty.xcodeproj" -scheme Sorty \
   -destination "platform=iOS Simulator,name=$DEVICE,OS=$OS" \
   -configuration Debug -derivedDataPath "$ROOT/.build" build >/dev/null
 
-APP="$ROOT/.build/Build/Products/Debug-iphonesimulator/Sortify.app"
+APP="$ROOT/.build/Build/Products/Debug-iphonesimulator/Sorty.app"
 
 UDID=$(xcrun simctl list devices available -j \
   | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS-${OS//./-}' in k for x in v if x['name']=='$DEVICE'))")

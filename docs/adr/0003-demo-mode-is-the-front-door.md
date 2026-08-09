@@ -12,7 +12,7 @@ see 0007's consequences.
 
 ## Context
 
-Connecting a real Spotify account to Sortify requires the user to supply their
+Connecting a real Spotify account to Sorty requires the user to supply their
 own Client ID. This is forced by Spotify: an application in development mode is
 capped at five listeners, so a single Client ID shipped with the app would lock
 out every user past the fifth. Lifting the cap requires extended quota, which

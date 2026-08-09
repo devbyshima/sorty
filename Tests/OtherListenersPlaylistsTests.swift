@@ -151,7 +151,7 @@ struct OtherListenersPlaylistsTests {
 
     /// The documented shape for a playlist the listener neither owns nor
     /// collaborates on is a 200 with the contents left out. Read as a decoding
-    /// failure it became "Spotify sent a response Sortify couldn't read", which
+    /// failure it became "Spotify sent a response Sorty couldn't read", which
     /// blames the app for a rule.
     @Test("Contents left out of a 200 are a refusal, not a broken response")
     func withheldContentsAreARefusal() async {

@@ -1,6 +1,6 @@
-# Sortify
+# Sorty
 
-Sortify reorders a Spotify playlist by the musical character of its tracks -
+Sorty reorders a Spotify playlist by the musical character of its tracks -
 tempo, energy, mood - and saves the result back to Spotify. It reads a playlist,
 produces a new order, and commits it.
 
@@ -33,7 +33,7 @@ _Avoid_: Sort key, mode, kind
 
 **Artist separation**:
 An arrangement that spaces tracks by the same artist as far apart as possible.
-Computed by Sortify, not read from any track.
+Computed by Sorty, not read from any track.
 _Avoid_: A.Sep, artist spacing, de-clumping
 
 ### Where the data comes from
@@ -55,7 +55,7 @@ _Avoid_: Sample mode, offline mode, guest mode
 
 **Signed out**:
 The state the app is in until a Spotify account is connected, and where signing
-out lands. The way in, not an error: it names what Sortify does and offers the
+out lands. The way in, not an error: it names what Sorty does and offers the
 connect flow. ADR-0003 refused to have one at all; ADR-0007 makes it the front
 door.
 _Avoid_: Logged out, unauthenticated, welcome
@@ -63,7 +63,7 @@ _Avoid_: Logged out, unauthenticated, welcome
 **Connect flow**:
 The four steps that turn a listener with no account into one with a working
 session: why their own Client ID is needed, creating the app, pasting the ID,
-authorizing. It is Sortify's **onboarding** and the two words name one thing -
+authorizing. It is Sorty's **onboarding** and the two words name one thing -
 there is no separate first-run sequence, and there is nothing else to collect,
 because a Client ID and an authorization are the whole of what this app needs
 from anyone. Reached from the signed-out screen, from Save without an account,
@@ -81,7 +81,7 @@ with the listing. ADR-0008.
 _Avoid_: Forbidden, blocked, inaccessible, restricted
 
 **Client ID**:
-The identifier of a Spotify developer application, which in Sortify each user
+The identifier of a Spotify developer application, which in Sorty each user
 supplies for themselves. Spotify caps a single application at five listeners, so
 one shared Client ID would lock out every user past the fifth - the requirement
 is a consequence of that cap, not a preference.
@@ -90,7 +90,7 @@ _Avoid_: API key, app key, token
 ### How the app presents itself
 
 **Appearance**:
-Whether Sortify is drawing itself light or dark. Followed from the device by
+Whether Sorty is drawing itself light or dark. Followed from the device by
 default and overridable by the user. Both are first-class: neither is the real
 design with the other derived from it.
 _Avoid_: Theme, mode, dark mode, colour scheme

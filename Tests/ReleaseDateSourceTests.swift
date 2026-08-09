@@ -7,7 +7,7 @@ import Testing
 /// Spotify withholds them: a track's own album carries `release_date`, the app
 /// was decoding it, and then `enrich()` overwrote it with whatever a separate
 /// `/albums` lookup returned. February 2026 removed batch `/albums` for newly
-/// registered apps - which is every app Sortify asks a listener to create - so
+/// registered apps - which is every app Sorty asks a listener to create - so
 /// what it returned was nothing, for everyone.
 ///
 /// The guarantee these tests hold is therefore about *independence*: a release
@@ -51,7 +51,7 @@ struct ReleaseDateSourceTests {
 
     /// The Attribute has to be *arrangeable*, not merely printable. A date the
     /// sheet shows but the sorter can't rank would land every track in the
-    /// unrankable group under a heading saying Sortify never read one.
+    /// unrankable group under a heading saying Sorty never read one.
     @Test("Arranging by release date ranks every track when the lookup is refused")
     func refusedLookupStillRanks() async {
         let service = RecordingMusicService(items: sampleItems(count: 6), albumsRefused: true)

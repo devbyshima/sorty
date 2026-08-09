@@ -428,12 +428,12 @@ struct SaveNamingTests {
         )
     }
 
-    @Test("An existing description is preserved ahead of the Sortify note")
+    @Test("An existing description is preserved ahead of the Sorty note")
     func descriptionKeepsOriginal() {
         let description = SaveNaming.playlistDescription(
             original: "Steady tempo", arrangement: .attribute(.bpm, .descending)
         )
-        #expect(description == "Steady tempo - Sorted by decreasing BPM with Sortify")
+        #expect(description == "Steady tempo - Sorted by decreasing BPM with Sorty")
     }
 
     @Test("Blank, whitespace and the literal string \"null\" are all treated as no description")
@@ -442,7 +442,7 @@ struct SaveNamingTests {
             let description = SaveNaming.playlistDescription(
                 original: original, arrangement: .attribute(.valence, .ascending)
             )
-            #expect(description == "Sorted by increasing Valence with Sortify", "failed for \(String(describing: original))")
+            #expect(description == "Sorted by increasing Valence with Sorty", "failed for \(String(describing: original))")
         }
     }
 }

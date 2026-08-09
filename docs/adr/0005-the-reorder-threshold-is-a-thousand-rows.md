@@ -19,7 +19,7 @@ laggy spring.
 
 ## Method
 
-A `CADisplayLink` sampler (`Sortify/Support/ReorderProfiler.swift`) counts
+A `CADisplayLink` sampler (`Sorty/Support/ReorderProfiler.swift`) counts
 frames across a reorder and flags any whose gap from the previous frame exceeds
 1.5× what the display asked for. The expected duration is read per frame from
 the link rather than assumed, because ProMotion changes it underneath you.

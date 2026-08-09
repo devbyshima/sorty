@@ -59,7 +59,7 @@ full logo (icon + wordmark)."*
 
 **Monochrome, which retires the green here.** *"The Spotify green logo should
 only be used on a black or white background, for any other background you should
-use a monochrome logo."* `SortifyTheme.background` is `#F4F4F7` light and
+use a monochrome logo."* `SortyTheme.background` is `#F4F4F7` light and
 `#0D0D0D` dark. Neither is black and neither is white, so on the guidelines' own
 terms the green logo does not belong at the foot of these screens - and the two
 official monochrome files are exactly the black-on-light, white-on-dark pair the
@@ -93,11 +93,19 @@ not.
 
 ## Consequences
 
-**ADR-0006's "Spotify green survives in exactly two places" is now one.** The
-connect affordance on the landing screen keeps it. The attribution mark does not,
-by the colourway rule above. `SortifyTheme.spotifyGreen` still has a third caller
-that ADR-0006 did not list - the Open on Spotify capsule in `TrackDetailSheet` -
-which is a green surface rather than a green logo and is untouched by this.
+**ADR-0006's inventory of where Spotify green survives was wrong**, and checking
+it against the code is how that surfaced. It named the landing screen's connect
+affordance and this attribution mark. The landing screen draws the *accent* and
+apparently always has; this mark has just given its green up; and a third caller
+went unlisted - the Open on Spotify capsule in `TrackDetailSheet`, which drew
+`onAccent` on green and so put white on `#1DB954` in light at **2.59:1**, under
+AA. That is exactly the failure ADR-0006 built `onAccent` to prevent, aimed at a
+background it never measured: the token is only correct against the accent it is
+named for. The capsule now uses the accent, where the same token is 5.95:1 light
+and 6.37:1 dark by that ADR's own table.
+
+So green today is two buttons in the connect flow and nothing else, and
+ADR-0006's correction of 2026-08-09 records the count rather than this ADR.
 
 **Two screenshots exist that look below the fold**, `32-playlists-attribution` and
 `33-dark-tracks-attribution`, both scrolled by an offset large enough that

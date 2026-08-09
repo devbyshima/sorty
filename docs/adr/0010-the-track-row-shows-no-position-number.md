@@ -13,7 +13,7 @@ Track rows carried a leading number: 1, 2, 3 down the list, showing where each
 track landed in the applied Arrangement. It is gone from the row and still
 spoken to VoiceOver.
 
-Ticket 04 forbade exactly this. Describing what maps onto Sortify from
+Ticket 04 forbade exactly this. Describing what maps onto Sorty from
 `references/spotify-playlist.png`, it says the position number and the
 Arrangement's value with its bar are things "which the reference has no
 equivalent for and which must not be dropped: they are the product."
@@ -43,7 +43,7 @@ column, and it bought a number that the position it occupies already tells you.
 **Where sequence is not perceivable, the number stays.** VoiceOver reads rows one
 at a time with no sense of the whole, so `TrackRowText` still opens its sentence
 with the position: "3. Iron Letters by Vera Ash. BPM 188."
-(`SortifyKit/Sorting/TrackRowText.swift`). Rank in an ordered list is real
+(`SortyKit/Sorting/TrackRowText.swift`). Rank in an ordered list is real
 information; the row simply is not where a sighted reader needs it drawn.
 
 Unrankable tracks were already passed no position at all, in either
@@ -56,7 +56,7 @@ imply a rank it does not have. That rule is unchanged.
 screen.** Artwork, cover, title, chips and notice share one edge.
 
 **A listener cannot cite a track's rank without counting.** "The fourteenth
-track" now requires counting rows. Nothing in Sortify asks anyone to do that -
+track" now requires counting rows. Nothing in Sorty asks anyone to do that -
 there is no jump-to-position, no numbered reference anywhere else in the app,
 and the save writes an order rather than a numbered list.
 

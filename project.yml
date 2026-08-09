@@ -1,4 +1,4 @@
-name: Sortify
+name: Sorty
 options:
   bundleIdPrefix: com.fulltimestudio
   deploymentTarget:
@@ -15,43 +15,43 @@ settings:
     DEVELOPMENT_LANGUAGE: en
     SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY: YES
     # Xcode 27 template default. Deliberately paired with the *nonisolated*
-    # default actor isolation: SortifyKit is shared with a hostless test target
+    # default actor isolation: SortyKit is shared with a hostless test target
     # and its services must stay off the main actor, so isolation is annotated
     # explicitly rather than inferred.
     SWIFT_APPROACHABLE_CONCURRENCY: YES
     SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: YES
 
 schemes:
-  Sortify:
+  Sorty:
     build:
       targets:
-        Sortify: all
+        Sorty: all
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - SortifyTests
+        - SortyTests
 
 targets:
-  Sortify:
+  Sorty:
     type: application
     platform: iOS
     sources:
-      - Sortify
-      - SortifyKit
+      - Sorty
+      - SortyKit
       - Resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.sortify
+        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.sorty
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     info:
-      path: Sortify/App/Info.plist
+      path: Sorty/App/Info.plist
       properties:
-        CFBundleDisplayName: Sortify
+        CFBundleDisplayName: Sorty
         # Not empty any more, and not a brand card either.
         #
         # The Human Interface Guidelines prohibit a branded launch screen: it
@@ -62,7 +62,7 @@ targets:
         #
         # So the sanctioned job is to *resemble the first screen*, making the
         # handoff invisible rather than a flash. `LaunchBackground` is
-        # `SortifyTheme.background` in both Appearances, which is exactly what
+        # `SortyTheme.background` in both Appearances, which is exactly what
         # the library renders on. An empty dictionary here would still satisfy
         # TN3208's upload requirement, but it would flash white into a tinted
         # screen, and near-white into a near-black one.
@@ -71,18 +71,18 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # PKCE callback. Must be registered verbatim in the Spotify dashboard.
         CFBundleURLTypes:
-          - CFBundleURLName: com.fulltimestudio.sortify.auth
-            CFBundleURLSchemes: [sortify]
+          - CFBundleURLName: com.fulltimestudio.sorty.auth
+            CFBundleURLSchemes: [sorty]
 
-  # Hostless: SortifyKit is pure logic + URLSession, so the tests need no app
+  # Hostless: SortyKit is pure logic + URLSession, so the tests need no app
   # process. Same arrangement as Prelys.
-  SortifyTests:
+  SortyTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - Tests
-      - SortifyKit
+      - SortyKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.sortify.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.fulltimestudio.sorty.tests
         GENERATE_INFOPLIST_FILE: YES

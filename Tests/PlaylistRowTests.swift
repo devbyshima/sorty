@@ -75,7 +75,7 @@ struct PlaylistRowTests {
 
     /// A playlist can be collaborative *and* yours to overwrite - the two marks
     /// answer different questions, so neither implies the other. Shared with you
-    /// is the case that keeps `readOnly` alive: Spotify opens it, Sortify still
+    /// is the case that keeps `readOnly` alive: Spotify opens it, Sorty still
     /// won't write over someone else's playlist.
     @Test("Collaborative and read-only are independent")
     func badgesAreIndependent() {

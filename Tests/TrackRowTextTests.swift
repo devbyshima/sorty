@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 
-/// What a row says, in words. This lives in `SortifyKit` rather than the view
+/// What a row says, in words. This lives in `SortyKit` rather than the view
 /// because every rule here is a rule worth asserting - and because the first
 /// version of it, written inline in SwiftUI, shipped a row that printed the
 /// position twice and read it aloud twice.

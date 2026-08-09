@@ -175,7 +175,7 @@ struct UnrankableTests {
     }
 
     /// "BPM is measured from music" is true. "Release date is measured from
-    /// music" is not - a Spotify episode has a release date, Sortify just
+    /// music" is not - a Spotify episode has a release date, Sorty just
     /// doesn't read one, and story 27 is about saying the *right* why.
     @Test("The episode reason says why for that Attribute, not a general one")
     func episodeCopyMatchesTheAttribute() {
@@ -185,7 +185,7 @@ struct UnrankableTests {
         #expect(byTempo.first?.detail.contains("measured from music") == true)
 
         let byDate = UnrankableGroup.groups(for: episodes, attribute: .release, providerNote: nil)
-        #expect(byDate.first?.detail.contains("Sortify doesn't read Release date") == true)
+        #expect(byDate.first?.detail.contains("Sorty doesn't read Release date") == true)
         #expect(byDate.first?.detail.contains("isn't music") == false)
     }
 

@@ -6,7 +6,7 @@ import Testing
 ///
 /// February 2026 renamed `/playlists/{id}/tracks` to `/playlists/{id}/items`,
 /// and March 2026 removed the old spelling for Development Mode apps, which is
-/// every Sortify listener. So the service tries `/items` and keeps `/tracks` as
+/// every Sorty listener. So the service tries `/items` and keeps `/tracks` as
 /// a fallback for a Client ID old enough to predate it. The latch that
 /// remembers the answer is what these are about: it used to be set on the way
 /// *into* the fallback rather than on the fallback working, so a single 404
@@ -23,7 +23,7 @@ struct EndpointSpellingTests {
 
         let store = FixedTokenStore()
         let auth = SpotifyAuthenticator(
-            config: SpotifyAuthConfig(clientID: "cid", redirectURI: "sortify://callback"),
+            config: SpotifyAuthConfig(clientID: "cid", redirectURI: "sorty://callback"),
             store: store,
             session: session
         )

@@ -4,11 +4,11 @@ Date: 2026-08-08
 
 ## Status
 
-Accepted. Completes the light Appearance work `SortifyTheme` began.
+Accepted. Completes the light Appearance work `SortyTheme` began.
 
 ## Context
 
-`SortifyTheme` already authors both Appearances. Its own doc comment states the
+`SortyTheme` already authors both Appearances. Its own doc comment states the
 principle: light carries elevation with **edges** where dark carries it with
 **luminance**, which is why light has a hairline, a pure white card on a tinted
 field, and a card shadow that dark does not get.
@@ -35,7 +35,7 @@ while **which chip is applied** was obvious.
 
 ## Decision
 
-**Every glass surface draws `SortifyTheme.glassEdge` in its own shape**, through
+**Every glass surface draws `SortyTheme.glassEdge` in its own shape**, through
 one `View.glassEdge(in:)` helper, at all ten call sites. The token is black at
 12% in light and white at 6% in dark, so the Appearance that needs the edge gets
 it and the Appearance that does not is left as it was.

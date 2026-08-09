@@ -58,7 +58,7 @@ it reverts completely.
 as physical; without it the cover is a rectangle rotating in perspective, which
 is a weaker effect and an honest cost of the decision.
 
-**Sortify still animates Spotify's artwork under a finger**, and if that is ever
+**Sorty still animates Spotify's artwork under a finger**, and if that is ever
 challenged the answer is this ADR rather than a discovery. It joins the two
 items ticket 12 already put on the same list: the near-identical name and the
 near-identical screens, which Apple's Guideline 4.1(a) treats as one test. This
@@ -72,7 +72,7 @@ deforms or samples the cover is a new decision, not a continuation of one.
 this decision is a smaller difference from the default rendering than it was.
 
 **If reopened:** the case for dropping the lean too is that it is the last thing
-standing between Sortify and a clean reading of the guideline, and that the
+standing between Sorty and a clean reading of the guideline, and that the
 effect it protects is decorative by this ticket's own finding - it encodes no
 Attribute. If the naming question is ever resolved in favour of a rename, this
 is worth revisiting at the same time, because the three risks compound.

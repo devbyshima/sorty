@@ -41,7 +41,7 @@ Destructive loss is therefore prevented structurally, not by a warning dialog.
 its 170–180 BPM subset must create the new playlist and delete the old one
 themselves, in Spotify.
 
-**Gained:** no sequence of taps in Sortify can remove a track from an existing
+**Gained:** no sequence of taps in Sorty can remove a track from an existing
 playlist. That invariant is worth more than the workflow it costs, because the
 failure is silent, immediate and unrecoverable.
 

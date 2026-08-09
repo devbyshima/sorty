@@ -5,11 +5,11 @@ Date: 2026-08-05
 ## Status
 
 Accepted. Supersedes the design reasoning recorded in the comment at
-`Sortify/Views/TrackTableView.swift:115`.
+`Sorty/Views/TrackTableView.swift:115`.
 
 ## Context
 
-Sortify's first UI reproduced SortYourMusic's fifteen-column table on a phone.
+Sorty's first UI reproduced SortYourMusic's fifteen-column table on a phone.
 The columns are fixed-width and sum to roughly 1,352pt (`SortColumn.width`),
 against a 402pt screen - about 3.4 screens of horizontal scrolling.
 
