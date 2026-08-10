@@ -156,7 +156,14 @@ struct ConnectFlowView: View {
             EmptyView()
 
         case .createApp:
+            // The URI first, the dashboard second, because that is the order the
+            // hand does it in: copy the thing, then go and paste it. With the
+            // button on top, the listener left for the dashboard, arrived at a
+            // field wanting a string they had not taken, and had to come back
+            // for it.
             VStack(alignment: .leading, spacing: 14) {
+                redirectURI
+
                 Button {
                     browsing = SpotifyLinks.dashboard
                 } label: {
@@ -175,13 +182,10 @@ struct ConnectFlowView: View {
                     .frame(maxWidth: .infinity)
                 }
                 // Spotify's green, in glass. Prominent rather than plain,
-                // because on this step it is the thing to do - the advance
-                // button below only becomes true once this has been.
+                // because once the URI above is copied this is the thing to do.
                 .buttonStyle(.glassProminent)
                 .tint(SortyTheme.spotifyGreen)
                 .controlSize(.large)
-
-                redirectURI
             }
 
         case .clientID:
