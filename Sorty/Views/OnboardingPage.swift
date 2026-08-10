@@ -3,18 +3,25 @@ import SwiftUI
 /// One onboarding screen: glyph, heading, a line or two, and whatever the screen
 /// needs under that.
 ///
-/// Every screen in the flow is one of these - the three the reel cycles through
-/// and the four connect steps - which is the only way they stay levelled. They
-/// were laid out separately before, and drifted: the reel centred its glyph with
-/// a fixed 130 beneath it while the steps floated theirs between two `Spacer`s,
-/// so the symbol and the heading sat at different heights on either side of a
-/// single flow, and moved again between steps as each page's text changed length.
+/// **This is the way-in screen's layout, and the other four adopt it** - which is
+/// the right way round and was not, briefly. Levelling them the first time
+/// flattened the reel into a top-anchored stack to match the steps, and lost the
+/// composition that was worth keeping: a glyph floating in the middle of the
+/// screen with the words low, near the thing you tap.
 ///
-/// **The offsets above the heading are fixed, and that is the whole mechanism.**
-/// Anything centred, or spaced by a `Spacer` at both ends, moves when its content
-/// changes length. Fixing the distance from the top to the glyph and from the
-/// glyph to the heading means every page puts them in the same place, and pages
-/// with more to say grow downward into the space below.
+/// So the words keep the reel's placement - pinned to the *bottom* of whatever
+/// space the screen has, in a block of fixed height - and the glyph is pinned to
+/// the top. Both are measured from an edge rather than from the content between
+/// them, which is the whole reason they hold still.
+///
+/// The glyph *was* centred, as the reel had it, and centring turns out not to
+/// level anything: each screen centres in a different amount of room, so the same
+/// code put the symbol 35pt lower on the four steps than on the first page.
+///
+/// A step with controls puts them under that block, which pushes its words up by
+/// exactly the controls' height. That is the one intended difference: steps
+/// without controls line up with the reel to the pixel, and steps with them make
+/// the room they need.
 struct OnboardingPage<Extra: View>: View {
     let symbol: String
     var bounces: Bool = false
@@ -24,60 +31,70 @@ struct OnboardingPage<Extra: View>: View {
     /// Shown as an ⓘ beside the text when there is more to read.
     var onInfo: (() -> Void)?
 
-    /// Distance from the top of the screen's own safe area to the glyph.
+    /// Distance from the top of this screen's own space down to the glyph.
     ///
-    /// Passed in rather than fixed here because the two callers do not share a
-    /// top edge: the connect flow has a toolbar and the way-in screen does not,
-    /// so the same number would put the flow's glyph a toolbar's height lower.
-    var topInset: CGFloat
+    /// **Fixed, because centring cannot level these screens.** Each one centres
+    /// in a different amount of room - the connect flow loses a toolbar off the
+    /// top and gains a shorter footer at the bottom than the way-in screen's
+    /// button-plus-small-print - so the same centred glyph landed 35pt lower on
+    /// the four steps than on the first page. Measured, after stacking the same
+    /// band from all five shots on top of each other, which is the only way this
+    /// kind of drift is visible at all.
+    ///
+    /// The two values in `OnboardingMetrics` differ by exactly that arithmetic
+    /// and put the glyph at the same place on the screen on all five.
+    var glyphTop: CGFloat
 
-    /// Trailing, so it can be written as a trailing closure.
+    /// Last, so it can be written as a trailing closure.
     @ViewBuilder var extra: Extra
+
+    private let wordsHeight: CGFloat = 130
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 0).frame(height: topInset)
+            Spacer(minLength: 0).frame(height: glyphTop)
 
             OnboardingGlyph(symbol: symbol, bounces: bounces)
 
-            Spacer(minLength: 0).frame(height: 40)
+            // Absorbs whatever is left, which is what keeps the words on the
+            // bottom edge while the glyph stays on the top one. Both are then
+            // measured from an edge rather than from the content between them,
+            // which is the whole reason they hold still.
+            Spacer(minLength: 24)
 
-            VStack(spacing: 12) {
-                Text(title)
-                    .font(.title2.bold())
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(text)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                VStack(spacing: 12) {
+                    Text(title)
+                        .font(.title2.bold())
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if let onInfo {
-                        Button(action: onInfo) {
-                            Image(systemName: "info.circle")
-                                .font(.footnote)
-                                .foregroundStyle(SortyTheme.accent)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(text)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if let onInfo {
+                            Button(action: onInfo) {
+                                Image(systemName: "info.circle")
+                                    .font(.footnote)
+                                    .foregroundStyle(SortyTheme.accent)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("More about this step")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("More about this step")
                     }
                 }
+                .frame(height: wordsHeight, alignment: .top)
+                .accessibilityElement(children: .combine)
+
+                extra
             }
-            // A floor, so a one-line page and a three-line one still put whatever
-            // follows in the same place. Not a fixed height: the longest of these
-            // would then be clipped rather than allowed to push down.
-            .frame(minHeight: 104, alignment: .top)
-            .accessibilityElement(children: .combine)
-
-            extra
-
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -88,7 +105,7 @@ extension OnboardingPage where Extra == EmptyView {
         title: String,
         text: String,
         onInfo: (() -> Void)? = nil,
-        topInset: CGFloat
+        glyphTop: CGFloat
     ) {
         self.init(
             symbol: symbol,
@@ -96,7 +113,7 @@ extension OnboardingPage where Extra == EmptyView {
             title: title,
             text: text,
             onInfo: onInfo,
-            topInset: topInset,
+            glyphTop: glyphTop,
             extra: { EmptyView() }
         )
     }
@@ -122,15 +139,15 @@ extension AnyTransition {
     }
 }
 
-/// The two numbers that level the onboarding's five screens against each other.
-///
-/// They differ by exactly the toolbar the connect flow carries and the way-in
-/// screen does not. Kept together so a change to one is made next to the reason
-/// the other exists; separated in two files, they drifted once already.
-enum OnboardingMetrics {
-    /// The way-in screen, which has no bar above it.
-    static let reelTopInset: CGFloat = 96
 
-    /// The connect flow, whose toolbar has already pushed its content down.
-    static let flowTopInset: CGFloat = 40
+/// Where each onboarding screen puts its glyph, measured from the top of its own
+/// space.
+///
+/// The two differ by the chrome the connect flow carries and the way-in screen
+/// does not: a toolbar above, and a shorter block below than the way-in screen's
+/// button plus its line of small print. Kept side by side so a change to one is
+/// made next to the reason the other exists.
+enum OnboardingMetrics {
+    static let reelGlyphTop: CGFloat = 220
+    static let flowGlyphTop: CGFloat = 176
 }

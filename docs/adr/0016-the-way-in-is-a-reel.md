@@ -389,18 +389,37 @@ with a fixed gap beneath it; the steps floated theirs between two `Spacer`s. So
 the symbol and the heading sat at different heights on either side of one flow,
 and moved again between steps as each page's text changed length.
 
-**`OnboardingPage` is now the only layout**, used by the reel's three screens and
-the flow's four. The mechanism is that the offsets above the heading are *fixed*:
-anything centred, or spaced by a `Spacer` at both ends, moves when its content
-changes length. With the distance from the top to the glyph and from the glyph to
-the heading pinned, every page puts them in the same place and pages with more to
-say grow downward into the space below.
+`OnboardingPage` is now the only layout, used by the reel's three screens and the
+flow's four.
 
-The one number that differs between the two callers is the top inset, because
-they do not share a top edge - the flow has a toolbar and the way-in screen does
-not, so the same number would put the flow's glyph a bar's height lower. Both
-live in `OnboardingMetrics`, together, because separated in two files they
-drifted once already.
+**The first attempt at it did the levelling backwards** and is worth recording,
+because it is the obvious mistake. Asked to make four screens match a fifth, it
+conformed the fifth to the four: the reel was flattened into a top-anchored stack
+with its words directly under its glyph, which levelled everything and threw away
+the composition that was worth keeping - a glyph floating in the middle of the
+screen with the words low, near the thing you tap. **The page that is liked is the
+specification, not a participant in the negotiation.**
+
+What the layout does now:
+
+- **The words keep the reel's placement**, pinned to the bottom of whatever space
+  a screen has, in a block of fixed height.
+- **The glyph is pinned to the top**, at a fixed distance rather than centred.
+
+Both are measured from an edge rather than from the content between them, which
+is the whole reason they hold still while a page's text changes length.
+
+**Centring cannot level these screens, and that is not obvious.** The reel and
+the flow centre in different amounts of room - the flow loses a toolbar off the
+top and carries a shorter footer than the way-in screen's button-plus-small-print
+- so identical centring code put the glyph 35pt lower on the four steps than on
+the first page. The two fixed values in `OnboardingMetrics` differ by exactly
+that arithmetic.
+
+It took stacking the same horizontal band from all five screenshots on top of
+each other to see any of this. Side by side, five screens that are each internally
+plausible look fine; stacked, a 35pt drift is unmissable. **Use the band stack
+whenever the complaint is "these do not line up".**
 
 **The reel's glyph now transitions with its words.** It used to be only the text
 that pushed; the symbol swapped underneath via `contentTransition`, so half the

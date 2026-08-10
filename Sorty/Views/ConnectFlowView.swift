@@ -42,7 +42,7 @@ struct ConnectFlowView: View {
                 title: step.title,
                 text: step.body,
                 onInfo: { showingDetail = true },
-                topInset: OnboardingMetrics.flowTopInset
+                glyphTop: OnboardingMetrics.flowGlyphTop
             ) {
                 VStack(spacing: 14) {
                     stepControls

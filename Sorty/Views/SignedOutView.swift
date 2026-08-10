@@ -47,7 +47,7 @@ struct SignedOutView: View {
             if reduceMotion {
                 stillPoints
             } else {
-                OnboardingReel(phases: points, topInset: OnboardingMetrics.reelTopInset)
+                OnboardingReel(phases: points)
                     .opacity(appeared ? 1 : 0)
             }
 

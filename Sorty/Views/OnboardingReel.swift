@@ -30,13 +30,6 @@ struct OnboardingReel: View {
 
     let phases: [Phase]
 
-    /// Levels this screen's glyph with the connect flow's.
-    ///
-    /// Larger than the flow's because this screen has no toolbar above it: the
-    /// difference between the two numbers is the bar the flow carries, so the
-    /// glyph lands in the same place on both.
-    let topInset: CGFloat
-
     /// How long each phase holds. Beam's is 3s and `OnboardingGlyph`'s bounce
     /// keyframes are cut to fit it exactly - 1.75s of movement, then 1.25s still
     /// - so changing this without changing those leaves the symbol bouncing into
@@ -59,7 +52,7 @@ struct OnboardingReel: View {
                             bounces: true,
                             title: phases[phase].title,
                             text: phases[phase].body,
-                            topInset: topInset
+                            glyphTop: OnboardingMetrics.reelGlyphTop
                         )
                         .transition(.onboardingPage(reduceMotion: reduceMotion))
                     }
