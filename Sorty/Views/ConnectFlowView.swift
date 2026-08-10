@@ -28,6 +28,12 @@ struct ConnectFlowView: View {
     @State private var showingDetail = false
     /// The dashboard, when it is open. Setup never leaves the app.
     @State private var browsing: BrowsableURL?
+    /// Whether the redirect URI is on the clipboard, which is what turns this
+    /// step's one control from Copy into Open.
+    ///
+    /// Reset whenever the step changes, so coming back offers the copy again
+    /// rather than stranding somebody whose clipboard has moved on.
+    @State private var hasCopiedRedirectURI = false
 
     private var check: ClientIDCheck { ClientIDCheck.check(clientID) }
 
@@ -45,15 +51,21 @@ struct ConnectFlowView: View {
                 onInfo: { showingDetail = true },
                 glyphTop: OnboardingMetrics.flowGlyphTop
             ) {
-                VStack(spacing: 14) {
+                VStack(spacing: 0) {
                     stepControls
+                        // Step 2's controls claim the leftover so its one button
+                        // can sit midway between the URI above and the advance
+                        // button below. Every other step's are as tall as they
+                        // are, and the `Spacer` underneath takes the rest.
+                        .frame(maxHeight: step == .createApp ? .infinity : nil)
 
-                    // Outside the page's own block and holding still while pages
-                    // move: a failure belongs to the attempt rather than to the
-                    // step it happened on, and sliding it away with the page
-                    // would take the explanation with it.
                     if let failure = session.connectFailure {
                         ErrorRow(message: failure)
+                            .padding(.top, 14)
+                    }
+
+                    if step != .createApp {
+                        Spacer(minLength: 0)
                     }
                 }
                 .padding(.top, 4)
@@ -72,6 +84,7 @@ struct ConnectFlowView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         if let previous = step.previous {
+                            hasCopiedRedirectURI = false
                             withAnimation(.snappy(duration: 0.3)) { step = previous }
                         } else {
                             onClose()
@@ -157,36 +170,16 @@ struct ConnectFlowView: View {
             EmptyView()
 
         case .createApp:
-            // The URI first, the dashboard second, because that is the order the
-            // hand does it in: copy the thing, then go and paste it. With the
-            // button on top, the listener left for the dashboard, arrived at a
-            // field wanting a string they had not taken, and had to come back
-            // for it.
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
                 redirectURI
 
-                Button {
-                    browsing = SpotifyLinks.dashboard
-                } label: {
-                    HStack(spacing: 6) {
-                        Text("Open the Spotify Dashboard")
-                        // The same box as this app's own save glyph
-                        // (`square.and.arrow.down` on the way-in screen),
-                        // inverted so the arrow leaves rather than enters, and
-                        // turned diagonal. A bare `arrow.up.right` was a
-                        // direction; this is a thing being opened out of, which
-                        // is what a link is - and it rhymes with a symbol the
-                        // listener has already met one screen earlier.
-                        Image(systemName: "arrow.up.forward.square")
-                            .font(.footnote.weight(.semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                // Spotify's green, in glass. Prominent rather than plain,
-                // because once the URI above is copied this is the thing to do.
-                .buttonStyle(.glassProminent)
-                .tint(SortyTheme.spotifyGreen)
-                .controlSize(.large)
+                // Centred in what is left between the URI above and the advance
+                // button below.
+                Spacer(minLength: 16)
+
+                dashboardAction
+
+                Spacer(minLength: 16)
             }
 
         case .clientID:
@@ -231,32 +224,67 @@ struct ConnectFlowView: View {
     /// Given rather than described, because a redirect URI that is subtly wrong
     /// fails at authorisation with a message about the *app* rather than about
     /// the one character that differs.
+    /// The value to register, shown so it can be checked against whatever ends
+    /// up in the dashboard.
+    ///
+    /// It carried its own copy button until the two actions on this step became
+    /// one. Two ways to copy the same string - the primary control, and a 14pt
+    /// glyph beside the text - is the choice `dashboardAction` exists to remove.
     private var redirectURI: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Redirect URI")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            HStack {
-                Text(session.configuration.redirectURI)
-                    .font(.body.monospaced())
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer(minLength: 8)
-
-                Button {
-                    UIPasteboard.general.string = session.configuration.redirectURI
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(SortyTheme.accent)
-                .accessibilityLabel("Copy redirect URI")
-            }
-            .padding(12)
-            .background(SortyTheme.surface, in: .rect(cornerRadius: 10))
+            Text(session.configuration.redirectURI)
+                .font(.body.monospaced())
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(SortyTheme.surface, in: .rect(cornerRadius: 10))
         }
+    }
+
+    /// Copy, then open - one control doing both, in the order they happen.
+    ///
+    /// They were two buttons stacked, and the listener had to work out that the
+    /// top one comes first. Now the button *is* the next thing: it copies, and
+    /// having copied, it becomes the way to the dashboard. Nothing is offered
+    /// twice and there is no order to infer.
+    ///
+    /// The colour carries the same story - the app's accent while the work is
+    /// still Sorty's, Spotify's green once the next thing is on their site.
+    private var dashboardAction: some View {
+        Button {
+            if hasCopiedRedirectURI {
+                browsing = SpotifyLinks.dashboard
+            } else {
+                UIPasteboard.general.string = session.configuration.redirectURI
+                withAnimation(.snappy(duration: 0.28)) { hasCopiedRedirectURI = true }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(hasCopiedRedirectURI ? "Open the Spotify Dashboard" : "Copy the redirect URI")
+                    .contentTransition(.opacity)
+
+                // The same box as this app's own save glyph, inverted so the
+                // arrow leaves rather than enters, and turned diagonal: a thing
+                // being opened out of, which is what a link is.
+                Image(systemName: hasCopiedRedirectURI ? "arrow.up.forward.square" : "doc.on.doc")
+                    .font(.footnote.weight(.semibold))
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.glassProminent)
+        .tint(hasCopiedRedirectURI ? SortyTheme.spotifyGreen : SortyTheme.accent)
+        .controlSize(.large)
+        .accessibilityHint(
+            hasCopiedRedirectURI
+                ? "Opens Spotify's developer dashboard."
+                : "Copies the redirect URI, then offers the dashboard."
+        )
     }
 
     // MARK: - Advancing
@@ -276,7 +304,12 @@ struct ConnectFlowView: View {
         .controlSize(.large)
         .disabled(!canAdvance)
         .padding(.horizontal, 24)
-        .padding(.vertical, 16)
+        // Bottom only. Padding above the advance button sits *outside* the page,
+        // so the page's own spacers cannot see it - which left step 2's centred
+        // button with 112px of air above and 182 below, off by exactly this
+        // inset. With it gone the page's bottom edge is the button's top edge
+        // and equal spacers read as equal.
+        .padding(.bottom, 16)
         // No bar behind it. `safeAreaInset` already reserves the space, so
         // nothing scrolls under the button, and a grey slab here would cut the
         // bloom in half exactly where it is brightest.
@@ -293,6 +326,7 @@ struct ConnectFlowView: View {
             session.configuration.clientID = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         guard step == .authorize else {
+            hasCopiedRedirectURI = false
             withAnimation(.snappy(duration: 0.25)) { step = step.next ?? step }
             return
         }
