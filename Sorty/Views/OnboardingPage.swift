@@ -48,8 +48,6 @@ struct OnboardingPage<Extra: View>: View {
     /// Last, so it can be written as a trailing closure.
     @ViewBuilder var extra: Extra
 
-    private let wordsHeight: CGFloat = 130
-
     var body: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0).frame(height: glyphTop)
@@ -60,35 +58,10 @@ struct OnboardingPage<Extra: View>: View {
             // bottom edge while the glyph stays on the top one. Both are then
             // measured from an edge rather than from the content between them,
             // which is the whole reason they hold still.
-            Spacer(minLength: 24)
+            Spacer(minLength: OnboardingMetrics.glyphGap)
 
             VStack(spacing: 0) {
-                VStack(spacing: 12) {
-                    Text(title)
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(text)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        if let onInfo {
-                            Button(action: onInfo) {
-                                Image(systemName: "info.circle")
-                                    .font(.footnote)
-                                    .foregroundStyle(SortyTheme.accent)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("More about this step")
-                        }
-                    }
-                }
-                .frame(height: wordsHeight, alignment: .top)
-                .accessibilityElement(children: .combine)
+                OnboardingWords(title: title, text: text, onInfo: onInfo)
 
                 extra
             }
@@ -150,4 +123,53 @@ extension AnyTransition {
 enum OnboardingMetrics {
     static let reelGlyphTop: CGFloat = 220
     static let flowGlyphTop: CGFloat = 176
+
+    /// The words' block. Fixed, so a one-line page and a three-line one put
+    /// whatever follows in the same place - and so the glyph above clears them
+    /// by exactly the room they take.
+    static let wordsHeight: CGFloat = 130
+
+    /// The least gap between the glyph and the words, when a screen is short
+    /// enough that the two would otherwise meet.
+    static let glyphGap: CGFloat = 24
+}
+
+/// The heading and its line or two, with the ⓘ when there is more to read.
+///
+/// Its own view because the reel transitions *only* this while its glyph holds
+/// still, and the connect flow transitions the whole page. Two callers, one
+/// block of words, no chance of them drifting apart.
+struct OnboardingWords: View {
+    let title: String
+    let text: String
+    var onInfo: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(title)
+                .font(.title2.bold())
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(text)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let onInfo {
+                    Button(action: onInfo) {
+                        Image(systemName: "info.circle")
+                            .font(.footnote)
+                            .foregroundStyle(SortyTheme.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("More about this step")
+                }
+            }
+        }
+        .frame(height: OnboardingMetrics.wordsHeight, alignment: .top)
+        .accessibilityElement(children: .combine)
+    }
 }

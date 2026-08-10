@@ -14,6 +14,12 @@ import SwiftUI
 /// for, and asking someone to register a developer application before telling
 /// them that is the wrong order.
 ///
+/// **The cost is no longer named on this screen.** A line of small print under
+/// the button used to say that Spotify requires each listener to register a free
+/// developer app. It has gone, and the first connect step still opens on exactly
+/// that - so the fact arrives one tap later than it did rather than not at all,
+/// which is the trade this screen makes for a clean foot.
+///
 /// Rebuilt on Beam's onboarding (ADR-0016): the three points cycle through a
 /// reel rather than sitting in a list, over the same bloom the splash rises
 /// from, so launch and way-in read as one screen continuing rather than two.
@@ -112,7 +118,7 @@ struct SignedOutView: View {
     // MARK: - The action
 
     private var connect: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 0) {
             Button(action: onConnect) {
                 Text("Connect Spotify")
                     .font(.headline)
@@ -124,21 +130,6 @@ struct SignedOutView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Starts the four steps for connecting your Spotify account.")
 
-            // Says the cost up front rather than letting it arrive at step
-            // two. Spotify caps a development-mode application at five
-            // listeners, so a shared Client ID would lock out every user
-            // past the fifth - which is why this cannot be a plain sign-in
-            // and why the flow has four steps instead of one.
-            //
-            // It stays out of the reel deliberately. The reel is what the app
-            // does; this is what it costs, and a cost that appears for three
-            // seconds every nine is a cost being hidden.
-            Text("Spotify requires each listener to register a free developer app. The steps walk you through it.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 2)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 12)

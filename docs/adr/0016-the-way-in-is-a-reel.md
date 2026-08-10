@@ -421,8 +421,21 @@ each other to see any of this. Side by side, five screens that are each internal
 plausible look fine; stacked, a 35pt drift is unmissable. **Use the band stack
 whenever the complaint is "these do not line up".**
 
-**The reel's glyph now transitions with its words.** It used to be only the text
-that pushed; the symbol swapped underneath via `contentTransition`, so half the
-screen travelled up and half cross-dissolved in place. That is a difference you
-feel without being able to name, and it was the last thing making the first
-screen move unlike the other four.
+**The reel's glyph holds still while its words move**, and that is the one place
+the first screen differs from a connect step on purpose.
+
+It was briefly made to travel with them, on the reasoning that half a screen
+pushing while the other half cross-dissolved is a difference you feel without
+being able to name. True, and wrong here: a step is a page you have moved to, so
+the whole page arrives, but the reel is one screen talking and its glyph is
+*mid-animation* - bouncing in time with its own rings. Sliding it off every three
+seconds interrupts an animation meant to be continuous and restarts it from
+nothing. `OnboardingWords` exists so the reel can transition the words alone
+while the connect flow transitions the whole page, with one block of type serving
+both.
+
+**The way-in screen no longer names the cost.** A line of small print under the
+button used to say that Spotify requires each listener to register a free
+developer app. The first connect step still opens on exactly that, so the fact
+arrives one tap later rather than not at all - which is what a clean foot costs
+here, and worth knowing if that step's copy is ever cut further.

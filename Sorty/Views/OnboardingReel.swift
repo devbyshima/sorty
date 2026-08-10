@@ -9,11 +9,14 @@ import SwiftUI
 ///
 /// The phase advances on a `TimelineView`, so nothing has to be told to tick.
 ///
-/// **The whole page transitions, glyph included.** It used to be only the words:
-/// the symbol swapped underneath via `contentTransition`, so half the screen
-/// pushed up and the other half cross-dissolved in place, which is a difference
-/// you feel without being able to name. Now the page moves as one, exactly as a
-/// connect step does.
+/// **The glyph holds still and only the words move**, which is the one place
+/// this screen differs from a connect step - and it is a real difference, not an
+/// oversight. A step is a page you have moved to, so the whole page arrives. The
+/// reel is one screen talking, and its glyph is mid-animation: bouncing in time
+/// with its own rings. Sliding it away three seconds in interrupts an animation
+/// that is meant to be continuous and restarts it from nothing. The symbol swaps
+/// in place instead, which is what `contentTransition` on `OnboardingGlyph` is
+/// for.
 ///
 /// **It never runs under Reduce Motion**, and that is decided by the caller
 /// rather than by a branch in here: an auto-advancing reel is not a bounce that
@@ -44,21 +47,30 @@ struct OnboardingReel: View {
             let elapsed = startDate.distance(to: context.date)
             let index = max(0, Int(elapsed / phaseDuration)) % max(phases.count, 1)
 
-            ZStack {
-                ForEach(phases.indices, id: \.self) { phase in
-                    if phase == index {
-                        OnboardingPage(
-                            symbol: phases[phase].symbol,
-                            bounces: true,
-                            title: phases[phase].title,
-                            text: phases[phase].body,
-                            glyphTop: OnboardingMetrics.reelGlyphTop
-                        )
-                        .transition(.onboardingPage(reduceMotion: reduceMotion))
+            VStack(spacing: 0) {
+                Spacer(minLength: 0).frame(height: OnboardingMetrics.reelGlyphTop)
+
+                // Outside the transition below, so it stays where it is.
+                OnboardingGlyph(symbol: phases[index].symbol, bounces: true)
+
+                Spacer(minLength: OnboardingMetrics.glyphGap)
+
+                ZStack {
+                    ForEach(phases.indices, id: \.self) { phase in
+                        if phase == index {
+                            OnboardingWords(
+                                title: phases[phase].title,
+                                text: phases[phase].body
+                            )
+                            .transition(.onboardingPage(reduceMotion: reduceMotion))
+                        }
                     }
                 }
+                .frame(height: OnboardingMetrics.wordsHeight)
+                .animation(.bouncy(duration: 0.8), value: index)
             }
-            .animation(.bouncy(duration: 0.8), value: index)
+            .padding(.horizontal, 24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
