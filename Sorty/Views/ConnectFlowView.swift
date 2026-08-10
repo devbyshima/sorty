@@ -71,13 +71,30 @@ struct ConnectFlowView: View {
                         ErrorRow(message: failure)
                     }
                 }
-                .padding(.top, 4)
+                // Both insets, or neither. The gap above the button lives here,
+                // in the page, rather than in the bar under it: padding the bar
+                // makes the *foot* deeper, and the foot's depth is what levels
+                // these screens against the first page, so a step that took its
+                // clearance from the bar bought it by lifting its own words off
+                // that line.
+                //
+                // And an empty block still takes its padding. On the two steps
+                // carrying nothing, 4 and 16 are 20pt of air under a view with
+                // no height - which is 20pt of drift on exactly the two screens
+                // that are supposed to match the first page to the pixel.
+                .padding(.top, hasFoot ? 4 : 0)
+                .padding(.bottom, hasFoot ? OnboardingMetrics.buttonClearance : 0)
             }
             .id(step)
             .transition(.onboardingPage(reduceMotion: reduceMotion))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background { SplashBackdrop() }
-            .safeAreaInset(edge: .bottom) { advanceBar }
+            // `spacing: 0` is load-bearing. Left to itself `safeAreaInset`
+            // puts a default gap between the page and the inset, and that gap
+            // is foot depth by another name: it held the words 12pt above the
+            // line the way-in screen puts them on, with the buttons already
+            // levelled to the pixel and nothing in the code to point at.
+            .safeAreaInset(edge: .bottom, spacing: 0) { advanceBar }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) { stepDots }
@@ -99,7 +116,13 @@ struct ConnectFlowView: View {
                 }
             }
             .sheet(isPresented: $showingDetail) {
-                ConnectDetailSheet(step: step)
+                // The URI goes with the step that has to register it, and only
+                // that step. Passed rather than reached for, so which step shows
+                // a value is a fact you can read here.
+                ConnectDetailSheet(
+                    step: step,
+                    redirectURI: step == .createApp ? session.configuration.redirectURI : nil
+                )
             }
             // In a sheet over the flow rather than a hand-off to Safari. The
             // Client ID has to be carried from that page to the field on the
@@ -166,6 +189,23 @@ struct ConnectFlowView: View {
 
     // MARK: - Per-step controls
 
+    /// Whether this step puts anything between its words and the button.
+    ///
+    /// The two that don't are the two that line up with the way-in screen to
+    /// the pixel, and the padding around the control block is switched off for
+    /// them so they stay that way.
+    private var hasControls: Bool {
+        switch step {
+        case .why, .authorize: false
+        case .createApp, .clientID: true
+        }
+    }
+
+    /// The same question, asked of what is actually on screen: a failure puts a
+    /// row under the words on any step, including the two that carry no
+    /// controls of their own.
+    private var hasFoot: Bool { hasControls || session.connectFailure != nil }
+
     @ViewBuilder
     private var stepControls: some View {
         switch step {
@@ -173,19 +213,13 @@ struct ConnectFlowView: View {
             EmptyView()
 
         case .createApp:
-            // The URI first, the dashboard second, because that is the order
-            // the hand does it in: copy the thing, then go and paste it.
-            //
-            // Stacked at their own height rather than spread through the
-            // leftover. Centring the button between the URI and the advance bar
-            // needed a spacer that grows, and a growing control block is the one
-            // thing this page cannot have: the words above it are pinned to the
-            // bottom edge, and anything that claims the leftover unpins them.
-            VStack(alignment: .leading, spacing: 14) {
-                redirectURI
-
-                dashboardAction
-            }
+            // One control, and it is a button. The redirect URI used to be
+            // printed above it in a box, which made this the only step in the
+            // flow carrying a slab of text under its words - it read as a form,
+            // and it is not one. The value moved behind the ⓘ, where it can be
+            // read and checked by the listener who wants to; everyone else
+            // copies it without ever needing to look at it.
+            dashboardAction
 
         case .clientID:
             VStack(alignment: .leading, spacing: 8) {
@@ -226,31 +260,6 @@ struct ConnectFlowView: View {
         }
     }
 
-    /// Given rather than described, because a redirect URI that is subtly wrong
-    /// fails at authorisation with a message about the *app* rather than about
-    /// the one character that differs.
-    /// The value to register, shown so it can be checked against whatever ends
-    /// up in the dashboard.
-    ///
-    /// It carried its own copy button until the two actions on this step became
-    /// one. Two ways to copy the same string - the primary control, and a 14pt
-    /// glyph beside the text - is the choice `dashboardAction` exists to remove.
-    private var redirectURI: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Redirect URI")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Text(session.configuration.redirectURI)
-                .font(.body.monospaced())
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .background(SortyTheme.surface, in: .rect(cornerRadius: 10))
-        }
-    }
-
     /// Copy, then open - one control doing both, in the order they happen.
     ///
     /// They were two buttons stacked, and the listener had to work out that the
@@ -280,11 +289,12 @@ struct ConnectFlowView: View {
                     .font(.footnote.weight(.semibold))
                     .contentTransition(.symbolEffect(.replace))
             }
-            .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glassProminent)
-        .tint(hasCopiedRedirectURI ? SortyTheme.spotifyGreen : SortyTheme.accent)
-        .controlSize(.large)
+        // The way-in screen's button, as every button in this flow now is. The
+        // tint is the only thing that differs, and it is carrying the same
+        // story as the words: the app's accent while the work is still Sorty's,
+        // Spotify's green once the next thing is on their site.
+        .buttonStyle(OnboardingButton(tint: hasCopiedRedirectURI ? SortyTheme.spotifyGreen : SortyTheme.accent))
         .accessibilityHint(
             hasCopiedRedirectURI
                 ? "Opens Spotify's developer dashboard."
@@ -294,26 +304,33 @@ struct ConnectFlowView: View {
 
     // MARK: - Advancing
 
+    /// The way-in screen's foot, to the point: the same button, the same depth
+    /// beneath it, and nothing else in it.
+    ///
+    /// **The depth is the levelling.** A screen's own space ends where its foot
+    /// begins, so the four steps line up with the first page for exactly as long
+    /// as their feet are the same. This one used to be a glass button at
+    /// `.controlSize(.large)` over 16pt of padding top *and* bottom, which is a
+    /// different button at a different height over a foot 20pt deeper - and the
+    /// words above it inherited every bit of that.
     private var advanceBar: some View {
         Button {
             advance()
         } label: {
             if isAuthenticating {
-                ProgressView().frame(maxWidth: .infinity)
+                // Tinted against the fill rather than the page, or the spinner
+                // is an accent-coloured mark on an accent-coloured capsule.
+                ProgressView()
+                    .tint(SortyTheme.onAccent)
+                    .frame(maxWidth: .infinity)
             } else {
-                Text(step.advanceTitle).frame(maxWidth: .infinity)
+                Text(step.advanceTitle)
             }
         }
-        .buttonStyle(.glassProminent)
-        .tint(step == .authorize ? SortyTheme.spotifyGreen : SortyTheme.accent)
-        .controlSize(.large)
+        .buttonStyle(OnboardingButton(tint: step == .authorize ? SortyTheme.spotifyGreen : SortyTheme.accent))
         .disabled(!canAdvance)
         .padding(.horizontal, 24)
-        // Above as well as below, because the page's own bottom edge is this
-        // button's top edge and a step's last control lands flush against it.
-        // Without the top inset the create-app step's button sits on the
-        // advance button.
-        .padding(.vertical, 16)
+        .padding(.bottom, OnboardingMetrics.buttonBottom)
         // No bar behind it. `safeAreaInset` already reserves the space, so
         // nothing scrolls under the button, and a grey slab here would cut the
         // bloom in half exactly where it is brightest.
@@ -384,6 +401,20 @@ struct ConnectFlowView: View {
 struct ConnectDetailSheet: View {
     let step: ConnectStep
 
+    /// The value to register, on the one step that registers it.
+    ///
+    /// **This is where the redirect URI lives now.** It was printed on the page
+    /// in a box above the button, which made the create-app step the only one in
+    /// the flow carrying a slab of text under its words - a page of onboarding
+    /// wearing a form. Behind the ⓘ it is still a tap away for the listener who
+    /// wants to check it character by character, which is the only reason to
+    /// look at it at all; everyone else copies it with the button and never
+    /// needs to see it.
+    ///
+    /// No copy control here. The page's button is the way to copy it, and
+    /// offering a second one is the choice that button exists to remove.
+    var redirectURI: String?
+
     @Environment(\.dismiss) private var dismiss
 
     /// One card per paragraph.
@@ -405,6 +436,12 @@ struct ConnectDetailSheet: View {
 
             ScrollView {
                 VStack(spacing: 12) {
+                    // First, above the prose. Somebody who opened this sheet
+                    // from the create-app step opened it to see this.
+                    if let redirectURI {
+                        redirectURICard(redirectURI)
+                    }
+
                     ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
                         Text(paragraph)
                             .font(.callout)
@@ -429,6 +466,29 @@ struct ConnectDetailSheet: View {
                 .ignoresSafeArea()
         }
         .tint(SortyTheme.accent)
+    }
+
+    /// The URI, on the same card the paragraphs use so it reads as part of the
+    /// answer rather than a control that wandered in from the page.
+    ///
+    /// Selectable, because checking it against what is in the dashboard is the
+    /// job it is here to do, and a listener who wants to compare two strings
+    /// character by character should be able to hold one of them.
+    private func redirectURICard(_ uri: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Redirect URI")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(uri)
+                .font(.body.monospaced())
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(SortyTheme.surface, in: .rect(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
     }
 
     private var header: some View {

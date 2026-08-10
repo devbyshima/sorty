@@ -94,7 +94,12 @@ public enum ConnectStep: Int, CaseIterable, Identifiable, Sendable, Comparable {
         case .why:
             "Spotify caps any single app at five listeners, so everyone brings their own. It's free, and takes about two minutes."
         case .createApp:
-            "Create an app on Spotify's dashboard, then add the redirect URI below exactly as it appears."
+            // **This line names the two taps under it, in order.** It used to
+            // read "add the redirect URI below", which pointed at a box printed
+            // on the page; the box is behind the ⓘ now and "below" is the
+            // button that copies it. A step whose words point at something that
+            // is no longer there is worse than a step that says nothing.
+            "Copy Sorty's redirect URI, then create an app on Spotify's dashboard and paste the URI into it."
         case .clientID:
             "Your app's page shows a Client ID and a Client Secret. Sorty needs the ID."
         case .authorize:
@@ -125,10 +130,11 @@ public enum ConnectStep: Int, CaseIterable, Identifiable, Sendable, Comparable {
             """
             Any name and description will do - nobody but you will see them.
 
-            Add the redirect URI exactly as it appears, including the scheme: \
-            Spotify matches it character for character, and a URI that is subtly \
-            wrong fails later with a message about the application rather than \
-            about the one character that differs.
+            The redirect URI is the one above, and it goes in the app's Redirect \
+            URIs field exactly as it appears, scheme and all: Spotify matches it \
+            character for character, and a URI that is subtly wrong fails later \
+            with a message about the application rather than about the one \
+            character that differs.
 
             Then add your own Spotify account under Users Management. The \
             application's owner needs Spotify Premium.

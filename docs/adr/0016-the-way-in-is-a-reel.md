@@ -526,3 +526,55 @@ prose on the default opaque panel. It is now Beam's sheet pattern:
 `-connectDetail` arrives with the sheet open, for the same reason `-sheet` exists:
 it opens on a tap and this harness never taps. Shot over step 1, whose answer is
 the longest of the four, so the set carries the shape at its most demanding.
+
+## Addendum, 2026-08-10: one button, and one foot
+
+The five screens were levelled by their glyphs and their words, and still did
+not match at the bottom. The way-in screen drew a solid accent capsule -
+`.buttonStyle(.plain)`, headline label, 15pt of air above and below. The four
+connect steps drew `.glassProminent` at `.controlSize(.large)`. Different
+material, different height, different corner, one tap apart.
+
+**The button is now a `ButtonStyle`, `OnboardingButton`, and there is one of
+it.** The way-in screen's, unchanged - it is the specification. Its only
+parameter is the tint, because the tint is the only thing that ever legitimately
+differs: Spotify's green on the two controls whose next stop is Spotify's own
+site. Disabled and pressed faces belong to the style, so a caller says
+`.disabled()` and gets the right one.
+
+**A screen's foot is what levels it, and the foot is `buttonBottom` and nothing
+else.** A screen's own space ends where its foot begins, so two screens whose
+feet are the same depth put their words on the same line - and every unit of
+padding added below the page comes back as drift above it. Three things were
+quietly making the flow's foot deeper than the first page's, none of them
+visible as a number anyone had chosen:
+
+- 16pt of padding above the advance button, which is foot depth spelled
+  differently. A step wanting air between its last control and the button now
+  takes `buttonClearance` *inside* the page, where it pushes only its own words.
+- `safeAreaInset(edge:)`'s **default spacing**, which is not zero. It held the
+  words 12pt high with the buttons already levelled to the pixel and nothing in
+  the source to point at. Pass `spacing: 0`.
+- 4 and 16 points of padding on a control block that, on two of the four steps,
+  **contains nothing**. An empty view still takes its padding.
+
+Measured by stacking the same band from all five shots, per the practice above:
+heading at 1958px and button at 2325px on the way-in screen and on every step
+that carries no controls of its own.
+
+**The create-app step has only buttons on it now.** The redirect URI was printed
+in a box above the button, which made it the one step in the flow wearing a form.
+The value moved into the ⓘ sheet, first card, above the prose that tells you what
+to do with it - a tap away for the listener who wants to check it character by
+character, which is the only reason to look at a URI at all, and out of the way
+of everyone else, who copies it with the button and never needs to see it. There
+is deliberately no copy control in the sheet: the page's button is how it is
+copied, and a second one is the choice that button exists to remove.
+
+The step's words changed with it. They read "add the redirect URI below", which
+pointed at the box; they now name the two taps under them in order. **A line of
+copy that points at something no longer on the screen is worse than one that says
+nothing**, and it is invisible in a diff that only moved a view.
+
+`39-connect-app-detail` shoots that sheet. The URI is in exactly one place in the
+whole interface now, so a change that loses it has to be visible in the set.

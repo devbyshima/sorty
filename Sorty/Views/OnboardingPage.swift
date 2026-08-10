@@ -142,6 +142,61 @@ enum OnboardingMetrics {
     /// The least gap between the glyph and the words, when a screen is short
     /// enough that the two would otherwise meet.
     static let glyphGap: CGFloat = 24
+
+    /// The button's own vertical padding. With a headline label this is the
+    /// 52pt capsule the way-in screen has always drawn.
+    static let buttonPadding: CGFloat = 15
+
+    /// How far the button sits above the bottom safe area, and the only
+    /// thing under it.
+    ///
+    /// **Every onboarding screen reserves exactly this much foot**, which is
+    /// what levels them: a screen's own space ends where its button begins, so
+    /// two screens whose feet are the same depth put their words on the same
+    /// line. A step that wants air between its last control and the button
+    /// takes it from `buttonClearance` *inside* the page rather than by making
+    /// the foot deeper, because a deeper foot moves the words with it.
+    static let buttonBottom: CGFloat = 12
+
+    /// What a step's controls leave between themselves and the button.
+    static let buttonClearance: CGFloat = 16
+}
+
+/// The onboarding's button, and there is only one of it.
+///
+/// The way-in screen's: a solid accent capsule, a headline label, 15pt of air
+/// above and below. The four connect steps drew `.glassProminent` at
+/// `.controlSize(.large)` instead - a different material, a different height,
+/// a different corner - so the button changed shape one tap into a flow that is
+/// otherwise the same screen with different words in it.
+///
+/// A `ButtonStyle` rather than a view, so a caller cannot get half of it: the
+/// tint is the only thing it takes, and the tint is the only thing that ever
+/// legitimately differs (Spotify's green, on the two controls whose next stop is
+/// Spotify's own site).
+struct OnboardingButton: ButtonStyle {
+    var tint: Color = SortyTheme.accent
+
+    /// Read here rather than passed in, so `.disabled()` is the only thing a
+    /// caller has to say. The disabled face is the one the flow already had
+    /// under `.glassProminent`: the label recedes and the fill goes to the
+    /// raised surface, so a button that cannot be tapped does not look like an
+    /// accent-coloured invitation to tap it.
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, OnboardingMetrics.buttonPadding)
+            .foregroundStyle(isEnabled ? AnyShapeStyle(SortyTheme.onAccent) : AnyShapeStyle(.secondary))
+            .background(
+                isEnabled ? AnyShapeStyle(tint) : AnyShapeStyle(SortyTheme.raisedSurface),
+                in: .capsule
+            )
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+    }
 }
 
 /// The heading and its line or two, with the ⓘ when there is more to read.

@@ -302,6 +302,10 @@ shoot 37-connect-authorize -demo -screen connect -connectStep authorize
 # because that step's answer is the longest of the four - three cards - so this
 # is the shape at its most demanding.
 shoot 38-connect-detail -demo -screen connect -connectStep why -connectDetail
+# The same sheet over step 2, which is the only one carrying a value rather than
+# only prose. The redirect URI is *here* and nowhere else in the interface, so
+# a change that loses it has to be visible in this set or it ships unnoticed.
+shoot 39-connect-app-detail -demo -screen connect -connectStep createApp -connectDetail
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 

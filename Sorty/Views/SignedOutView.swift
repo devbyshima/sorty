@@ -117,21 +117,20 @@ struct SignedOutView: View {
 
     // MARK: - The action
 
+    /// The foot every other onboarding screen is levelled against.
+    ///
+    /// It looks the same as it always did, and is now written the same way the
+    /// connect flow's is: one `OnboardingButton`, `buttonBottom` beneath it, and
+    /// nothing else in the foot. The four steps used to draw a glass button of
+    /// their own at a different height over a deeper foot, which is what put
+    /// them off this screen's line.
     private var connect: some View {
-        VStack(spacing: 0) {
-            Button(action: onConnect) {
-                Text("Connect Spotify")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 15)
-                    .background(SortyTheme.accent, in: .capsule)
-                    .foregroundStyle(SortyTheme.onAccent)
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Starts the four steps for connecting your Spotify account.")
-
+        Button(action: onConnect) {
+            Text("Connect Spotify")
         }
+        .buttonStyle(OnboardingButton())
+        .accessibilityHint("Starts the four steps for connecting your Spotify account.")
         .padding(.horizontal, 24)
-        .padding(.bottom, 12)
+        .padding(.bottom, OnboardingMetrics.buttonBottom)
     }
 }
