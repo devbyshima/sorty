@@ -34,12 +34,11 @@ Beam's posture.**
   continuing rather than two screens meeting.
 - **The connect flow** gains that backdrop, a per-step glyph, centred type, and a
   button that floats rather than sitting on a bar.
-- **It is a page that pushes, not a modal that rises.** Neither `sheet` nor
-  `fullScreenCover`: both animate up from the bottom and iOS offers no way to
-  change that. The flow is a sequence of pages, so it arrives from the right -
-  an overlay carrying `.move(edge: .trailing)`, which is the only thing that
-  pushes. A card also spent the top of every step on the inset and grabber,
-  which is where the step spine has to live.
+- **It is not a modal that rises.** Neither `sheet` nor `fullScreenCover`: both
+  animate up from the bottom and iOS offers no way to change that, and a card
+  also spent the top of every step on the inset and grabber. It is an overlay,
+  which is the only way to choose the transition at all. It pushed in from the
+  right for a while and now **cross-fades** - see the addendum below.
 
 ## What was deliberately *not* taken from Beam
 
@@ -467,3 +466,31 @@ Sorty needs in order to work should require another app.
 The dashboard button is Spotify's green in glass, prominent, with `arrow.up.right`
 beside it - the glyph iOS uses wherever a control leads somewhere web-shaped. It
 says a page opens without promising to leave, which is now the truth.
+
+
+## Addendum, 2026-08-10: the flow fades in, and the link says what it is
+
+**Way-in to first step is a cross-fade**, not a push from the right.
+
+The push was right about one thing - this is not a modal rising from the bottom -
+and wrong about another. By the time the two screens had been made to match, they
+*were* matching: the same glyph in the same place over the same bloom, differing
+only in their words. Sliding one off to reveal the other animated a journey
+between two screens that mostly agree, and the parts that agree jumped. A
+dissolve lets those parts hold still and changes only what actually changed.
+
+It also needs no Reduce Motion branch, being already the reduced form of every
+other transition here.
+
+One thing to keep an eye on: the argument for dropping the `xmark` was that
+"pages that push have one way back". A fade is not a push, so that sentence no
+longer carries the decision on its own. The chevron-that-closes-from-step-one
+still stands up by itself - four steps are a stack, and going back off the first
+one is how you leave - but if a second way out is ever wanted again, this is the
+paragraph that stopped justifying its absence.
+
+**The link glyph is `arrow.up.forward.square`.** The same box as this app's own
+save symbol on the way-in screen, inverted so the arrow leaves rather than
+enters, and turned diagonal. `arrow.up.right` before it was a direction; this is
+a thing being opened out of, which is what a link is - and it rhymes with a
+symbol the listener met one screen earlier.

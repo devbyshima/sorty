@@ -162,10 +162,14 @@ struct ConnectFlowView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Text("Open the Spotify Dashboard")
-                        // Says it opens a page, without promising to leave: it
-                        // no longer does. `arrow.up.right` is the glyph iOS uses
-                        // wherever a control leads somewhere web-shaped.
-                        Image(systemName: "arrow.up.right")
+                        // The same box as this app's own save glyph
+                        // (`square.and.arrow.down` on the way-in screen),
+                        // inverted so the arrow leaves rather than enters, and
+                        // turned diagonal. A bare `arrow.up.right` was a
+                        // direction; this is a thing being opened out of, which
+                        // is what a link is - and it rhymes with a symbol the
+                        // listener has already met one screen earlier.
+                        Image(systemName: "arrow.up.forward.square")
                             .font(.footnote.weight(.semibold))
                     }
                     .frame(maxWidth: .infinity)

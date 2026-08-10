@@ -86,7 +86,7 @@ struct SettingsView: View {
                             Label {
                                 Text("Open Spotify Developer Dashboard")
                             } icon: {
-                                Image(systemName: "arrow.up.right")
+                                Image(systemName: "arrow.up.forward.square")
                             }
                         }
                     } header: {

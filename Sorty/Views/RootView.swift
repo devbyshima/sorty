@@ -17,7 +17,6 @@ struct RootView: View {
     /// the user says otherwise. Applied at the root so sheets inherit it, which
     /// they would not if it were applied per screen.
     @AppStorage("appearance") private var appearance: AppearanceChoice = .system
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -42,30 +41,32 @@ struct RootView: View {
         .preferredColorScheme(appearance.colorScheme)
         .sheet(isPresented: $showingSettings) { SettingsView() }
         .sheet(isPresented: $showingFAQ) { FAQView() }
-        // The connect flow arrives from the right, like a page being pushed.
+        // The connect flow cross-fades in.
         //
-        // Not a `sheet` and not a `fullScreenCover` either: both animate up from
-        // the bottom, and iOS gives no way to change that. The flow *is* the
-        // onboarding (`CONTEXT.md`), a sequence of pages you move through, and
-        // a modal rising from the bottom framed it as an errand laid on top of
-        // the app rather than the way into it.
+        // An overlay rather than a `sheet` or a `fullScreenCover`, because both
+        // of those animate up from the bottom and iOS gives no way to change it.
+        // The flow *is* the onboarding (`CONTEXT.md`) rather than an errand laid
+        // on top of the app, and a modal rising from the bottom said the
+        // opposite.
         //
-        // An overlay with a `.move(edge: .trailing)` transition is the only
-        // thing that pushes. It costs the free `dismiss()` a presentation gives,
-        // so leaving is handed in as a closure - which is also what lets the
-        // back chevron double as the way out (see `ConnectFlowView`).
+        // It slid in from the right for a while. The fade is quieter and it is
+        // also more honest about what happens: the way-in screen and the first
+        // step are the same composition - the same glyph in the same place over
+        // the same bloom - so sliding one off to reveal the other animated a
+        // journey between two screens that mostly agree. Dissolving one into the
+        // next lets the parts that match stay still.
+        //
+        // The overlay costs the free `dismiss()` a presentation gives, so
+        // leaving is handed in as a closure - which is also what lets the back
+        // chevron double as the way out (see `ConnectFlowView`).
         .overlay {
             if showingConnect {
                 ConnectFlowView(onClose: { closeConnect() })
-                    .transition(
-                        reduceMotion
-                            ? .opacity
-                            : .move(edge: .trailing)
-                    )
+                    .transition(.opacity)
                     .zIndex(1)
             }
         }
-        .animation(.snappy(duration: 0.3), value: showingConnect)
+        .animation(.easeInOut(duration: 0.28), value: showingConnect)
         .task {
             guard !didRestore else { return }
             didRestore = true
@@ -107,9 +108,12 @@ struct RootView: View {
     }
 
     /// Leaving the connect flow. Animated here rather than at the call site so
-    /// the push out matches the push in.
+    /// the fade out matches the fade in.
+    ///
+    /// A cross-fade needs no Reduce Motion branch: it is already the reduced
+    /// form of every other transition in this app.
     private func closeConnect() {
-        withAnimation(.snappy(duration: 0.3)) { showingConnect = false }
+        withAnimation(.easeInOut(duration: 0.28)) { showingConnect = false }
     }
 
     private var library: some View {
