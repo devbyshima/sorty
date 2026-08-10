@@ -494,3 +494,24 @@ save symbol on the way-in screen, inverted so the arrow leaves rather than
 enters, and turned diagonal. `arrow.up.right` before it was a direction; this is
 a thing being opened out of, which is what a link is - and it rhymes with a
 symbol the listener met one screen earlier.
+
+## Addendum, 2026-08-10: the info sheet is Beam's
+
+`ConnectDetailSheet` was a `NavigationStack` with a title bar and a scroll of
+prose on the default opaque panel. It is now Beam's sheet pattern:
+
+- **A real Liquid Glass presentation background**, so the step underneath shows
+  through refracted rather than being replaced by a grey slab. That matters more
+  here than it would elsewhere - what the sheet explains is on the page directly
+  behind it, and hiding that page to explain it is the wrong way round.
+- **No navigation bar.** A centred bold title with a glass circle close on the
+  trailing edge, which is what Beam's `BeamSheetHeader` does.
+- **One surface card per paragraph.** `ConnectStep.detail` is written as
+  blank-line-separated paragraphs, each answering a different question, and
+  splitting them is the difference between a reference and a wall. Solid rows
+  also stand out against glass in a way bare text on a translucent panel does
+  not - which is Beam's reason for `beamRowCard`, and the same reason applies.
+
+`-connectDetail` arrives with the sheet open, for the same reason `-sheet` exists:
+it opens on a tap and this harness never taps. Shot over step 1, whose answer is
+the longest of the four, so the set carries the shape at its most demanding.

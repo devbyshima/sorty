@@ -165,6 +165,14 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "advanceAfter").flatMap(Double.init)
     }
 
+    /// `-connectDetail` - arrive with a step's info sheet already open.
+    ///
+    /// Same reason as `-sheet`: it opens on a tap and this harness never taps,
+    /// so the only way to photograph it is to be able to arrive presented.
+    static var showsConnectDetail: Bool {
+        CommandLine.arguments.contains("-connectDetail")
+    }
+
     static var isActive: Bool { screen != nil }
     #else
     static var screen: Screen? { nil }
@@ -180,6 +188,7 @@ enum DebugLaunch {
     static var usesDemoData: Bool { false }
     static var holdsCovers: Bool { false }
     static var advanceAfter: Double? { nil }
+    static var showsConnectDetail: Bool { false }
     static var isActive: Bool { false }
     #endif
 }

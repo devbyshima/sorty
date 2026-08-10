@@ -96,6 +96,7 @@ struct ConnectFlowView: View {
             .onAppear {
                 clientID = session.configuration.clientID
                 if let start = DebugLaunch.connectStep { step = start }
+                if DebugLaunch.showsConnectDetail { showingDetail = true }
             }
             #if DEBUG
             .task {
@@ -330,35 +331,95 @@ struct ConnectFlowView: View {
 ///
 /// A sheet rather than another page: it is an aside, not a stop on the way, and
 /// it has to be leavable without losing your place in a four-step sequence.
+///
+/// **Built on Beam's sheet pattern.** The presentation background is real Liquid
+/// Glass rather than the default opaque panel, so the step underneath shows
+/// through refracted and the sheet reads as something laid *over* the flow
+/// instead of a second screen that replaced it - which matters here, because
+/// what it explains is on the page behind it.
+///
+/// The navigation bar is gone in favour of a centred title with a glass close
+/// button on the trailing edge, and the answer is broken into cards on
+/// `SortyTheme.surface`. Both are Beam's: solid rows stand out against glass in
+/// a way that bare text on a translucent panel does not, and a wall of prose
+/// behind an info button is the thing an info button is supposed to spare you.
 struct ConnectDetailSheet: View {
     let step: ConnectStep
 
     @Environment(\.dismiss) private var dismiss
 
+    /// One card per paragraph.
+    ///
+    /// `ConnectStep.detail` is written as blank-line-separated paragraphs, each
+    /// answering a different question, so they are separated here rather than
+    /// run together - which is the whole difference between a reference and a
+    /// wall.
+    private var paragraphs: [String] {
+        step.detail
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            header
+
             ScrollView {
-                Text(step.detail)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
-            }
-            .background(SortyTheme.background)
-            .navigationTitle(step.title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
+                VStack(spacing: 12) {
+                    ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                        Text(paragraph)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
+                            .background(SortyTheme.surface, in: .rect(cornerRadius: 16))
                     }
-                    .accessibilityLabel("Done")
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        // Real glass, not the default panel: the step this explains is directly
+        // behind it and should stay visible through it.
+        .presentationBackground {
+            Color.clear
+                .glassEffect(.regular, in: Rectangle())
+                .ignoresSafeArea()
+        }
+        .tint(SortyTheme.accent)
+    }
+
+    private var header: some View {
+        ZStack {
+            Text(step.title)
+                .font(.title2.bold())
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 56)
+
+            HStack {
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, height: 30)
+                        .glassEffect(.regular, in: .circle)
+                        .glassEdge(in: .circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Done")
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
     }
 }
