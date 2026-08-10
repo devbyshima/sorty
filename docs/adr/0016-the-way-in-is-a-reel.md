@@ -439,3 +439,31 @@ button used to say that Spotify requires each listener to register a free
 developer app. The first connect step still opens on exactly that, so the fact
 arrives one tap later rather than not at all - which is what a clean foot costs
 here, and worth knowing if that step's copy is ever cut further.
+
+## Addendum, 2026-08-10: setup never leaves the app
+
+Connecting an account means visiting Spotify's developer dashboard, creating an
+application, copying a Client ID out of it, and pasting that into a field on the
+screen you just left. Handed to Safari, that was a three-app errand - Sorty,
+Safari, back to Sorty - across which the listener holds a string in their head
+and the redirect URI they were told to copy *exactly* is two apps away.
+
+**`InAppBrowser` keeps it here**, in both places setup reaches for the dashboard:
+the connect flow's second step and Settings' Client ID section, which sits
+directly above the field the dashboard exists to fill.
+
+`SFSafariViewController`, not `WKWebView`. This is somebody's account and a login
+form deserves the browser's own chrome saying whose site it is; a web view we
+drew ourselves would ask them to trust an address bar we control. It also
+**shares cookies and website data with Safari**, so anyone already signed in to
+Spotify stays signed in.
+
+**What still leaves, and should.** The attribution mark, Open on Spotify in the
+track sheet, and the way out of a withheld playlist all hand off deliberately -
+they exist to put the listener in Spotify, and Spotify's own guidelines ask for
+the app where it is installed (ADR-0013). The rule is about *setup*: nothing
+Sorty needs in order to work should require another app.
+
+The dashboard button is Spotify's green in glass, prominent, with `arrow.up.right`
+beside it - the glyph iOS uses wherever a control leads somewhere web-shaped. It
+says a page opens without promising to leave, which is now the truth.

@@ -19,7 +19,6 @@ struct ConnectFlowView: View {
     var onClose: () -> Void = {}
 
     @Environment(SessionModel.self) private var session
-    @Environment(\.openURL) private var openURL
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var step: ConnectStep = .why
@@ -27,6 +26,8 @@ struct ConnectFlowView: View {
     @State private var isAuthenticating = false
     @State private var presenter = AuthPresenter()
     @State private var showingDetail = false
+    /// The dashboard, when it is open. Setup never leaves the app.
+    @State private var browsing: BrowsableURL?
 
     private var check: ClientIDCheck { ClientIDCheck.check(clientID) }
 
@@ -83,6 +84,14 @@ struct ConnectFlowView: View {
             }
             .sheet(isPresented: $showingDetail) {
                 ConnectDetailSheet(step: step)
+            }
+            // In a sheet over the flow rather than a hand-off to Safari. The
+            // Client ID has to be carried from that page to the field on the
+            // next one, and an errand across three apps is where it gets
+            // dropped.
+            .sheet(item: $browsing) { target in
+                InAppBrowser(url: target.url)
+                    .ignoresSafeArea()
             }
             .onAppear {
                 clientID = session.configuration.clientID
@@ -149,14 +158,22 @@ struct ConnectFlowView: View {
         case .createApp:
             VStack(alignment: .leading, spacing: 14) {
                 Button {
-                    if let url = URL(string: "https://developer.spotify.com/dashboard") {
-                        openURL(url)
-                    }
+                    browsing = SpotifyLinks.dashboard
                 } label: {
-                    Label("Open the Spotify Dashboard", systemImage: "safari")
-                        .frame(maxWidth: .infinity)
+                    HStack(spacing: 6) {
+                        Text("Open the Spotify Dashboard")
+                        // Says it opens a page, without promising to leave: it
+                        // no longer does. `arrow.up.right` is the glyph iOS uses
+                        // wherever a control leads somewhere web-shaped.
+                        Image(systemName: "arrow.up.right")
+                            .font(.footnote.weight(.semibold))
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                // Spotify's green, in glass. Prominent rather than plain,
+                // because on this step it is the thing to do - the advance
+                // button below only becomes true once this has been.
+                .buttonStyle(.glassProminent)
                 .tint(SortyTheme.spotifyGreen)
                 .controlSize(.large)
 

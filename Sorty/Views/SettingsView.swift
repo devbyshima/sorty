@@ -3,7 +3,8 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(SessionModel.self) private var session
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
+    /// The dashboard, when it is open.
+    @State private var browsing: BrowsableURL?
     /// The same key `RootView` applies, so changing it here changes the whole
     /// app rather than this sheet.
     @AppStorage("appearance") private var appearance: AppearanceChoice = .system
@@ -74,9 +75,18 @@ struct SettingsView: View {
                                 .autocorrectionDisabled()
                                 .multilineTextAlignment(.trailing)
                         }
-                        Button("Open Spotify Developer Dashboard", systemImage: "safari") {
-                            if let url = URL(string: "https://developer.spotify.com/dashboard") {
-                                openURL(url)
+                        // Same in-app browser the connect flow uses: this row
+                        // sits directly above the Client ID field it feeds, and
+                        // sending somebody to Safari to fetch a string for a
+                        // field they are looking at is the errand `InAppBrowser`
+                        // exists to remove.
+                        Button {
+                            browsing = SpotifyLinks.dashboard
+                        } label: {
+                            Label {
+                                Text("Open Spotify Developer Dashboard")
+                            } icon: {
+                                Image(systemName: "arrow.up.right")
                             }
                         }
                     } header: {
@@ -138,6 +148,10 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $showingFAQ) { FAQView() }
+            .sheet(item: $browsing) { target in
+                InAppBrowser(url: target.url)
+                    .ignoresSafeArea()
+            }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
