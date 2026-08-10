@@ -173,6 +173,18 @@ enum DebugLaunch {
         CommandLine.arguments.contains("-connectDetail")
     }
 
+    /// `-dashboard` - arrive with the in-app browser already open.
+    ///
+    /// Two taps in, so unreachable here for the usual reason. It earns an
+    /// argument of its own beyond that, though: the browser is an
+    /// `ASWebAuthenticationSession` rather than a view, and a session that
+    /// declines to start does it *silently* - the button would simply do
+    /// nothing, and the code that failed is a framework call with no visible
+    /// output to check. This is the only way to see that the page opens at all.
+    static var opensDashboard: Bool {
+        CommandLine.arguments.contains("-dashboard")
+    }
+
     static var isActive: Bool { screen != nil }
     #else
     static var screen: Screen? { nil }
@@ -189,6 +201,7 @@ enum DebugLaunch {
     static var holdsCovers: Bool { false }
     static var advanceAfter: Double? { nil }
     static var showsConnectDetail: Bool { false }
+    static var opensDashboard: Bool { false }
     static var isActive: Bool { false }
     #endif
 }

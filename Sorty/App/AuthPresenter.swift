@@ -1,6 +1,21 @@
 import AuthenticationServices
 import SwiftUI
 
+/// The window an `ASWebAuthenticationSession` presents over.
+///
+/// Shared, because the app now starts two of them - the consent flow and the
+/// dashboard - and two copies of this would be two chances to resolve the
+/// anchor differently on a phone with more than one scene.
+@MainActor
+enum PresentationAnchor {
+    static func current() -> ASPresentationAnchor? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+        else { return nil }
+        return scene.keyWindow ?? ASPresentationAnchor(windowScene: scene)
+    }
+}
+
 /// Runs the Spotify consent flow in `ASWebAuthenticationSession`.
 ///
 /// This is the only correct surface for OAuth on iOS: it shares Safari's cookie
@@ -24,12 +39,7 @@ final class AuthPresenter: NSObject, ASWebAuthenticationPresentationContextProvi
         return anchor
     }
 
-    private static func currentAnchor() -> ASPresentationAnchor? {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
-        else { return nil }
-        return scene.keyWindow ?? ASPresentationAnchor(windowScene: scene)
-    }
+    private static func currentAnchor() -> ASPresentationAnchor? { PresentationAnchor.current() }
 
     /// Presents the flow and resolves with the callback URL.
     ///

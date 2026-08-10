@@ -578,3 +578,48 @@ nothing**, and it is invisible in a diff that only moved a view.
 
 `39-connect-app-detail` shoots that sheet. The URI is in exactly one place in the
 whole interface now, so a change that loses it has to be visible in the set.
+
+## Addendum, 2026-08-10: the dashboard opens on Safari's cookies
+
+The in-app browser was an `SFSafariViewController`, carrying a comment that said
+it "shares cookies and website data with Safari - so anyone already signed in to
+Spotify stays signed in". **That was true when it was written and stopped being
+true in iOS 11**, which cut Safari view controllers off from Safari's data and
+gave each app a store of its own. The comment outlived the behaviour, and while
+it stood, nobody looked.
+
+What it cost, every setup, and it is exactly one login:
+
+| | reads | |
+|---|---|---|
+| Step 2, the dashboard | Sorty's private jar | asks for the password |
+| Step 4, authorising | Safari's jar, via `ASWebAuthenticationSession` | asks again |
+
+A listener signed in to Spotify everywhere else on their phone was signed in to
+neither of these. And the second login is the one iOS *can* skip - it was
+already skipping it, for anyone who had ever reached step 4 - so the dashboard
+was the only real prompt, and the only reason for it was which of two jars it
+happened to read.
+
+**The dashboard now opens through `ASWebAuthenticationSession` too**, with
+`prefersEphemeralWebBrowserSession = false`. It is the only surface iOS offers
+that stays inside the app *and* reads Safari's jar, so one login now covers both
+steps - none at all for a listener already signed in to Spotify in Safari.
+
+**This is an authentication API showing a page, and the cost is paid up front:**
+the system asks "Sorty wants to use developer.spotify.com to sign in" before the
+page appears, and there is no address bar. Both are defensible here - a dashboard
+visit is a sign-in to Spotify, and an alert that names the site is a stronger
+claim about where you are than an address bar Sorty drew. `40-connect-dashboard`
+photographs that alert, so the trade is in the set rather than only in this file.
+
+**Still not a `WKWebView`**, and that reason has not changed: a web view Sorty
+owns could read the password typed into it, and asking to be trusted not to is
+the thing OAuth's in-app-browser rules exist to prevent. Leaving for Safari would
+also have worked, and was rejected for the reason it was rejected the first time
+- setup does not leave the app.
+
+`-dashboard` arrives with the browser open. Beyond the usual "it takes a tap and
+this harness never taps", it earns an argument because **a session that declines
+to start does it silently**: the button would simply do nothing, and there is no
+view to inspect and no error to print.

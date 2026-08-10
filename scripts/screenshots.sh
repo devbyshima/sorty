@@ -306,6 +306,13 @@ shoot 38-connect-detail -demo -screen connect -connectStep why -connectDetail
 # only prose. The redirect URI is *here* and nowhere else in the interface, so
 # a change that loses it has to be visible in this set or it ships unnoticed.
 shoot 39-connect-app-detail -demo -screen connect -connectStep createApp -connectDetail
+# The dashboard, opening. Two things in one shot, neither reachable otherwise:
+# the create-app button's *second* state - green, "Open the Spotify Dashboard",
+# which only appears after a tap - and the consent alert that buys the shared
+# cookie jar. The browser is an `ASWebAuthenticationSession`, and a session that
+# declines to start does it silently, so this is also the only evidence in the
+# set that the page opens at all.
+shoot 40-connect-dashboard -demo -screen connect -connectStep createApp -dashboard
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 

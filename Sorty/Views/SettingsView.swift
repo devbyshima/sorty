@@ -3,8 +3,9 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(SessionModel.self) private var session
     @Environment(\.dismiss) private var dismiss
-    /// The dashboard, when it is open.
-    @State private var browsing: BrowsableURL?
+    /// The dashboard. Opened on the same cookies the sign-in reads, so it does
+    /// not ask for a login the listener has already given.
+    @State private var browser = InAppBrowser()
     /// The same key `RootView` applies, so changing it here changes the whole
     /// app rather than this sheet.
     @AppStorage("appearance") private var appearance: AppearanceChoice = .system
@@ -81,7 +82,7 @@ struct SettingsView: View {
                         // field they are looking at is the errand `InAppBrowser`
                         // exists to remove.
                         Button {
-                            browsing = SpotifyLinks.dashboard
+                            browser.open(SpotifyLinks.dashboard)
                         } label: {
                             Label {
                                 Text("Open Spotify Developer Dashboard")
@@ -148,10 +149,6 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $showingFAQ) { FAQView() }
-            .sheet(item: $browsing) { target in
-                InAppBrowser(url: target.url)
-                    .ignoresSafeArea()
-            }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

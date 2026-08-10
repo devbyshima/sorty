@@ -26,8 +26,9 @@ struct ConnectFlowView: View {
     @State private var isAuthenticating = false
     @State private var presenter = AuthPresenter()
     @State private var showingDetail = false
-    /// The dashboard, when it is open. Setup never leaves the app.
-    @State private var browsing: BrowsableURL?
+    /// The dashboard. Setup never leaves the app, and since it opens on the
+    /// same cookies the sign-in reads, it never asks for a second login either.
+    @State private var browser = InAppBrowser()
     /// Whether the redirect URI is on the clipboard, which is what turns this
     /// step's one control from Copy into Open.
     ///
@@ -124,18 +125,14 @@ struct ConnectFlowView: View {
                     redirectURI: step == .createApp ? session.configuration.redirectURI : nil
                 )
             }
-            // In a sheet over the flow rather than a hand-off to Safari. The
-            // Client ID has to be carried from that page to the field on the
-            // next one, and an errand across three apps is where it gets
-            // dropped.
-            .sheet(item: $browsing) { target in
-                InAppBrowser(url: target.url)
-                    .ignoresSafeArea()
-            }
             .onAppear {
                 clientID = session.configuration.clientID
                 if let start = DebugLaunch.connectStep { step = start }
                 if DebugLaunch.showsConnectDetail { showingDetail = true }
+                if DebugLaunch.opensDashboard {
+                    hasCopiedRedirectURI = true
+                    browser.open(SpotifyLinks.dashboard)
+                }
             }
             #if DEBUG
             .task {
@@ -272,7 +269,7 @@ struct ConnectFlowView: View {
     private var dashboardAction: some View {
         Button {
             if hasCopiedRedirectURI {
-                browsing = SpotifyLinks.dashboard
+                browser.open(SpotifyLinks.dashboard)
             } else {
                 UIPasteboard.general.string = session.configuration.redirectURI
                 withAnimation(.snappy(duration: 0.28)) { hasCopiedRedirectURI = true }
