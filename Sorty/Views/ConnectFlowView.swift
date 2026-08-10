@@ -37,76 +37,28 @@ struct ConnectFlowView: View {
             // are the same screen as the reel with different words in it, which
             // is what makes the flow read as one thing rather than a landing
             // page followed by a form.
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-
-                OnboardingGlyph(symbol: symbol(for: step))
-
-                Spacer(minLength: 0)
-
+            OnboardingPage(
+                symbol: symbol(for: step),
+                title: step.title,
+                text: step.body,
+                onInfo: { showingDetail = true },
+                topInset: OnboardingMetrics.flowTopInset
+            ) {
                 VStack(spacing: 14) {
-                    Text(step.title)
-                        .font(.title2.bold())
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(step.body)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        // The rest of the answer, for whoever wants it.
-                        //
-                        // Beside the words rather than in the toolbar: it
-                        // belongs to *this* paragraph, and a listener wondering
-                        // about this sentence should not have to look somewhere
-                        // else to find out that more exists.
-                        Button {
-                            showingDetail = true
-                        } label: {
-                            Image(systemName: "info.circle")
-                                .font(.footnote)
-                                .foregroundStyle(SortyTheme.accent)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("More about this step")
-                    }
-
                     stepControls
-                }
-                .padding(.horizontal, 24)
-                // A floor under the words-and-controls block, so the glyph above
-                // lands in the same place on all four steps.
-                //
-                // Beam fixes this height outright (`.frame(height: 250)`).
-                // A floor rather than a fixed height because two of these steps
-                // carry controls Beam's do not - a text field, a copyable URI -
-                // and clamping them would push the field under the button. What
-                // matters is that the *short* steps stop letting the glyph drift
-                // down to meet their text, which is what made it jump on every
-                // change.
-                .frame(minHeight: 230, alignment: .top)
 
-                if let failure = session.connectFailure {
-                    ErrorRow(message: failure)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 16)
+                    // Outside the page's own block and holding still while pages
+                    // move: a failure belongs to the attempt rather than to the
+                    // step it happened on, and sliding it away with the page
+                    // would take the explanation with it.
+                    if let failure = session.connectFailure {
+                        ErrorRow(message: failure)
+                    }
                 }
-
-                Spacer(minLength: 24)
+                .padding(.top, 4)
             }
-            // Every page moves the way the reel's words move: up from below,
-            // blur-replacing. One transition across the whole onboarding, which
-            // is the point - a flow whose pages each arrive differently reads as
-            // several flows.
             .id(step)
-            .transition(
-                reduceMotion
-                    ? .opacity
-                    : .push(from: .bottom).combined(with: AnyTransition(.blurReplace))
-            )
+            .transition(.onboardingPage(reduceMotion: reduceMotion))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background { SplashBackdrop() }
             .safeAreaInset(edge: .bottom) { advanceBar }

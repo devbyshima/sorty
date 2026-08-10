@@ -380,3 +380,30 @@ Two tests moved with the words. `firstStepNamesTheCap` and
 which of its two surfaces answers it. A third was added: every step's `detail`
 must say more than its `body`, or the info button is furniture that teaches
 people to ignore it.
+
+
+## Addendum, 2026-08-10: levelled by construction
+
+The five screens looked alike and did not line up. The reel centred its glyph
+with a fixed gap beneath it; the steps floated theirs between two `Spacer`s. So
+the symbol and the heading sat at different heights on either side of one flow,
+and moved again between steps as each page's text changed length.
+
+**`OnboardingPage` is now the only layout**, used by the reel's three screens and
+the flow's four. The mechanism is that the offsets above the heading are *fixed*:
+anything centred, or spaced by a `Spacer` at both ends, moves when its content
+changes length. With the distance from the top to the glyph and from the glyph to
+the heading pinned, every page puts them in the same place and pages with more to
+say grow downward into the space below.
+
+The one number that differs between the two callers is the top inset, because
+they do not share a top edge - the flow has a toolbar and the way-in screen does
+not, so the same number would put the flow's glyph a bar's height lower. Both
+live in `OnboardingMetrics`, together, because separated in two files they
+drifted once already.
+
+**The reel's glyph now transitions with its words.** It used to be only the text
+that pushed; the symbol swapped underneath via `contentTransition`, so half the
+screen travelled up and half cross-dissolved in place. That is a difference you
+feel without being able to name, and it was the last thing making the first
+screen move unlike the other four.

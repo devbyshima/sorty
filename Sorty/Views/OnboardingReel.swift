@@ -2,13 +2,18 @@ import SwiftUI
 
 /// The looping feature reel that opens the app when no account is connected.
 ///
-/// A port of Beam's `LoopOnBoarding` in Sorty's colour: `OnboardingGlyph` above,
-/// bouncing in time with its own rings, and the value props pushing up and
-/// blur-replacing underneath. The phase advances on a `TimelineView`, so nothing
-/// has to be told to tick.
+/// Beam's `LoopOnBoarding` in Sorty's colour, built out of the same
+/// `OnboardingPage` the connect steps use - so the reel's three screens and the
+/// flow's four are one screen with different words in it, levelled by
+/// construction rather than by two layouts kept in agreement by hand.
 ///
-/// The glyph is shared with the connect steps, which is what makes the five
-/// onboarding screens one screen with different words in it.
+/// The phase advances on a `TimelineView`, so nothing has to be told to tick.
+///
+/// **The whole page transitions, glyph included.** It used to be only the words:
+/// the symbol swapped underneath via `contentTransition`, so half the screen
+/// pushed up and the other half cross-dissolved in place, which is a difference
+/// you feel without being able to name. Now the page moves as one, exactly as a
+/// connect step does.
 ///
 /// **It never runs under Reduce Motion**, and that is decided by the caller
 /// rather than by a branch in here: an auto-advancing reel is not a bounce that
@@ -25,12 +30,20 @@ struct OnboardingReel: View {
 
     let phases: [Phase]
 
+    /// Levels this screen's glyph with the connect flow's.
+    ///
+    /// Larger than the flow's because this screen has no toolbar above it: the
+    /// difference between the two numbers is the bar the flow carries, so the
+    /// glyph lands in the same place on both.
+    let topInset: CGFloat
+
     /// How long each phase holds. Beam's is 3s and `OnboardingGlyph`'s bounce
     /// keyframes are cut to fit it exactly - 1.75s of movement, then 1.25s still
     /// - so changing this without changing those leaves the symbol bouncing into
     /// its own replacement.
     private let phaseDuration: TimeInterval = 3
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var startDate = Date()
 
     var body: some View {
@@ -39,50 +52,20 @@ struct OnboardingReel: View {
             let index = max(0, Int(elapsed / phaseDuration)) % max(phases.count, 1)
 
             ZStack {
-                OnboardingGlyph(symbol: phases[index].symbol, bounces: true)
-                    .padding(.bottom, 130)
-
-                ZStack {
-                    ForEach(phases.indices, id: \.self) { phase in
-                        if phase == index {
-                            text(phases[phase])
-                                // Up from the bottom, and every onboarding page
-                                // now moves the same way.
-                                //
-                                // **One edge, not an asymmetric pair.**
-                                // `push(from:)` describes both halves: it enters
-                                // from the named edge and exits to the *opposite*
-                                // one. Writing `insertion: .bottom, removal:
-                                // .top` looks like "in from below, out through
-                                // the top" and means the reverse.
-                                .transition(
-                                    .push(from: .bottom)
-                                        .combined(with: AnyTransition(.blurReplace))
-                                )
-                        }
+                ForEach(phases.indices, id: \.self) { phase in
+                    if phase == index {
+                        OnboardingPage(
+                            symbol: phases[phase].symbol,
+                            bounces: true,
+                            title: phases[phase].title,
+                            text: phases[phase].body,
+                            topInset: topInset
+                        )
+                        .transition(.onboardingPage(reduceMotion: reduceMotion))
                     }
                 }
-                .padding(.horizontal, 24)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .animation(.bouncy(duration: 0.8), value: index)
             }
+            .animation(.bouncy(duration: 0.8), value: index)
         }
-    }
-
-    private func text(_ phase: Phase) -> some View {
-        VStack(spacing: 12) {
-            Text(phase.title)
-                .font(.title2.bold())
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Text(phase.body)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(height: 130, alignment: .top)
-        .accessibilityElement(children: .combine)
     }
 }
