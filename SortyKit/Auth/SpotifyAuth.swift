@@ -8,12 +8,16 @@ public struct SpotifyAuthConfig: Sendable {
     /// Enough to read playlists and write the sorted result back, and nothing
     /// more.
     ///
-    /// **`playlist-read-collaborative` is not optional.** Without it Spotify
-    /// omits collaborative playlists you are a member of from `/me/playlists`
-    /// entirely - they are not misclassified, they never arrive - so the
-    /// Collaborative chip is empty and no shared playlist can be arranged. The
-    /// first three were "the same three the reference app uses"; the reference
-    /// app does not offer a Collaborative filter.
+    /// **`playlist-read-collaborative` is not optional, and it outlived the
+    /// feature it was added for.** ADR-0017 removed the Collaborative chip, the
+    /// badge, the count and the reconnect notice; Sorty no longer labels,
+    /// filters or diagnoses collaboration anywhere.
+    ///
+    /// It still has to ask for this. Without it Spotify omits a playlist you
+    /// collaborate on from `/me/playlists` entirely - not misclassified, never
+    /// delivered - and a playlist you collaborate on is one of only two kinds
+    /// Spotify will still open at all (ADR-0008). Dropping the scope would not
+    /// remove a badge; it would remove the playlists.
     public static let requiredScopes = [
         "playlist-read-private",
         "playlist-read-collaborative",
@@ -176,8 +180,9 @@ public actor SpotifyAuthenticator {
             ]
             var tokens = try await self.postToken(body)
             // A refresh response often omits `scope`. Carrying the previous
-            // grant forward stops a refresh from looking like a downgrade and
-            // raising a reconnect prompt against a perfectly good token.
+            // grant forward stops a refresh from looking like a downgrade in the
+            // stored record - the grant is not recoverable once overwritten, and
+            // this is the only place it is written down.
             if tokens.grantedScopes == nil {
                 tokens.grantedScopes = existing.grantedScopes
             }

@@ -106,14 +106,38 @@ public struct DemoCatalog: Sendable {
              tempoCentre: 94, energyCentre: 0.36, danceCentre: 0.44,
              valenceCentre: 0.56, acousticCentre: 0.7,
              episodes: 0, tracksWithoutFeatures: 2),
-        Spec(id: "37i9dQZF-demo-weekly", name: "Discover Weekly",
+        // The stem a real Discover Weekly carries. It is **not** `37i9dQZF…`,
+        // which is what this fixture said for a year and what `isPersonalized`
+        // checked - so the two agreed with each other and with nothing on
+        // Spotify, and the predicate named after this playlist never once
+        // matched it. ADR-0018.
+        Spec(id: "37i9dQZEVXcDEMOWEEKLY1", name: "Discover Weekly",
              description: "Your weekly mixtape of fresh music.",
              owner: PlaylistOwner(id: "spotify", displayName: "Spotify"),
              trackCount: 30, isPublic: false, collaborative: false,
              tempoCentre: 118, energyCentre: 0.6, danceCentre: 0.56,
              valenceCentre: 0.52, acousticCentre: 0.42,
              episodes: 0, tracksWithoutFeatures: 6),
+        // Spotify publishes the charts under an account of their own, and a
+        // playlist of theirs used to land in `.other` and be told to ask its
+        // owner for a collaborator's invite. Nobody is going to ask Spotify for
+        // one. Here so the fixed routing has something to be right about.
+        Spec(id: "37i9dQZEVXbDEMOCHARTS1", name: "Top 50 - Global",
+             description: "Your daily update of the most played tracks.",
+             owner: PlaylistOwner(id: "spotifycharts", displayName: "spotifycharts"),
+             trackCount: 50, isPublic: true, collaborative: false,
+             tempoCentre: 120, energyCentre: 0.7, danceCentre: 0.72,
+             valenceCentre: 0.6, acousticCentre: 0.18,
+             episodes: 0, tracksWithoutFeatures: 8),
     ]
+
+    /// Entries Spotify listed and would not describe.
+    ///
+    /// The catalogue is an array of playlists and cannot hold a hole, so the
+    /// number is stated rather than derived - which is the only way the footer
+    /// that reports it can be photographed at all. Three, because one would not
+    /// exercise the plural and a dozen would read as a broken account.
+    public static let withheldFromListing = 3
 
     private static let artistNames = [
         "Halcyon Field", "Vera Ash", "The Longwater", "Nils Bergström", "Kite & Anchor",

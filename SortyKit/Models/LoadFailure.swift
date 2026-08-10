@@ -10,10 +10,10 @@ import Foundation
 /// both together.
 ///
 /// Since 27 November 2024 Spotify has blocked newly registered applications
-/// from reading its own editorial and algorithmic playlists - Discover Weekly,
-/// Release Radar, the Daily Mixes, and anything under the `spotify` account.
-/// That is the single most likely reason a listener meets this, and it is not
-/// something Sorty can work around.
+/// from reading its own playlists - Discover Weekly, Release Radar, the Daily
+/// Mixes, the editorial lists, the charts, and anything else published under one
+/// of Spotify's own accounts. That is the single most likely reason a listener
+/// meets this, and it is not something Sorty can work around.
 public enum LoadFailure {
 
     public static func message(
@@ -26,10 +26,14 @@ public enum LoadFailure {
         }
 
         switch playlist.category(currentUserID: currentUserID) {
-        case .personalized:
-            return "Spotify doesn't let apps read playlists it makes for you, like Discover Weekly or your Daily Mixes. That's a restriction Spotify applies to every app registered since November 2024, and there is no way around it from here."
         case .spotify:
-            return "This playlist belongs to Spotify, and Spotify doesn't let apps read its own editorial playlists. That's a restriction on their API rather than something Sorty can ask for."
+            // One sentence for both kinds, because Sorty can no longer tell them
+            // apart and used to get it backwards. The id prefix that separated
+            // "made for you" from "edited by Spotify" did not match Discover
+            // Weekly, so the playlist most likely to bring a listener here was
+            // given the editorial wording. Naming both kinds is accurate for
+            // every playlist that reaches this arm. ADR-0018.
+            return "Spotify doesn't let apps read its own playlists: not the ones it builds for you, like Discover Weekly and your Daily Mixes, and not its editorial and chart lists either. That restriction applies to every app registered since November 2024, Sorty included, and there is no way around it from here."
         case .other:
             // The same sentence the library shows when it knows in advance, and
             // deliberately not a second wording of it: this is that rule

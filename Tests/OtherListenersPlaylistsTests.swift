@@ -41,9 +41,17 @@ struct OtherListenersPlaylistsTests {
         #expect(playlist(ownerID: "sam", collaborative: true).contentsAreReadable(byUserID: "me"))
         #expect(!playlist(ownerID: "sam").contentsAreReadable(byUserID: "me"))
         #expect(!playlist(ownerID: "spotify").contentsAreReadable(byUserID: "me"))
+        // **This assertion inverted with ADR-0018, deliberately.** It used to
+        // refuse an algorithmic playlist Spotify reports the listener as owning,
+        // on the strength of an id prefix. Ownership is a fact and the prefix is
+        // undocumented folklore, and a Client ID old enough to hold extended
+        // quota can read these - so refusing costs a listener a playlist they
+        // could have arranged, to save one request from a five-listener quota.
+        // Spotify is not you; every playlist that is genuinely Spotify's still
+        // fails on ownership, one line above.
         #expect(
-            !playlist(id: "37i9dQZF1DXcBWIGoYBM5M", ownerID: "me").contentsAreReadable(byUserID: "me"),
-            "Spotify reports the listener as owner of some algorithmic playlists and refuses them anyway"
+            playlist(id: "37i9dQZEVXcJZyENOWUFo7", ownerID: "me").contentsAreReadable(byUserID: "me"),
+            "an algorithmic playlist Spotify says you own is worth one request; refusing on Spotify's behalf is what the pre-check must not do"
         )
     }
 
@@ -228,7 +236,7 @@ private actor RefusingMusicService: MusicService {
     init(error: SpotifyAPIError) { self.error = error }
 
     func currentUser() async throws -> SpotifyUser { throw error }
-    func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist] { [] }
+    func playlists(onBatch: @Sendable (PlaylistListing) async -> Void) async throws -> [Playlist] { [] }
 
     func playlistItems(
         playlistID: String,

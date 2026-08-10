@@ -496,15 +496,21 @@ struct TrackListView: View {
         Group {
             switch model.phase {
             case .idle, .loading:
-                // Nothing. The tracks simply arrive.
+                // The shape of what is coming.
                 //
-                // This was a large spinner over "Loaded 40 of 120 tracks…". The
-                // count was honest and useless - a listener cannot act on it,
-                // and it turned a short fetch into a screen reporting on itself.
-                // What remains is the cover and the title, already drawn above,
-                // and then rows.
-                Color.clear
-                    .frame(height: 1)
+                // This was a large spinner over "Loaded 40 of 120 tracks…", and
+                // ADR-0015 was right to remove it: the count was honest and
+                // useless. It replaced it with nothing, and on this screen that
+                // was wrong by 0015's own test - *did the listener do something,
+                // and are they waiting to find out whether it worked?* They
+                // tapped a playlist. `rows` is assigned once, after every page
+                // has landed, so a five-hundred-track playlist left a header
+                // floating over an empty field for seconds with no evidence the
+                // tap had registered.
+                //
+                // Shapes, not status: the count decides how many to draw and is
+                // printed nowhere. ADR-0019.
+                trackPlaceholders
                     .transition(.opacity)
 
             case .failed(let message):
@@ -616,6 +622,26 @@ struct TrackListView: View {
         }
     }
 
+    /// The rows this playlist is about to have.
+    ///
+    /// Counted from the playlist's own total where Spotify sent one - a
+    /// nine-track playlist showing twelve placeholders and then shrinking is
+    /// exactly the reflow this exists to prevent - and a screenful where it did
+    /// not, which is every playlist the listener does not own.
+    private var trackPlaceholders: some View {
+        let count = SkeletonPlan.trackCount(
+            expected: model.playlist.trackCountIsKnown ? model.playlist.tracks.total : nil
+        )
+        return LazyVStack(spacing: 0) {
+            ForEach(0..<count, id: \.self) { index in
+                TrackRowPlaceholder(index: index)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Loading tracks")
+        .accessibilityAddTraits(.updatesFrequently)
+    }
+
     // MARK: - Toolbar
 
     /// The bar no longer carries Save: the anchor in the header does. What is
@@ -707,6 +733,68 @@ private struct OwnerAvatar: View {
 }
 
 // MARK: - Row
+
+/// A track row that hasn't arrived, at exactly the geometry of one that has.
+///
+/// **No value column, and that is the whole subtlety here.** The track list
+/// always opens in `.originalOrder`, whose ranking attribute is `.order`, which
+/// `TrackRowText.isAlreadyVisible` returns true for - so `text.value` is nil and
+/// `valueLabel` draws nothing on arrival. A placeholder with a value bar would
+/// promise a column that never appears, which is the reflow this is here to
+/// prevent, pointing the other way.
+private struct TrackRowPlaceholder: View {
+    let index: Int
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var isAccessibilitySize: Bool { dynamicTypeSize.isAccessibilitySize }
+    private var side: CGFloat { isAccessibilitySize ? 60 : 44 }
+
+    var body: some View {
+        Group {
+            if isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    artwork
+                    titleAndArtist
+                }
+            } else {
+                HStack(spacing: 12) {
+                    artwork
+                    titleAndArtist
+                    Spacer(minLength: 8)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(minHeight: 60)
+    }
+
+    private var artwork: some View {
+        CoverRipple(phase: SkeletonPlan.phase(at: index))
+            .frame(width: side, height: side)
+            .clipShape(.rect(cornerRadius: 4))
+    }
+
+    /// Widths vary with the index rather than being uniform, because a column of
+    /// identical bars reads as a table and a track list is not one. The pattern
+    /// is stable per position, so nothing shuffles between frames.
+    private var titleAndArtist: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            SkeletonLine(
+                font: .subheadline.weight(.medium),
+                widthFraction: [0.72, 0.54, 0.63, 0.45][index % 4],
+                index: index
+            )
+            SkeletonLine(
+                font: .caption,
+                widthFraction: [0.38, 0.47, 0.31, 0.42][index % 4],
+                index: index + 1
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
 
 private struct TrackListRow: View {
     let row: TrackRow

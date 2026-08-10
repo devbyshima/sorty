@@ -236,8 +236,13 @@ shoot 31-playlists-list -demo -screen playlists -layout list
 # track-list rebuild in `32b9a9c` replaced the containers it sat in, and no shot
 # in the set could have caught that. These two can.
 #
-# Scrolled by an absurd offset on purpose: `scrollTo` clamps to the content, so
-# this reliably means "the bottom" for a list of any length.
+# Scrolled by an absurd offset on purpose: `scrollTo(y:)` clamps to the content,
+# so this reliably means "the bottom" for a list of any length. `scrollTo(edge:)`
+# is not the same thing and was tried - with a tall `safeAreaInset` header it
+# lands past the content and this shot comes back empty.
+#
+# The withheld-playlists footer sits *above* the mark rather than below it, for
+# this shot's sake: whatever is last is what scrolling to the bottom finds.
 #
 # One in each appearance, because the mark is not one image. The guidelines
 # require monochrome on a background that is neither black nor white, so the
@@ -313,6 +318,58 @@ shoot 39-connect-app-detail -demo -screen connect -connectStep createApp -connec
 # declines to start does it silently, so this is also the only evidence in the
 # set that the page opens at all.
 shoot 40-connect-dashboard -demo -screen connect -connectStep createApp -dashboard
+
+# ─── Settings, as a page ─────────────────────────────────────────────────────
+# Settings stopped being a sheet and became a pushed page with three of its own
+# behind it (ADR-0017 removed a fourth section along the way). `-screen` pushes
+# the whole stack rather than the visible screen, so the back chevron in these
+# shots behaves as it will in a shipped build.
+#
+# `15-settings` above is the root. These are what it can reach - none of them
+# was photographable at all while Settings was one long Form.
+echo "==> settings"
+shoot 41-settings-spotify-app -demo -screen spotifyApp
+shoot 42-settings-audio-features -demo -screen audioFeatures
+# The credit. It used to be three lines below fourteen collapsed questions
+# inside a sheet opened from another sheet, which is why this shot exists: the
+# whole point of the change is that Paul Lamere's name is one tap from Settings.
+shoot 43-settings-credits -demo -screen credits
+
+# ─── What hasn't arrived ─────────────────────────────────────────────────────
+# The placeholders of ADR-0019, and like the two shaders above **none of them is
+# visible in any other shot in this set** - the demo catalogue is fully loaded
+# before a screenshot could land, which is the same reason `-pendingCovers`
+# exists. `-stallLibrary` holds the pages back.
+#
+# **What to check is that nothing moves between a pair.** Open `44` and `01` and
+# flip between them: the covers are the same size at the same corner, the name
+# block reserves the same two lines, and the row pitch is identical. A
+# placeholder whose geometry drifts from the row it stands in for causes a
+# reflow at the handoff, which is the one thing the whole decision exists to
+# prevent - and it is invisible in either shot alone.
+echo "==> placeholders"
+#
+# `-stallLibrary` holds every page *after* the first, on purpose: the first one
+# still has to land or the launch gate never opens and this is a photograph of
+# the splash. The splash waiting on a real library is `34-splash`, which is the
+# same composition reached the other way.
+shoot 44-playlists-pending -demo -screen playlists -layout grid2 -stallLibrary 30
+# And the track list needs its *own* argument, because `restore()` awaits the
+# whole library load and the harness navigates after it - so stalling the
+# library here would stall the navigation and never leave the library.
+shoot 45-tracks-pending -demo -screen tracks -playlist demo-longrun -stallTracks 30
+
+# ─── Spotify's own ───────────────────────────────────────────────────────────
+# The refusal every listener meets, which no shot in this set has ever carried:
+# the demo catalogue used to open Discover Weekly perfectly, so the words
+# `LoadFailure` gives a Spotify-owned playlist were only ever read in a test.
+shoot 46-tracks-spotifys-own -demo -screen tracks -playlist 37i9dQZEVXcDEMOWEEKLY1
+# The line counting playlists Spotify listed and would not name. It sits between
+# the last row and the attribution mark - **above** it, never below, because the
+# mark has to stay the last thing on the screen and `32` finds it by scrolling
+# to the bottom. So this shot is `32`'s neighbour rather than its replacement:
+# same region, list layout, default text size.
+shoot 47-playlists-withheld -demo -screen playlists -layout list -scrolled 99999
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 

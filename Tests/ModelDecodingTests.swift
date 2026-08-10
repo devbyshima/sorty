@@ -102,14 +102,28 @@ struct PlaylistClassificationTests {
         )
     }
 
-    @Test("Playlists are bucketed by owner, with the algorithmic prefix winning")
+    /// Three buckets, not four. `.personalized` went with ADR-0018: it existed
+    /// only to pick between two `LoadFailure` sentences, and it picked with an
+    /// undocumented prefix that did not match Discover Weekly.
+    @Test("Playlists are bucketed by owner, with Spotify's own outranking ownership")
     func categories() {
         #expect(playlist(ownerID: "me").category(currentUserID: "me") == .mine)
         #expect(playlist(ownerID: "spotify").category(currentUserID: "me") == .spotify)
         #expect(playlist(ownerID: "sam").category(currentUserID: "me") == .other)
         #expect(
-            playlist(id: "37i9dQZF1DXcBWIGoYBM5M", ownerID: "me").category(currentUserID: "me") == .personalized,
-            "the algorithmic prefix must outrank ownership"
+            playlist(id: "37i9dQZF1DXcBWIGoYBM5M", ownerID: "me").category(currentUserID: "me") == .spotify,
+            "the generated-id stem must outrank ownership"
+        )
+        // The two stems the old `37i9dQZF` prefix missed outright, which is the
+        // whole of the bug: Discover Weekly, and the charts under their own
+        // publishing account.
+        #expect(
+            playlist(id: "37i9dQZEVXcJZyENOWUFo7", ownerID: "me").category(currentUserID: "me") == .spotify,
+            "Discover Weekly's id begins 37i9dQZEVXc and was falling through to .mine"
+        )
+        #expect(
+            playlist(id: "chart", ownerID: "spotifycharts").category(currentUserID: "me") == .spotify,
+            "a chart account is Spotify, and was falling through to .other"
         )
     }
 

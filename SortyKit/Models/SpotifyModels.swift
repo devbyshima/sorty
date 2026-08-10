@@ -150,13 +150,47 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
         return trimmed
     }
 
-    /// Algorithmic Spotify playlists (Discover Weekly, Daily Mix, Release Radar)
-    /// all live under this prefix and can never be written to.
-    public var isPersonalized: Bool { id.hasPrefix("37i9dQZF") }
+    /// A playlist Spotify generated, by the shape of its id.
+    ///
+    /// `37i9dQZ` is the stem every playlist Spotify makes has carried for a
+    /// decade: `37i9dQZF1DX…` for the editorial lists, `37i9dQZF1E…` for the
+    /// Daily Mixes and the radio ones, `37i9dQZEVXc…` for the ones built for you
+    /// (Discover Weekly, Release Radar, On Repeat) and `37i9dQZEVXb…` for the
+    /// charts. It is folklore: Spotify documents none of it and could stop
+    /// tomorrow.
+    ///
+    /// Which is exactly why nothing that decides whether a request is worth
+    /// making rests on it any more. It decides two things, and both are safe to
+    /// be wrong about: whether Overwrite is offered, and which sentence a
+    /// refusal gets.
+    ///
+    /// **It read `37i9dQZF` until August 2026, which does not match Discover
+    /// Weekly** - whose id begins `37i9dQZEVXc`. The one playlist the predicate
+    /// was named after had never once satisfied it, and it survived because
+    /// every fixture in this repository used Today's Top Hits' id with Discover
+    /// Weekly's name on it. See ADR-0018.
+    public var isSpotifyGenerated: Bool { id.hasPrefix("37i9dQZ") }
+
+    /// Whether Spotify itself published this, under any of the accounts it
+    /// publishes under.
+    ///
+    /// `spotify` is the one everyone knows. The charts and the regional
+    /// editorial desks use their own - `spotifycharts`, `spotifyusa`,
+    /// `spotify_uk_`, and a long tail of the same shape - and a playlist of
+    /// theirs used to fall through to `.other`, where the copy told the listener
+    /// to ask whoever owns it to make it collaborative. Nobody is going to ask
+    /// Spotify to make RapCaviar collaborative.
+    ///
+    /// A prefix rather than a published list, because there is no published list
+    /// and a new regional account would silently rejoin `.other`. The cost is
+    /// that a listener whose own account id begins "spotify" is filed under the
+    /// Spotify chip and given Spotify's sentence instead of their name; nothing
+    /// they can open stops opening, because what opens is decided by ownership
+    /// alone, which is a fact rather than a guess.
+    public var isSpotifyOwned: Bool { isSpotifyGenerated || owner.id.hasPrefix("spotify") }
 
     public func category(currentUserID: String?) -> PlaylistCategory {
-        if isPersonalized { return .personalized }
-        if owner.id == "spotify" { return .spotify }
+        if isSpotifyOwned { return .spotify }
         if let currentUserID, owner.id == currentUserID { return .mine }
         return .other
     }
@@ -183,19 +217,27 @@ public struct Playlist: Codable, Sendable, Identifiable, Hashable {
     ///
     /// Not knowing is not a refusal: with no `userID` yet, or a playlist whose
     /// owner Spotify omitted, the request is still worth making.
+    ///
+    /// **The documented rule and nothing else.** It also refused anything whose
+    /// id carried Spotify's stem or whose owner was the `spotify` account, until
+    /// August 2026. Both were redundant - Spotify is not you, so ownership
+    /// already refuses them - and the first was wrong for the one kind of Client
+    /// ID old enough to read them, which is exactly the grandfathered ID
+    /// `FeatureSourceMode.spotify` exists for. Refusing on Spotify's behalf,
+    /// using folklore, in the one case where Spotify might say yes, is the shape
+    /// of pre-check ADR-0008 warned about and ADR-0018 removes.
     public func contentsAreReadable(byUserID userID: String?) -> Bool {
         if collaborative { return true }
-        if isPersonalized || owner.id == "spotify" { return false }
         guard let userID, !owner.id.isEmpty else { return true }
         return owner.id == userID
     }
 
-    /// Overwriting requires being the owner, and never works for personalized
-    /// playlists even though Spotify reports you as owner of some of them.
+    /// Overwriting requires being the owner, and never works for a playlist
+    /// Spotify generated even though it reports you as owner of some of them.
     public func isWritable(byUserID userID: String?) -> Bool {
         guard let userID else { return false }
         guard owner.id == userID else { return false }
-        return !isPersonalized
+        return !isSpotifyGenerated
     }
 
     /// Every size this playlist's cover comes in, for a view that knows how big
@@ -257,12 +299,20 @@ extension Array where Element == SpotifyImage {
 }
 
 public enum PlaylistCategory: String, Sendable, CaseIterable, Hashable {
-    case mine, personalized, spotify, other
+    /// `.personalized` went in August 2026.
+    ///
+    /// It existed to pick between two `LoadFailure` sentences - "Spotify makes
+    /// this for you" against "Spotify edits this" - and it picked with an
+    /// undocumented id prefix that did not match Discover Weekly. Widening the
+    /// prefix fixes Discover Weekly and breaks Top 50 Global, which would then
+    /// be told Spotify makes it personally. A distinction the app cannot draw
+    /// reliably is one it should stop pretending to draw, so there is one
+    /// Spotify case now and one sentence naming both kinds. ADR-0018.
+    case mine, spotify, other
 
     public var label: String {
         switch self {
         case .mine: "Mine"
-        case .personalized: "Personalized"
         case .spotify: "Spotify"
         case .other: "Other"
         }

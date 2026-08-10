@@ -8,9 +8,15 @@ public struct SpotifyTokens: Codable, Sendable, Equatable {
     /// What Spotify granted, not what was asked for.
     ///
     /// Optional because a token stored before this field existed decodes with
-    /// nil - and nil is exactly the signal that matters: it predates
-    /// `playlist-read-collaborative`, so the account is connected but cannot
-    /// see shared playlists until it reconnects. See `grants(_:)`.
+    /// nil.
+    ///
+    /// **Nothing in the app branches on it any more.** It fed a reconnect prompt
+    /// for accounts on a token predating `playlist-read-collaborative`, which
+    /// ADR-0017 removed along with the rest of the collaborative surfaces. It is
+    /// kept because it is the only record of what a given token can actually do,
+    /// it cannot be recovered for a token already in the Keychain, and dropping
+    /// it would mean the next refresh quietly saved a token that had forgotten
+    /// its own grant.
     public var grantedScopes: [String]?
 
     public init(
@@ -23,12 +29,6 @@ public struct SpotifyTokens: Codable, Sendable, Equatable {
         self.refreshToken = refreshToken
         self.expiresAt = expiresAt
         self.grantedScopes = grantedScopes
-    }
-
-    /// False for a token that predates the field, which is treated as not
-    /// granting anything new rather than as granting everything.
-    public func grants(_ scope: String) -> Bool {
-        grantedScopes?.contains(scope) ?? false
     }
 
     /// Treated as expired a minute early so a request never starts with a token

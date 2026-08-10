@@ -72,7 +72,7 @@ struct ProfilingMusicService: MusicService {
     let canWriteBack = false
 
     func currentUser() async throws -> SpotifyUser { SpotifyUser(id: "profile") }
-    func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist] { [] }
+    func playlists(onBatch: @Sendable (PlaylistListing) async -> Void) async throws -> [Playlist] { [] }
     func albums(ids: [String]) async throws -> [TrackAlbum] { [] }
     func createPlaylist(userID: String, name: String, isPublic: Bool, description: String) async throws -> Playlist {
         throw DemoModeError.readOnly

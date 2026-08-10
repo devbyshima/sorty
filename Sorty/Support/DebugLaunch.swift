@@ -11,6 +11,11 @@ import SwiftUI
 enum DebugLaunch {
     enum Screen: String {
         case playlists, tracks, faq, settings
+        /// The settings sub-pages. Each is a push behind another push, so the
+        /// harness has to be able to arrive with the whole stack standing -
+        /// which is also what makes the back chevron in a captured build behave
+        /// the way it will in a shipped one.
+        case spotifyApp, audioFeatures, credits
         /// The guided connect flow of ticket 11, which a listener reaches by
         /// tapping Save in Demo Mode - so the harness has to arrive at it.
         case connect
@@ -143,6 +148,34 @@ enum DebugLaunch {
         UserDefaults.standard.string(forKey: "layout").flatMap(LibraryLayout.init(rawValue:))
     }
 
+    /// `-stallLibrary 6` - hold the library's pages back this many seconds.
+    ///
+    /// The skeletons of ADR-0019 are on screen only while pages are in flight,
+    /// and against the demo catalogue every page has landed before a screenshot
+    /// could be taken - so the state they exist for is one no shot could ever
+    /// catch. Same problem `-pendingCovers` solves, and the same answer.
+    ///
+    /// Only pages *after* the first are held, or the launch gate never opens and
+    /// the shot is a photograph of the splash.
+    static var libraryStall: Duration? {
+        UserDefaults.standard.string(forKey: "stallLibrary")
+            .flatMap(Double.init)
+            .map { .milliseconds(Int($0 * 1000)) }
+    }
+
+    /// `-stallTracks 6` - hold a playlist's contents back this many seconds.
+    ///
+    /// Separate from `-stallLibrary`, and it has to be: `restore()` awaits the
+    /// *whole* library load, and `applyDebugLaunchIfNeeded` runs after it - so
+    /// stalling the library also stalls the navigation, and `-screen tracks`
+    /// never leaves the library. One argument for each, so a shot can hold the
+    /// thing it means to photograph and nothing else.
+    static var trackStall: Duration? {
+        UserDefaults.standard.string(forKey: "stallTracks")
+            .flatMap(Double.init)
+            .map { .milliseconds(Int($0 * 1000)) }
+    }
+
     /// `-pendingCovers` - every cover stays unresolved for the whole launch.
     ///
     /// The ripple that stands in for a loading cover is, by design, on screen
@@ -198,6 +231,8 @@ enum DebugLaunch {
     static var scrollOffset: CGFloat? { nil }
     static var libraryLayout: LibraryLayout? { nil }
     static var usesDemoData: Bool { false }
+    static var libraryStall: Duration? { nil }
+    static var trackStall: Duration? { nil }
     static var holdsCovers: Bool { false }
     static var advanceAfter: Double? { nil }
     static var showsConnectDetail: Bool { false }
@@ -226,6 +261,11 @@ private struct DebugScrolled: ViewModifier {
                     // rebuilds the list and resets the offset to zero. At 400ms
                     // it raced that and sometimes shot an unscrolled screen.
                     try? await Task.sleep(for: .milliseconds(1200))
+                    // `scrollTo(y:)` and not `scrollTo(edge: .bottom)`, which
+                    // was tried and is worse: with a tall `safeAreaInset` header
+                    // the edge form lands past the content and the screen comes
+                    // back empty. An absurd `y` clamps to the real bottom, which
+                    // is what `-scrolled 99999` has always meant.
                     position.scrollTo(y: offset)
                 }
         } else {

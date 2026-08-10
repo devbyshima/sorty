@@ -45,6 +45,11 @@ public final class SessionModel {
     /// The screenshot harness and the tests, running against the bundled
     /// catalogue. Never true in a release build - see ADR-0007.
     public let usesDemoData: Bool
+    /// `-stallLibrary` and `-stallTracks`, so the harness can photograph a load
+    /// in progress. Two, because stalling the library also stalls the harness's
+    /// own navigation - see `DemoMusicService`.
+    public let demoStall: Duration?
+    public let demoTrackStall: Duration?
     #endif
     public private(set) var playlists: [Playlist] = []
     public private(set) var playlistLoad: PlaylistLoad = .idle
@@ -81,34 +86,30 @@ public final class SessionModel {
 
     private let libraryPreferences: LibraryPreferences
 
-    /// True when the account is connected on a token granted before Sorty
-    /// asked for `playlist-read-collaborative`.
+    /// Playlists Spotify listed and would not describe, this load.
     ///
-    /// Such a token still works for everything else, so nothing is broken
-    /// loudly - collaborative playlists are simply absent from every response,
-    /// which is indistinguishable from not having any. Only a reconnect fixes
-    /// it, and only this can tell the listener that.
-    /// What the stored token was granted, for the one screen that has to be
-    /// able to answer "did the reconnect take?" without a debugger.
-    public var grantedScopes: [String] {
-        tokenStore.load()?.grantedScopes ?? []
-    }
+    /// Nulls in `/me/playlists`. They used to be compacted away, so a library
+    /// could be four playlists short and say nothing about it - see
+    /// `LibraryNotice.withheldFromListing` for what the library says now, and
+    /// ADR-0018 for why it says it at the foot rather than the head.
+    public private(set) var withheldPlaylistCount = 0
 
-    /// How many playlists Spotify itself reported as collaborative.
+    /// Where the launch is up to, in the terms the splash gate reasons in.
     ///
-    /// The distinction this exists to make visible: a playlist you *shared a
-    /// link to* is not collaborative. Collaborative means other people can add
-    /// and remove tracks, and it is a separate setting in Spotify. If this
-    /// reads 0 while the token does grant the scope, Spotify is saying none of
-    /// your playlists are collaborative - which is a different problem from
-    /// Sorty not seeing them.
-    public var collaborativeCount: Int {
-        playlists.count(where: \.collaborative)
-    }
-
-    public var needsCollaborativeReconnect: Bool {
-        guard isConnected, let tokens = tokenStore.load() else { return false }
-        return !tokens.grants("playlist-read-collaborative")
+    /// The mapping lives here, beside the state it reads, so that
+    /// `LaunchReadiness` stays a pure truth table isolated to nothing.
+    public var launchProgress: LaunchReadiness.Progress {
+        switch stage {
+        case .connecting: .connecting
+        case .signedOut: .signedOut
+        case .ready:
+            switch playlistLoad {
+            case .idle: .libraryIdle
+            case .loading(let loaded, _): .libraryLoading(loaded: loaded)
+            case .ready: .libraryReady
+            case .failed: .libraryFailed
+            }
+        }
     }
 
     private let configurationStore: ConfigurationStore
@@ -124,9 +125,13 @@ public final class SessionModel {
         configurationStore: ConfigurationStore = ConfigurationStore(),
         tokenStore: any TokenStoring = KeychainTokenStore(),
         libraryPreferences: LibraryPreferences = LibraryPreferences(),
-        usesDemoData: Bool = false
+        usesDemoData: Bool = false,
+        demoStall: Duration? = nil,
+        demoTrackStall: Duration? = nil
     ) {
         self.usesDemoData = usesDemoData
+        self.demoStall = demoStall
+        self.demoTrackStall = demoTrackStall
         let configuration = configurationStore.load()
         self.configurationStore = configurationStore
         self.tokenStore = tokenStore
@@ -169,7 +174,7 @@ public final class SessionModel {
         // a listener at all. See ADR-0007.
         if usesDemoData {
             authenticator = nil
-            service = DemoMusicService()
+            service = DemoMusicService(stall: demoStall, trackStall: demoTrackStall)
             featureProvider = DemoAudioFeatureProvider()
             return
         }
@@ -305,15 +310,17 @@ public final class SessionModel {
         loadTask?.cancel()
         playlistLoad = .loading(loaded: 0, total: nil)
         playlists = []
+        withheldPlaylistCount = 0
 
         let task = Task { [service] in
             let sink = PlaylistSink()
             do {
-                _ = try await service.playlists { batch, total in
-                    await sink.update(batch, total: total)
+                _ = try await service.playlists { listing in
+                    await sink.update(listing)
                     let snapshot = await sink.snapshot
                     await MainActor.run {
                         self.playlists = snapshot.playlists
+                        self.withheldPlaylistCount = snapshot.withheldCount
                         self.playlistLoad = .loading(loaded: snapshot.playlists.count, total: snapshot.total)
                     }
                 }
@@ -362,18 +369,22 @@ public final class SessionModel {
 public enum PlaylistFilter: Hashable, Sendable, Identifiable, CaseIterable {
     case all
     case category(PlaylistCategory)
-    case collaborative
 
-    /// No `.personalized` chip.
+    /// Four chips that partition the library by who owns what, and nothing else.
     ///
-    /// Removing it must not make those playlists unreachable, so `.spotify`
-    /// matches them instead - see `matches(_:currentUserID:)`. Discover Weekly
-    /// and the Daily Mixes are Spotify's playlists in every sense a listener
-    /// cares about; the distinction only exists because the two fail
-    /// differently when Sorty tries to read them, which is a matter for the
-    /// error copy rather than for a filter.
+    /// There was a Personalized chip once. It went when `.personalized` and
+    /// `.spotify` merged (ADR-0018): the two were told apart by an undocumented
+    /// id prefix that did not match Discover Weekly, and Discover Weekly and the
+    /// Daily Mixes are Spotify's playlists in every sense a listener cares
+    /// about anyway.
+    ///
+    /// There was a Collaborative chip too, and removing it stranded nothing
+    /// (ADR-0017). Collaboration was never a category - it is an axis crossing
+    /// all of them, which is why a chip for it sat oddly beside three that
+    /// partition. A shared playlist you own is still filed under Mine and one
+    /// Sam owns under Others.
     public static var allCases: [PlaylistFilter] {
-        [.all, .category(.mine), .category(.spotify), .category(.other), .collaborative]
+        [.all, .category(.mine), .category(.spotify), .category(.other)]
     }
 
     /// The one place a filter decides what it covers.
@@ -385,11 +396,6 @@ public enum PlaylistFilter: Hashable, Sendable, Identifiable, CaseIterable {
         switch self {
         case .all:
             return true
-        case .collaborative:
-            return playlist.collaborative
-        case .category(.spotify):
-            let category = playlist.category(currentUserID: currentUserID)
-            return category == .spotify || category == .personalized
         case .category(let category):
             return playlist.category(currentUserID: currentUserID) == category
         }
@@ -398,7 +404,6 @@ public enum PlaylistFilter: Hashable, Sendable, Identifiable, CaseIterable {
     public var id: String {
         switch self {
         case .all: "all"
-        case .collaborative: "collaborative"
         case .category(let category): category.rawValue
         }
     }
@@ -406,7 +411,6 @@ public enum PlaylistFilter: Hashable, Sendable, Identifiable, CaseIterable {
     public var label: String {
         switch self {
         case .all: "All"
-        case .collaborative: "Collaborative"
         case .category(.other): "Others"
         case .category(let category): category.label
         }
@@ -415,13 +419,11 @@ public enum PlaylistFilter: Hashable, Sendable, Identifiable, CaseIterable {
 
 /// Off-actor accumulator for the streaming playlist load.
 private actor PlaylistSink {
-    private var playlists: [Playlist] = []
-    private var total: Int?
+    private var listing = PlaylistListing()
 
-    var snapshot: (playlists: [Playlist], total: Int?) { (playlists, total) }
+    var snapshot: PlaylistListing { listing }
 
-    func update(_ batch: [Playlist], total: Int?) {
-        playlists = batch
-        if let total { self.total = total }
+    func update(_ batch: PlaylistListing) {
+        listing = batch
     }
 }

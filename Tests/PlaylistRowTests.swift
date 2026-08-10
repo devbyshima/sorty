@@ -45,8 +45,14 @@ struct PlaylistRowTests {
             (playlist(), true),
             (playlist(ownerID: "someone-else"), false),
             (playlist(ownerID: "sam", collaborative: true), false),
-            (playlist(id: "37i9dQZF-weekly", name: "Discover Weekly"), false),
-            (playlist(name: "Today's Top Hits", ownerID: "spotify"), false),
+            // Discover Weekly's real stem is `37i9dQZEVXc`, not `37i9dQZF`.
+            // Every fixture in this repository used Today's Top Hits' id with
+            // Discover Weekly's name on it, which is how a predicate that never
+            // matched the playlist it was named after survived a year of green
+            // tests. ADR-0018.
+            (playlist(id: "37i9dQZEVXcJZyENOWUFo7", name: "Discover Weekly", ownerID: "spotify"), false),
+            (playlist(id: "37i9dQZF1DXcBWIGoYBM5M", name: "Today's Top Hits", ownerID: "spotify"), false),
+            (playlist(id: "37i9dQZEVXbMDoHDwVN2tF", name: "Top 50 - Global", ownerID: "spotifycharts"), false),
         ]
         for (playlist, isWritable) in cases {
             let text = PlaylistRowText(playlist: playlist, currentUserID: "me")
@@ -68,26 +74,37 @@ struct PlaylistRowTests {
         #expect(theirs.badges == [.cantOpen])
 
         let weekly = PlaylistRowText(
-            playlist: playlist(id: "37i9dQZF-weekly", name: "Discover Weekly"), currentUserID: "me"
+            playlist: playlist(id: "37i9dQZEVXcJZyENOWUFo7", name: "Discover Weekly", ownerID: "spotify"),
+            currentUserID: "me"
         )
         #expect(weekly.badges == [.cantOpen])
     }
 
-    /// A playlist can be collaborative *and* yours to overwrite - the two marks
-    /// answer different questions, so neither implies the other. Shared with you
-    /// is the case that keeps `readOnly` alive: Spotify opens it, Sorty still
-    /// won't write over someone else's playlist.
-    @Test("Collaborative and read-only are independent")
-    func badgesAreIndependent() {
+    /// Collaboration stopped being a mark (ADR-0017) and must not have quietly
+    /// become one of the other two. A shared playlist you own is still yours to
+    /// overwrite, so it carries nothing; one Sam owns opens and can't be written
+    /// over, which is exactly what read-only says.
+    @Test("A collaborative playlist is marked by who owns it, and nothing else")
+    func collaborationIsNotAMark() {
         #expect(
             PlaylistRowText(playlist: playlist(collaborative: true), currentUserID: "me").badges
-                == [.collaborative]
+                .isEmpty
         )
         #expect(
             PlaylistRowText(
                 playlist: playlist(ownerID: "sam", collaborative: true), currentUserID: "me"
-            ).badges == [.collaborative, .readOnly]
+            ).badges == [.readOnly]
         )
+    }
+
+    /// The badge went; the playlist must not have. A shared playlist is one of
+    /// only two kinds Spotify still opens, so the row has to keep saying so by
+    /// *not* saying "Can't open".
+    @Test("A shared playlist still reads as one that opens")
+    func aSharedPlaylistIsNotMarkedShut() {
+        let shared = playlist(ownerID: "sam", collaborative: true)
+        #expect(!PlaylistRowText(playlist: shared, currentUserID: "me").badges.contains(.cantOpen))
+        #expect(shared.contentsAreReadable(byUserID: "me"))
     }
 
     /// Signed out there is no owner to compare against, so nothing is writable
@@ -107,7 +124,7 @@ struct PlaylistRowTests {
         )
         #expect(
             PlaylistRowText(playlist: playlist(ownerID: "sam", collaborative: true), currentUserID: "me")
-                .spoken == "Long Run, 68 tracks, Collaborative, Read-only."
+                .spoken == "Long Run, 68 tracks, Read-only."
         )
     }
 
@@ -119,8 +136,7 @@ struct PlaylistRowTests {
             PlaylistRowText(playlist: $0, currentUserID: DemoCatalog.userID)
         }
         #expect(texts.contains { $0.badges.isEmpty })
-        #expect(texts.contains { $0.badges == [.collaborative] })
-        #expect(texts.contains { $0.badges == [.collaborative, .readOnly] })
+        #expect(texts.contains { $0.badges == [.readOnly] })
         #expect(texts.contains { $0.badges == [.cantOpen] })
     }
 

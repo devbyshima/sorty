@@ -43,13 +43,35 @@ struct LoadFailureTests {
     }
 
     /// The single most likely cause: since November 2024 Spotify blocks new
-    /// apps from reading its algorithmic playlists.
-    @Test("A personalized playlist is named as Spotify's own restriction")
-    func personalizedExplainsTheRestriction() {
-        let discoverWeekly = playlist(id: "37i9dQZF1DXcBWIGoYBM5M", ownerID: "spotify")
-        let message = LoadFailure.message(for: forbidden, playlist: discoverWeekly, currentUserID: "me")
-        #expect(message.contains("Discover Weekly"))
-        #expect(message.contains("2024"))
+    /// apps from reading its own playlists, generated and editorial alike.
+    ///
+    /// One sentence covers both kinds now (ADR-0018), so it has to name both -
+    /// and it has to arrive for Discover Weekly's *real* id, which is the one
+    /// the old predicate never matched.
+    @Test("Spotify's own playlists are named as Spotify's own restriction")
+    func spotifysOwnExplainTheRestriction() {
+        let ids = [
+            "37i9dQZEVXcJZyENOWUFo7",   // Discover Weekly
+            "37i9dQZF1DXcBWIGoYBM5M",   // Today's Top Hits
+        ]
+        for id in ids {
+            let message = LoadFailure.message(
+                for: forbidden, playlist: playlist(id: id, ownerID: "spotify"), currentUserID: "me"
+            )
+            #expect(message.contains("Discover Weekly"), "\(id) did not name what it is")
+            #expect(message.contains("2024"), "\(id) did not name the rule's date")
+        }
+    }
+
+    /// Spotify publishes under more than one account, and a chart playlist used
+    /// to fall to `.other` and be told to ask its owner for a collaborator's
+    /// invite. Nobody is going to ask Spotify to make RapCaviar collaborative.
+    @Test("A chart account is Spotify, and is not told to ask itself for an invite")
+    func chartAccountsAreSpotify() {
+        let charts = playlist(id: "37i9dQZEVXbMDoHDwVN2tF", ownerID: "spotifycharts")
+        #expect(charts.category(currentUserID: "me") == .spotify)
+        let message = LoadFailure.message(for: forbidden, playlist: charts, currentUserID: "me")
+        #expect(!message.contains("collaborative"))
     }
 
     @Test("Another listener's playlist names who owns it")
@@ -58,17 +80,30 @@ struct LoadFailureTests {
         #expect(LoadFailure.message(for: forbidden, playlist: theirs, currentUserID: "me").contains("Ada"))
     }
 
-    /// The four cases must not collapse into one sentence with a noun swapped:
+    /// The three cases must not collapse into one sentence with a noun swapped:
     /// each is a different situation with a different implication.
+    ///
+    /// Three, not four. The fourth split what Spotify generates from what it
+    /// edits, using a prefix that did not match Discover Weekly - so the two
+    /// sentences were reliably handed to the wrong playlists. ADR-0018 merged
+    /// them into one that names both kinds.
     @Test("Each kind of refusal reads differently")
     func categoriesDiffer() {
         let messages = [
-            LoadFailure.message(for: forbidden, playlist: playlist(id: "37i9dQZF1", ownerID: "spotify"), currentUserID: "me"),
             LoadFailure.message(for: forbidden, playlist: playlist(ownerID: "spotify"), currentUserID: "me"),
             LoadFailure.message(for: forbidden, playlist: playlist(ownerID: "ada"), currentUserID: "me"),
             LoadFailure.message(for: forbidden, playlist: playlist(ownerID: "me"), currentUserID: "me"),
         ]
-        #expect(Set(messages).count == 4)
+        #expect(Set(messages).count == 3)
+
+        // And the merged one still covers the pair it merged.
+        #expect(
+            LoadFailure.message(
+                for: forbidden,
+                playlist: playlist(id: "37i9dQZEVXcJZyENOWUFo7", ownerID: "spotify"),
+                currentUserID: "me"
+            ) == messages[0]
+        )
     }
 
     /// A Try Again button that only ever reproduces the same refusal is worse

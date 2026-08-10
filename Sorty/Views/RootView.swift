@@ -6,13 +6,29 @@ import SwiftUI
 /// that always exists: connecting, signed out, and a connected library. The
 /// signed-out screen is the front door - not a once-only welcome - and it is
 /// where signing out lands too.
+/// Everything the library stack can push.
+///
+/// The path was `[Playlist]` while a playlist was the only thing on the far side
+/// of a push and Settings was a sheet. Settings is a page now - which is the
+/// whole reason it stopped being a sheet, because a page can push and a sheet
+/// could not - so the path has to hold more than one kind of thing.
+enum LibraryRoute: Hashable {
+    case playlist(Playlist)
+    case settings
+    case spotifyApp
+    case audioFeatures
+    case faq
+    case credits
+}
+
 struct RootView: View {
     @Environment(SessionModel.self) private var session
-    @State private var path: [Playlist] = []
-    @State private var showingSettings = false
-    @State private var showingFAQ = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var path: [LibraryRoute] = []
     @State private var showingConnect = false
     @State private var didRestore = false
+    /// Holds the splash until there is a library behind it. ADR-0019.
+    @State private var launch = LaunchGate()
     /// Appearance, as `CONTEXT.md` defines it: followed from the device unless
     /// the user says otherwise. Applied at the root so sheets inherit it, which
     /// they would not if it were applied per screen.
@@ -39,8 +55,29 @@ struct RootView: View {
             #endif
         }
         .preferredColorScheme(appearance.colorScheme)
-        .sheet(isPresented: $showingSettings) { SettingsView() }
-        .sheet(isPresented: $showingFAQ) { FAQView() }
+        // The splash, held over the app until there is something behind it.
+        //
+        // Above `sessionContent` rather than inside it, because what it now
+        // waits for outlives the `.connecting` stage: `completeSignIn` sets
+        // `stage = .ready` and *then* awaits the first page of playlists, so for
+        // a beat the library exists and is empty. That beat is what this covers.
+        // ADR-0019.
+        .overlay {
+            if launch.isCovering {
+                ConnectingView()
+                    .transition(.opacity)
+                    .zIndex(2)
+            }
+        }
+        .animation(.easeOut(duration: 0.25), value: launch.isCovering)
+        .onChange(of: session.launchProgress, initial: true) { _, progress in
+            launch.update(progress, reduceMotion: reduceMotion)
+        }
+        // Both of the gate's deadlines. Watching `launchProgress` alone is not
+        // enough in either direction - see `LaunchGate.run`.
+        .task {
+            await launch.run(progress: { session.launchProgress }, reduceMotion: reduceMotion)
+        }
         // The connect flow cross-fades in.
         //
         // An overlay rather than a `sheet` or a `fullScreenCover`, because both
@@ -67,6 +104,15 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.28), value: showingConnect)
+        // Signing out tears the stack down but not the path that fed it: `path`
+        // is this view's state and `library` only exists in the `.ready` branch
+        // below, so the two part company. Without this, signing out from the
+        // Settings page and connecting again would land the listener back on
+        // whatever page they left - or on a playlist that is no longer in the
+        // library at all.
+        .onChange(of: session.stage) { _, stage in
+            if stage != .ready { path.removeAll() }
+        }
         .task {
             guard !didRestore else { return }
             didRestore = true
@@ -92,7 +138,10 @@ struct RootView: View {
         Group {
             switch session.stage {
             case .connecting:
-                ConnectingView()
+                // Only ever seen through the ceiling: while the gate covers,
+                // this is behind it. Already settled, so a timeout reveals the
+                // same image rather than re-animating one.
+                ConnectingView(settles: false)
                     .transition(.opacity)
 
             case .signedOut:
@@ -119,15 +168,31 @@ struct RootView: View {
     private var library: some View {
         NavigationStack(path: $path) {
             PlaylistsView(
-                onSelect: { path.append($0) },
-                onConnect: { showingConnect = true },
-                onSettings: { showingSettings = true }
+                onSelect: { path.append(.playlist($0)) },
+                onSettings: { path.append(.settings) }
             )
-            .navigationDestination(for: Playlist.self) { playlist in
-                TrackListView(
-                    model: session.makeTrackListModel(for: playlist),
-                    onConnect: { showingConnect = true }
-                )
+            // Every destination is registered here, on the root, so a push from
+            // a pushed page needs nothing of its own: a `NavigationLink(value:)`
+            // inside Settings finds this and appends. Declaring them per screen
+            // would mean Settings owned a stack it does not own.
+            .navigationDestination(for: LibraryRoute.self) { route in
+                switch route {
+                case .playlist(let playlist):
+                    TrackListView(
+                        model: session.makeTrackListModel(for: playlist),
+                        onConnect: { showingConnect = true }
+                    )
+                case .settings:
+                    SettingsView(onConnect: { showingConnect = true })
+                case .spotifyApp:
+                    SpotifyAppSettingsView()
+                case .audioFeatures:
+                    AudioFeatureSettingsView()
+                case .faq:
+                    FAQView()
+                case .credits:
+                    CreditsView()
+                }
             }
         }
     }
@@ -149,17 +214,25 @@ struct RootView: View {
             break
         case .playlists:
             break
-        case .faq:
-            showingFAQ = true
+        // The whole stack, not just the visible screen, so the back chevron in a
+        // captured build behaves the way it will in a shipped one.
         case .settings:
-            showingSettings = true
+            path = [.settings]
+        case .faq:
+            path = [.settings, .faq]
+        case .spotifyApp:
+            path = [.settings, .spotifyApp]
+        case .audioFeatures:
+            path = [.settings, .audioFeatures]
+        case .credits:
+            path = [.settings, .credits]
         case .connect:
             showingConnect = true
         case .tracks:
             let target = DebugLaunch.playlistID.flatMap { id in
                 session.playlists.first { $0.id == id }
             } ?? session.playlists.first
-            if let target { path = [target] }
+            if let target { path = [.playlist(target)] }
         case .profile:
             // Handled above, before the session is consulted at all.
             break
@@ -181,6 +254,15 @@ struct RootView: View {
 /// It resembles the launch screen it replaces, which resembles the library it
 /// leads to, so the three are one continuous move rather than three flashes.
 struct ConnectingView: View {
+    /// Whether the mark arrives, or is simply already there.
+    ///
+    /// The gate's copy is the one on screen from the first frame, so it settles.
+    /// The copy `sessionContent` draws behind it is only ever revealed by the
+    /// six-second ceiling, long after the settle finished above it - and a mark
+    /// that re-scaled itself at that moment would turn a timeout into a
+    /// visible glitch. Already-settled, the two are the same image.
+    var settles = true
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var settled = false
     @State private var start = Date()
@@ -204,6 +286,7 @@ struct ConnectingView: View {
         .background { SplashBackdrop() }
         .ignoresSafeArea()
         .task {
+            guard settles else { settled = true; return }
             guard !reduceMotion else { return }
             withAnimation(.spring(response: 0.75, dampingFraction: 0.58)) { settled = true }
         }

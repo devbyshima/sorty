@@ -9,12 +9,17 @@ import Foundation
 /// whether Overwrite is offered - so the list cannot promise something the next
 /// screen withdraws.
 public struct PlaylistRowText: Equatable, Sendable {
-    /// Why a row carries a mark. Two conditions, not one: a playlist can be
-    /// collaborative *and* writable (your own, opened up to friends), and it
-    /// can be read-only without being collaborative (Discover Weekly).
+    /// Why a row carries a mark.
+    ///
+    /// Both marks are about what the *next* screen will do, and the more final
+    /// one wins: telling someone Overwrite will be missing from a screen they
+    /// can never reach is noise in front of the fact that matters.
+    ///
+    /// There was a third, `collaborative`, until ADR-0017. It answered "can
+    /// other people change this under me?", which is a true thing about a
+    /// playlist that nothing in Sorty acts on - unlike these two, each of which
+    /// predicts a control the next screen will or will not have.
     public enum Badge: String, Sendable, Hashable, Identifiable, CaseIterable {
-        /// Other listeners can add to it, so its contents move under you.
-        case collaborative
         /// Sorty can't write to it - which is why Overwrite won't be there
         /// when you open it. Said here rather than discovered there.
         case readOnly
@@ -27,7 +32,6 @@ public struct PlaylistRowText: Equatable, Sendable {
 
         public var label: String {
             switch self {
-            case .collaborative: "Collaborative"
             case .readOnly: "Read-only"
             case .cantOpen: "Can't open"
             }
@@ -35,7 +39,6 @@ public struct PlaylistRowText: Equatable, Sendable {
 
         public var symbolName: String {
             switch self {
-            case .collaborative: "person.2.fill"
             case .readOnly: "lock.fill"
             case .cantOpen: "lock.slash.fill"
             }
@@ -66,7 +69,6 @@ public struct PlaylistRowText: Equatable, Sendable {
             : Self.hiddenTrackCount
 
         var badges: [Badge] = []
-        if playlist.collaborative { badges.append(.collaborative) }
         // Read-only is beside the point on a playlist that never opens: it
         // answers "why is Overwrite missing" for a screen the listener will
         // never reach. One mark, the one that decides whether tapping is worth

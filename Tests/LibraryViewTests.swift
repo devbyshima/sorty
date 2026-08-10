@@ -204,26 +204,24 @@ struct PlaylistFilterTests {
         )
     }
 
-    /// Discover Weekly and the Daily Mixes.
-    private var personalized: Playlist { playlist(id: "37i9dQZF1DXcBWIGoYBM5M", ownerID: "spotify") }
-    private var editorial: Playlist { playlist(id: "editorial", ownerID: "spotify") }
+    /// Discover Weekly - and its id is `37i9dQZEVXc…`, which is the point.
+    private var personalized: Playlist { playlist(id: "37i9dQZEVXcJZyENOWUFo7", ownerID: "spotify") }
+    private var editorial: Playlist { playlist(id: "37i9dQZF1DXcBWIGoYBM5M", ownerID: "spotify") }
+    /// Spotify publishes the charts under an account of their own.
+    private var charts: Playlist { playlist(id: "37i9dQZEVXbMDoHDwVN2tF", ownerID: "spotifycharts") }
     private var mine: Playlist { playlist(id: "mine", ownerID: "me") }
 
-    @Test("Personalized is no longer offered as a chip")
-    func personalizedChipIsGone() {
-        #expect(!PlaylistFilter.allCases.contains(.category(.personalized)))
-    }
-
-    /// Removing the chip must not strand the playlists behind it. This is the
-    /// assertion that makes the removal safe rather than merely tidy.
-    @Test("A personalized playlist is still reachable, under Spotify")
-    func personalizedIsStillReachable() {
-        #expect(PlaylistFilter.category(.spotify).matches(personalized, currentUserID: "me"))
-        #expect(PlaylistFilter.all.matches(personalized, currentUserID: "me"))
-
-        // And it is reachable from some chip that actually exists.
-        let reachable = PlaylistFilter.allCases.contains { $0.matches(personalized, currentUserID: "me") }
-        #expect(reachable)
+    /// One Spotify chip covers everything Spotify makes and everything it
+    /// edits, since ADR-0018 merged the two categories. Removing a chip must not
+    /// strand the playlists behind it, which is what this asserts and what makes
+    /// the removal safe rather than merely tidy.
+    @Test("Everything Spotify makes or publishes is reachable under one chip")
+    func spotifysOwnAreReachable() {
+        for target in [personalized, editorial, charts] {
+            #expect(PlaylistFilter.category(.spotify).matches(target, currentUserID: "me"))
+            #expect(PlaylistFilter.all.matches(target, currentUserID: "me"))
+            #expect(PlaylistFilter.allCases.contains { $0.matches(target, currentUserID: "me") })
+        }
     }
 
     @Test("Spotify's own editorial playlists still match Spotify")
@@ -241,27 +239,27 @@ struct PlaylistFilterTests {
     /// Every playlist must be findable from at least one chip, whatever it is.
     @Test("No playlist falls through every filter")
     func nothingIsStranded() {
-        for target in [personalized, editorial, mine, playlist(id: "other", ownerID: "ada")] {
+        let everything = [
+            personalized, editorial, charts, mine,
+            playlist(id: "other", ownerID: "ada"),
+            playlist(id: "kitchen", ownerID: "me", collaborative: true),
+            playlist(id: "roadtrip", ownerID: "sam", collaborative: true),
+        ]
+        for target in everything {
             let reachable = PlaylistFilter.allCases.contains { $0.matches(target, currentUserID: "me") }
             #expect(reachable, "\(target.id) is invisible under every chip")
         }
     }
 
-    /// Every fixture above takes `collaborative: false`, so until this existed
-    /// the Collaborative chip was never once exercised - which is part of why a
-    /// missing OAuth scope could hide every shared playlist without a single
-    /// test noticing.
-    @Test("Collaborative matches on the flag, whoever owns the playlist")
-    func collaborativeMatchesEitherOwner() {
+    /// Removing the Collaborative chip (ADR-0017) must not strand the playlists
+    /// behind it either. Collaboration was an axis, not a category: a shared
+    /// playlist you own is still yours, and one Sam owns is still someone
+    /// else's, so both were always reachable from chips that partition by owner.
+    @Test("A collaborative playlist is still reachable, filed by who owns it")
+    func collaborativePlaylistsAreStillReachable() {
         let ownedByMe = playlist(id: "kitchen", ownerID: "me", collaborative: true)
         let ownedBySam = playlist(id: "roadtrip", ownerID: "sam", collaborative: true)
 
-        #expect(PlaylistFilter.collaborative.matches(ownedByMe, currentUserID: "me"))
-        #expect(PlaylistFilter.collaborative.matches(ownedBySam, currentUserID: "me"))
-        #expect(!PlaylistFilter.collaborative.matches(mine, currentUserID: "me"))
-
-        // Collaboration is an axis, not a category: a shared playlist you own
-        // is still yours, and one Sam owns is still someone else's.
         #expect(PlaylistFilter.category(.mine).matches(ownedByMe, currentUserID: "me"))
         #expect(PlaylistFilter.category(.other).matches(ownedBySam, currentUserID: "me"))
     }
@@ -270,11 +268,14 @@ struct PlaylistFilterTests {
 @Suite("OAuth scopes")
 struct ScopeTests {
 
-    /// Nothing asserted on the scopes before, which is exactly how a missing
-    /// one survived: `playlist-read-collaborative` is not something any decode
-    /// path or model test can observe. Without it Spotify omits playlists
-    /// shared with the listener from `/me/playlists` entirely.
-    @Test("Reading collaborative playlists is requested")
+    /// **Do not delete this as vestigial.** Sorty no longer labels, filters or
+    /// counts collaborative playlists (ADR-0017), so the scope looks like a
+    /// leftover and is not one: without it Spotify omits playlists shared with
+    /// the listener from `/me/playlists` entirely - not misclassified, never
+    /// delivered - and a shared playlist is one of only two kinds Spotify will
+    /// still open at all. Dropping it would not remove a badge. It would remove
+    /// the playlists.
+    @Test("The collaborative scope is requested even though nothing is labelled collaborative")
     func collaborativeScopeIsRequested() {
         #expect(SpotifyAuthConfig.requiredScopes.contains("playlist-read-collaborative"))
     }
@@ -289,13 +290,17 @@ struct ScopeTests {
         ])
     }
 
-    /// A token stored before the field existed decodes with nil, and nil has to
-    /// mean "does not grant" - reading it as "grants everything" would leave the
-    /// listener with no prompt and no shared playlists.
-    @Test("A token that predates the field grants nothing")
-    func tokensPredatingTheFieldGrantNothing() {
+    /// The grant is recorded, not read.
+    ///
+    /// Nothing branches on it since ADR-0017 removed the reconnect prompt. It is
+    /// kept because it is the only record of what a given token can do and it
+    /// cannot be recovered for a token already in the Keychain - so what has to
+    /// hold now is that it survives a round trip, including the nil a token
+    /// stored before the field existed decodes with.
+    @Test("What Spotify granted is recorded, and a token predating the field says nothing")
+    func grantedScopesRoundTrip() throws {
         let old = SpotifyTokens(accessToken: "a", refreshToken: "r", expiresAt: .distantFuture)
-        #expect(!old.grants("playlist-read-collaborative"))
+        #expect(old.grantedScopes == nil)
 
         let granted = SpotifyTokens(
             accessToken: "a",
@@ -303,7 +308,9 @@ struct ScopeTests {
             expiresAt: .distantFuture,
             grantedScopes: ["playlist-read-private", "playlist-read-collaborative"]
         )
-        #expect(granted.grants("playlist-read-collaborative"))
-        #expect(!granted.grants("playlist-modify-public"))
+        let decoded = try JSONDecoder().decode(
+            SpotifyTokens.self, from: JSONEncoder().encode(granted)
+        )
+        #expect(decoded.grantedScopes == ["playlist-read-private", "playlist-read-collaborative"])
     }
 }

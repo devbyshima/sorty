@@ -39,7 +39,7 @@ actor RecordingMusicService: MusicService {
 
     func currentUser() async throws -> SpotifyUser { SpotifyUser(id: "me", displayName: "Me") }
 
-    func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist] { [] }
+    func playlists(onBatch: @Sendable (PlaylistListing) async -> Void) async throws -> [Playlist] { [] }
 
     func playlistItems(
         playlistID: String,

@@ -1,5 +1,32 @@
 import Foundation
 
+/// What the library listing amounts to so far.
+///
+/// Three values rather than an array, because one of them is an absence.
+/// Spotify's listing can carry entries it declines to describe - a `null` where
+/// a playlist object should be - and a null has no id, no name and no cover, so
+/// there is no row to draw for it. It can still be counted, and counting it is
+/// the difference between a library that is quietly missing four playlists and
+/// one that says four are missing. ADR-0018.
+public struct PlaylistListing: Sendable, Equatable {
+    public var playlists: [Playlist]
+    /// What Spotify says the library holds.
+    ///
+    /// Not the yardstick for what was withheld: it is a count of a set that can
+    /// change under a paged read, so subtracting from it would invent a
+    /// shortfall for anyone who made a playlist mid-load. The nulls are directly
+    /// observed, and that is what `withheldCount` reports.
+    public var total: Int?
+    /// Entries Spotify listed and would not describe, across every page so far.
+    public var withheldCount: Int
+
+    public init(playlists: [Playlist] = [], total: Int? = nil, withheldCount: Int = 0) {
+        self.playlists = playlists
+        self.total = total
+        self.withheldCount = withheldCount
+    }
+}
+
 /// Everything Sorty needs from a music backend.
 ///
 /// Kept as a protocol so the tests and the screenshot harness can run the whole
@@ -9,8 +36,8 @@ public protocol MusicService: Sendable {
     func currentUser() async throws -> SpotifyUser
 
     /// Streams playlists page by page; `onBatch` receives everything loaded so
-    /// far plus the reported total, so the UI can show real progress.
-    func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist]
+    /// far, so the UI can fill as the pages land.
+    func playlists(onBatch: @Sendable (PlaylistListing) async -> Void) async throws -> [Playlist]
 
     /// Streams playlist entries page by page.
     ///
@@ -70,8 +97,8 @@ struct UnconnectedMusicService: MusicService {
 
     func currentUser() async throws -> SpotifyUser { throw NotConnected() }
 
-    func playlists(onBatch: @Sendable ([Playlist], Int?) async -> Void) async throws -> [Playlist] {
-        await onBatch([], 0)
+    func playlists(onBatch: @Sendable (PlaylistListing) async -> Void) async throws -> [Playlist] {
+        await onBatch(PlaylistListing(total: 0))
         return []
     }
 

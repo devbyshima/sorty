@@ -254,9 +254,14 @@ public final class TrackListModel {
         // here would spend one of a five-listener quota to be told 403 and would
         // put a spinner in front of a sentence that was true on arrival.
         //
-        // Only another listener's playlist is pre-empted. Spotify's own
-        // editorial and algorithmic playlists fail the same rule for a different
-        // reason and keep the explanation `LoadFailure` gives them.
+        // Only another listener's playlist is pre-empted, and only because
+        // ownership is a *fact* that arrived with the listing. Spotify's own
+        // editorial and algorithmic playlists are not: they almost certainly
+        // refuse, and "almost certainly" is not something to refuse on Spotify's
+        // behalf - a Client ID old enough to hold extended quota can read them,
+        // which is exactly what `FeatureSourceMode.spotify` exists for. They go
+        // to the wire and keep the explanation `LoadFailure` gives them.
+        // ADR-0018.
         if playlist.category(currentUserID: currentUserID) == .other,
            !playlist.contentsAreReadable(byUserID: currentUserID) {
             phase = .unavailable(.contentsWithheld(owner: LoadFailure.ownerName(of: playlist)))

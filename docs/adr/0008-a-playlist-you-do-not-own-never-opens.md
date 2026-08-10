@@ -4,7 +4,20 @@ Date: 2026-08-08
 
 ## Status
 
-Accepted.
+Accepted, and amended twice on 2026-08-10.
+
+[ADR-0017](0017-collaboration-is-a-fact-not-a-feature.md): the *Collaborative*
+mark named in the consequences below no longer exists. What that consequence was
+recording - that collaborative playlists are readable and stay fully supported -
+is unchanged and is now the whole of it.
+
+[ADR-0018](0018-spotifys-own-playlists-are-one-thing-sorty-cannot-open.md): the
+pre-check no longer refuses Spotify's own playlists on an id prefix, which is the
+consequence this decision itself flagged (*"a pre-check can be wrong where
+Spotify is more generous than documented"*) coming due. Ownership is still
+pre-empted, because ownership is a fact. The endpoint latch below is also
+corrected: it is now set once per session rather than probed once per refused
+playlist, and it reports the `/items` refusal rather than the fallback's.
 
 ## Context
 

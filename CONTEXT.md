@@ -80,6 +80,25 @@ marked *Can't open*, and opening one costs no request because ownership arrived
 with the listing. ADR-0008.
 _Avoid_: Forbidden, blocked, inaccessible, restricted
 
+**Spotify's own**:
+Any playlist Spotify made or published - Discover Weekly, the Daily Mixes,
+Release Radar, the editorial lists, the charts. **One category, not two.** Sorty
+told what Spotify generates from what it edits by an undocumented id prefix that
+did not match Discover Weekly, and a distinction the app cannot draw reliably is
+one it should stop drawing. None of them opens for an app at Sorty's quota and
+none of them ever will, and Spotify sometimes declines to describe them in the
+library listing at all - which is what the count at the foot of the library
+reports. ADR-0018.
+_Avoid_: Algorithmic, personalized, editorial, curated
+
+**Placeholder**:
+The shape of a row that hasn't arrived: a breathing cover tile and one or two
+bars where its words will be. Not a spinner and not a progress bar - it carries
+no count, and the number of them is a layout decision that is never printed. The
+launch splash waits behind the same idea, staying up until there is one real
+playlist to uncover. ADR-0019, amending ADR-0015.
+_Avoid_: Skeleton screen, shimmer, loading state, spinner
+
 **Client ID**:
 The identifier of a Spotify developer application, which in Sorty each user
 supplies for themselves. Spotify caps a single application at five listeners, so

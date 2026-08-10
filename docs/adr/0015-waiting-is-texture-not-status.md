@@ -4,7 +4,13 @@ Date: 2026-08-09
 
 ## Status
 
-Accepted.
+Accepted. Amended by
+[ADR-0019](0019-a-skeleton-is-the-shape-of-what-is-coming.md) on 2026-08-10,
+which gives the track list and the trailing edge of the library a placeholder
+where this decision left them blank. The rule below stands, including the shader
+boundary, which 0019 restates rather than relaxes - and so does the finding that
+made this decision: `loaded`/`total` is now a layout input deciding how many
+shapes to draw, and is still printed nowhere.
 
 ## Context
 

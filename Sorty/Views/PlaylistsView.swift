@@ -12,8 +12,7 @@ struct PlaylistsView: View {
     @Environment(SessionModel.self) private var session
     let onSelect: (Playlist) -> Void
     /// The menu lives in this screen's own header rather than in the toolbar,
-    /// so these are handed in rather than reached from here.
-    var onConnect: () -> Void = {}
+    /// so this is handed in rather than reached from here.
     var onSettings: () -> Void = {}
 
     /// Search state lives here rather than in the bar, because the title has to
@@ -36,16 +35,18 @@ struct PlaylistsView: View {
         @Bindable var session = session
 
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
+            // A plain stack, and it has to be.
+            //
+            // This was a `LazyVStack`, which bought nothing - `grid` is a
+            // `LazyVGrid` and `list` is a `LazyVStack` of its own, so the rows
+            // were already lazy and this only wrapped them. What it cost was an
+            // *estimated* content extent while its later children were
+            // unmeasured, and the estimate overshoots once the footer holds a
+            // paragraph that wraps: scrolling to the bottom landed past the end
+            // of the content and `32-playlists-attribution`, whose whole job is
+            // to prove Spotify's mark still renders, came back empty.
+            VStack(alignment: .leading, spacing: 0) {
                 loadState
-
-                // Above the library rather than inside the Collaborative chip:
-                // the chip looks empty rather than broken, and a listener who
-                // never opens it would never learn why their shared playlists
-                // are missing.
-                if session.needsCollaborativeReconnect {
-                    reconnectNotice
-                }
 
                 if session.filteredPlaylists.isEmpty, case .ready = session.playlistLoad {
                     EmptyStateView(state: .noPlaylistsMatch(hasSearch: !session.searchText.isEmpty)) {
@@ -61,12 +62,35 @@ struct PlaylistsView: View {
                         list
                     }
 
+                    withheldNotice
+
                     // Required wherever Spotify's metadata is shown, and every
                     // playlist name and cover above is exactly that. Inside the
                     // `else` because the requirement attaches to the metadata:
                     // there is none to attribute while the library is loading,
                     // failing, or filtered down to nothing.
+                    //
+                    // **Last, and the notice above it goes above it for that
+                    // reason.** The mark is the one element here that is not a
+                    // design choice, and `32-playlists-attribution` reaches it
+                    // by scrolling to the bottom - so anything added below it
+                    // takes its place in the one shot that exists to prove it
+                    // still renders. It was silently lost once already.
                     SpotifyAttribution()
+                }
+
+                // The placeholders above are each hidden from VoiceOver, so
+                // without this a library still filling is silent - a heading and
+                // then nothing, which is indistinguishable from an empty one.
+                // One element carries the one true thing, and it is a status
+                // rather than content: no value, no action, and it disappears
+                // when the rows it stands for arrive.
+                if trailingPlaceholders > 0 {
+                    Color.clear
+                        .frame(height: 1)
+                        .accessibilityElement()
+                        .accessibilityLabel("Loading more playlists")
+                        .accessibilityAddTraits(.updatesFrequently)
                 }
             }
             // Longer than the blur's fade, so the ramp finishes in the gap
@@ -100,28 +124,29 @@ struct PlaylistsView: View {
         // action rather than something the list does when brushed.
     }
 
-    /// Explains an absence, and offers the only thing that fixes it.
-    private var reconnectNotice: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "person.2.badge.gearshape")
-                .foregroundStyle(.secondary)
-
-            Text(ReconnectNotice.collaborative)
+    /// How many playlists Spotify listed and would not name.
+    ///
+    /// **At the foot, and quiet.** It names a rule with no remedy - no
+    /// permission grants it, no button helps - and a permanent unactionable
+    /// banner over the library is precisely the thing `EmptyState`'s own rules
+    /// argue against. Here it is found by the person who went looking for the
+    /// playlist that isn't there, and invisible to everyone else.
+    ///
+    /// Directly above `SpotifyAttribution`, never below it: the mark has to be
+    /// the last thing on the screen, because it is the one element here that is
+    /// mandatory rather than chosen and the shot that proves it renders finds it
+    /// by scrolling to the bottom. ADR-0018.
+    @ViewBuilder
+    private var withheldNotice: some View {
+        if let notice = LibraryNotice.withheldFromListing(count: session.withheldPlaylistCount) {
+            Text(notice)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 8)
-
-            Button(ReconnectNotice.collaborativeAction, action: onConnect)
-                .font(.caption.weight(.semibold))
-                .buttonStyle(.plain)
-                .foregroundStyle(SortyTheme.accent)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
         }
-        .padding(10)
-        .background(SortyTheme.surface, in: .rect(cornerRadius: 10))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 12)
     }
 
     // MARK: - Header
@@ -144,7 +169,7 @@ struct PlaylistsView: View {
 
                     Spacer(minLength: 8)
 
-                    LibraryMenu(onConnect: onConnect, onSettings: onSettings)
+                    LibraryMenu(onSettings: onSettings)
                 }
                 .padding(.horizontal, 16)
             }
@@ -207,14 +232,42 @@ struct PlaylistsView: View {
 
     // MARK: - Controls
 
+    /// How many placeholders trail the playlists already in hand.
+    ///
+    /// **Trailing only, never a screenful**, and that is the part of ADR-0015
+    /// this keeps: the grid genuinely does fill, batch by batch, so the part
+    /// that has arrived needs no explaining. What 0015 never covered is the part
+    /// that hasn't - a two-up grid showing three of forty-seven playlists is not
+    /// a library filling, it is a library that looks finished and is wrong.
+    ///
+    /// Zero once every page has landed, and zero before the first one: at that
+    /// point the splash is still over this screen (ADR-0019), and drawing a grid
+    /// of shapes nobody can see costs a layout pass for nothing.
+    private var trailingPlaceholders: Int {
+        guard case .loading(let loaded, let total) = session.playlistLoad else { return 0 }
+        // Only while the library is unfiltered. A search matching two playlists
+        // is not waiting for forty more, and shapes under it would promise
+        // results that are never coming.
+        guard session.searchText.isEmpty, session.categoryFilter == .all else { return 0 }
+        return SkeletonPlan.trailingCount(
+            loaded: loaded,
+            total: total,
+            columns: session.libraryLayout.columns ?? 1
+        )
+    }
+
     @ViewBuilder
-    /// Failures only. **Loading shows nothing** - the library simply arrives.
+    /// Failures only. **Loading still shows no status** - see the placeholders
+    /// above, which are shape rather than status.
     ///
     /// There was a counting row here, "Loaded 12 of 40 playlists…" over a
     /// determinate bar. It was accurate and it was noise: the number is not
     /// actionable, nobody waits differently for knowing it, and it made an
     /// ordinary two-second fetch look like an operation with a status. A
     /// failure still speaks, because that one *is* actionable.
+    ///
+    /// ADR-0019 gives the count a second job and not that one: `loaded`/`total`
+    /// now decides *how many shapes to draw* and is still printed nowhere.
     private var loadState: some View {
         if case .failed(let message) = session.playlistLoad {
             ErrorRow(message: message) {
@@ -242,6 +295,10 @@ struct PlaylistsView: View {
                 }
                 .buttonStyle(.pressableRow)
             }
+
+            ForEach(0..<trailingPlaceholders, id: \.self) { index in
+                PlaylistTilePlaceholder(index: index)
+            }
         }
         .padding(.horizontal, 16)
     }
@@ -259,6 +316,10 @@ struct PlaylistsView: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.pressableRow)
+            }
+
+            ForEach(0..<trailingPlaceholders, id: \.self) { index in
+                PlaylistRowPlaceholder(index: index)
             }
         }
     }
@@ -296,10 +357,10 @@ private struct PlaylistTile: View {
                     .lineLimit(2, reservesSpace: true)
                     .multilineTextAlignment(.leading)
 
-                // Badges collapse to glyphs at this size: the tile has room for
-                // one line, and "Collaborative" spelled out would take it all.
-                // The list layout still spells them, and the spoken label below
-                // always does, so nothing is lost to a VoiceOver user.
+                // Badges collapse to glyphs at this size: the tile has one line
+                // and shares it with the owner's name. The list layout still
+                // spells them, and the spoken label below always does, so
+                // nothing is lost to a VoiceOver user.
                 HStack(spacing: 4) {
                     ForEach(text.badges) { badge in
                         Image(systemName: badge.symbolName)
@@ -315,6 +376,74 @@ private struct PlaylistTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text.spoken)
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+// MARK: - Placeholders
+
+/// A tile that hasn't arrived, at exactly the geometry of one that has.
+///
+/// Every number here is `PlaylistTile`'s, and that is the whole design
+/// constraint: the two are photographed side by side and nothing may move
+/// between them. The square cover with its 6pt radius, the 8pt gap, the two
+/// reserved name lines, the 2pt gap and the `.caption2` detail line.
+///
+/// The cover is `CoverRipple` rather than a `SkeletonShape`, because a cover
+/// waiting for its file is a state this app already had a placeholder for and
+/// one idiom is better than two.
+private struct PlaylistTilePlaceholder: View {
+    let index: Int
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CoverRipple(phase: SkeletonPlan.phase(at: index))
+                .aspectRatio(1, contentMode: .fit)
+                .clipShape(.rect(cornerRadius: 6))
+                .shadow(color: SortyTheme.cardShadow(colorScheme), radius: 6, y: 3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                // Two lines reserved, matching the tile's own
+                // `lineLimit(2, reservesSpace: true)`. A one-line placeholder
+                // would let every tile in the row jump when the names land.
+                VStack(alignment: .leading, spacing: 2) {
+                    SkeletonLine(font: .footnote.weight(.semibold), widthFraction: 0.92, index: index)
+                    SkeletonLine(font: .footnote.weight(.semibold), widthFraction: 0.55, index: index + 1)
+                }
+                SkeletonLine(font: .caption2, widthFraction: 0.42, index: index + 2)
+            }
+        }
+    }
+}
+
+/// A list row that hasn't arrived, at exactly the geometry of one that has.
+private struct PlaylistRowPlaceholder: View {
+    let index: Int
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var side: CGFloat { dynamicTypeSize.isAccessibilitySize ? 72 : 52 }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            CoverRipple(phase: SkeletonPlan.phase(at: index))
+                .frame(width: side, height: side)
+                .clipShape(.rect(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 3) {
+                SkeletonLine(font: .subheadline.weight(.medium), widthFraction: 0.66, index: index)
+                SkeletonLine(font: .caption, widthFraction: 0.28, index: index + 1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // No chevron. It is not content that is loading, it is an
+            // affordance for a row that cannot be tapped yet, and drawing one
+            // over a placeholder invites the tap.
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(minHeight: 68)
     }
 }
 
@@ -423,7 +552,6 @@ struct ErrorRow: View {
 /// here instead.
 struct LibraryMenu: View {
     @Environment(SessionModel.self) private var session
-    var onConnect: () -> Void
     var onSettings: () -> Void
 
     var body: some View {
@@ -451,12 +579,11 @@ struct LibraryMenu: View {
                 Button("Refresh", systemImage: "arrow.clockwise") {
                     Task { await session.loadPlaylists() }
                 }
+                // Signing out moved into Settings, which is where the account it
+                // ends is now named. It was an account action sitting among
+                // library actions, and it was the only destructive thing in a
+                // menu you open to change how a grid is sorted.
                 Button("Settings", systemImage: "gearshape", action: onSettings)
-                if session.isConnected {
-                    Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) {
-                        Task { await session.signOut() }
-                    }
-                }
             }
         } label: {
             Image(systemName: "ellipsis")

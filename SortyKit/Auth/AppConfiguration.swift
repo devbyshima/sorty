@@ -40,6 +40,18 @@ public enum FeatureSourceMode: String, Sendable, CaseIterable, Hashable {
     /// Third-party lookups leave the app's own network boundary, so the UI says
     /// so before anyone turns one on.
     public var sendsTrackIDsOffDevice: Bool { self == .reccoBeats }
+
+    /// The glyph beside this source in the Audio features picker.
+    ///
+    /// Three shapes rather than three dots, because the list is read once and
+    /// then scanned: a waveform, Spotify's own note, and a source switched off.
+    public var symbolName: String {
+        switch self {
+        case .reccoBeats: "waveform"
+        case .spotify: "music.note"
+        case .none: "slash.circle"
+        }
+    }
 }
 
 /// User-supplied credentials and preferences.
@@ -74,6 +86,38 @@ public struct AppConfiguration: Sendable, Equatable {
             clientID: clientID.trimmingCharacters(in: .whitespaces),
             redirectURI: redirectURI.trimmingCharacters(in: .whitespaces)
         )
+    }
+
+    /// The Client ID as it should be *stored*: trimmed.
+    ///
+    /// `authConfig` already trims on the way out, so an untrimmed store means
+    /// the string on screen and the string used are different strings - and a
+    /// Client ID pasted from a web page routinely arrives with a trailing
+    /// newline on it.
+    ///
+    /// A function returning a copy rather than a `didSet`, because the settings
+    /// field commits on submit rather than on every keystroke: `SessionModel`
+    /// rebuilds the entire service stack when `configuration` changes, and
+    /// typing a 32-character ID used to do that 32 times.
+    public func settingClientID(_ raw: String) -> AppConfiguration {
+        var copy = self
+        copy.clientID = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return copy
+    }
+
+    /// Emptying the redirect URI restores the default rather than persisting
+    /// nothing.
+    ///
+    /// An empty one makes `hasSpotifyCredentials` false, which unconfigures the
+    /// app *silently*: `rebuildServices()` drops the authenticator, the library
+    /// carries on working off the token already in hand, and the next launch has
+    /// no way back in. There is no reading of "I cleared this field" that means
+    /// that.
+    public func settingRedirectURI(_ raw: String) -> AppConfiguration {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var copy = self
+        copy.redirectURI = trimmed.isEmpty ? AppConfiguration.defaultRedirectURI : trimmed
+        return copy
     }
 }
 

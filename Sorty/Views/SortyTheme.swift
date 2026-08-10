@@ -120,6 +120,45 @@ enum SortyTheme {
                 : UIColor(white: 0, alpha: 0.12)
         })
     }
+
+    /// The accent as a *field* rather than as an assertion: the account card at
+    /// the head of Settings, and anything else that wants to be identifiably
+    /// Sorty's without claiming a value the way `accent` does.
+    ///
+    /// Authored per Appearance rather than written as `accent.opacity(0.15)`,
+    /// for the reason the rest of this file gives: the accent is not one colour.
+    /// It is #5B4BE0 on a near-white field in light and #8B7BFF on a near-black
+    /// one in dark, and one alpha over those two gives a pale lavender in the
+    /// first and a bruise in the second. These two were picked against their own
+    /// backgrounds.
+    static var accentWash: Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.545, green: 0.482, blue: 1, alpha: 0.16)
+                : UIColor(red: 0.357, green: 0.294, blue: 0.878, alpha: 0.11)
+        })
+    }
+
+    /// The dotted line between two rows of a settings card.
+    ///
+    /// **Not `hairline`, and the difference is measured in ink.** `hairline` is
+    /// calibrated for a continuous one-pixel rule; a 1.5-on-5 dash lays down
+    /// about a quarter of those pixels, so at black 9% it is not a quieter
+    /// divider in light, it is an absent one. This is the same line given back
+    /// the contrast the dashes cost it.
+    static var dottedSeparator: Color {
+        Color(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(white: 1, alpha: 0.20)
+                : UIColor(white: 0, alpha: 0.18)
+        })
+    }
+
+    /// Signing out, and nothing else so far.
+    ///
+    /// A token rather than `.red` at the call site, for this file's stated
+    /// reason: a change of identity should be a change here, not a search.
+    static var destructive: Color { Color(.systemRed) }
 }
 
 extension View {
@@ -146,25 +185,13 @@ extension View {
     }
 }
 
-/// The Appearance the user has chosen, which may be "whatever the device says".
-///
-/// `CONTEXT.md` defines Appearance as light or dark, followed from the device by
-/// default and overridable. This is the override.
-enum AppearanceChoice: String, CaseIterable, Identifiable {
-    case system, light, dark
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .system: "System"
-        case .light: "Light"
-        case .dark: "Dark"
-        }
-    }
-
+extension AppearanceChoice {
     /// Nil means "follow the device", which is what `preferredColorScheme`
     /// already understands.
+    ///
+    /// The rest of the type lives in `SortyKit/Models/Appearance.swift`, where
+    /// its words can be tested. This half stays here because `ColorScheme` is
+    /// SwiftUI's and SortyKit does not import SwiftUI.
     var colorScheme: ColorScheme? {
         switch self {
         case .system: nil
