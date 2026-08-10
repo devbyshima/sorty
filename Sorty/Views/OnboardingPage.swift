@@ -63,7 +63,17 @@ struct OnboardingPage<Extra: View>: View {
             VStack(spacing: 0) {
                 OnboardingWords(title: title, text: text, onInfo: onInfo)
 
+                // Held to its own height, so a caller cannot unpin the block
+                // above it. The spacer above is what puts these words on the
+                // bottom edge, and it can only do that while it is the one view
+                // here that grows: anything flexible in `extra` splits the
+                // leftover with it and the words drift up into the middle of
+                // the screen. That is not hypothetical - a `Spacer` added to
+                // centre one step's button did exactly that to all four, and
+                // the failure is invisible in the code because the two views
+                // fighting over the space are in different files.
                 extra
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 24)

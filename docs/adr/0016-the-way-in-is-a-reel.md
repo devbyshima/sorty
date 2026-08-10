@@ -408,6 +408,17 @@ What the layout does now:
 Both are measured from an edge rather than from the content between them, which
 is the whole reason they hold still while a page's text changes length.
 
+**Nothing a step adds under the words may grow.** The spacer above the words is
+what puts them on the bottom edge, and it can only do that while it is the one
+view on the page that claims the leftover. A second flexible view anywhere below
+it splits that space instead, and the whole block floats up into the middle of
+the screen. A `Spacer` added to centre one step's button did exactly that to all
+four steps, and it read as correct in review because the two views fighting over
+the space are in different files. `OnboardingPage` now holds `extra` to its own
+height so a caller cannot make that trade by accident. A step with controls still
+pushes its words up by exactly the controls' height, which is the one intended
+difference between a step and the first page.
+
 **Centring cannot level these screens, and that is not obvious.** The reel and
 the flow centre in different amounts of room - the flow loses a toolbar off the
 top and carries a shorter footer than the way-in screen's button-plus-small-print

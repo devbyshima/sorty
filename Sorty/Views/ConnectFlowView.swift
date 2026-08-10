@@ -51,21 +51,24 @@ struct ConnectFlowView: View {
                 onInfo: { showingDetail = true },
                 glyphTop: OnboardingMetrics.flowGlyphTop
             ) {
-                VStack(spacing: 0) {
+                // As tall as it is, and never taller. Everything on a connect
+                // step hangs off the bottom edge - the words above it are
+                // pinned there, and a step's controls push them up by exactly
+                // their own height - so anything here that could *grow*
+                // competes with the page's own spacer for the leftover and
+                // pulls the whole block off the bottom. That is what a
+                // `Spacer` in this position did: it split the leftover with the
+                // spacer above, and the words floated into the middle of the
+                // screen instead of sitting over the button.
+                VStack(spacing: 14) {
                     stepControls
-                        // Step 2's controls claim the leftover so its one button
-                        // can sit midway between the URI above and the advance
-                        // button below. Every other step's are as tall as they
-                        // are, and the `Spacer` underneath takes the rest.
-                        .frame(maxHeight: step == .createApp ? .infinity : nil)
 
+                    // Outside the page's own block and holding still while
+                    // pages move: a failure belongs to the attempt rather than
+                    // to the step it happened on, and sliding it away with the
+                    // page would take the explanation with it.
                     if let failure = session.connectFailure {
                         ErrorRow(message: failure)
-                            .padding(.top, 14)
-                    }
-
-                    if step != .createApp {
-                        Spacer(minLength: 0)
                     }
                 }
                 .padding(.top, 4)
@@ -170,16 +173,18 @@ struct ConnectFlowView: View {
             EmptyView()
 
         case .createApp:
-            VStack(alignment: .leading, spacing: 0) {
+            // The URI first, the dashboard second, because that is the order
+            // the hand does it in: copy the thing, then go and paste it.
+            //
+            // Stacked at their own height rather than spread through the
+            // leftover. Centring the button between the URI and the advance bar
+            // needed a spacer that grows, and a growing control block is the one
+            // thing this page cannot have: the words above it are pinned to the
+            // bottom edge, and anything that claims the leftover unpins them.
+            VStack(alignment: .leading, spacing: 14) {
                 redirectURI
 
-                // Centred in what is left between the URI above and the advance
-                // button below.
-                Spacer(minLength: 16)
-
                 dashboardAction
-
-                Spacer(minLength: 16)
             }
 
         case .clientID:
@@ -304,12 +309,11 @@ struct ConnectFlowView: View {
         .controlSize(.large)
         .disabled(!canAdvance)
         .padding(.horizontal, 24)
-        // Bottom only. Padding above the advance button sits *outside* the page,
-        // so the page's own spacers cannot see it - which left step 2's centred
-        // button with 112px of air above and 182 below, off by exactly this
-        // inset. With it gone the page's bottom edge is the button's top edge
-        // and equal spacers read as equal.
-        .padding(.bottom, 16)
+        // Above as well as below, because the page's own bottom edge is this
+        // button's top edge and a step's last control lands flush against it.
+        // Without the top inset the create-app step's button sits on the
+        // advance button.
+        .padding(.vertical, 16)
         // No bar behind it. `safeAreaInset` already reserves the space, so
         // nothing scrolls under the button, and a grey slab here would cut the
         // bloom in half exactly where it is brightest.
