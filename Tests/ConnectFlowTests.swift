@@ -61,11 +61,17 @@ struct ConnectFlowTests {
     /// The requirement has to read as a platform constraint rather than an
     /// arbitrary demand, which means the first step has to say what the
     /// constraint *is* - story 50.
+    ///
+    /// Asserted against the step's whole text, `body` plus `detail`, rather than
+    /// `body` alone. The pages were cut to two lines each and the reasoning
+    /// moved behind the info button, so "250,000" is now in `detail` - still
+    /// said by the step, one tap further in. What this test protects is that the
+    /// flow *answers* the question, not which of its two surfaces answers it.
     @Test("The first step explains the five-listener cap")
     func firstStepNamesTheCap() {
-        let body = ConnectStep.why.body
-        #expect(body.contains("five listeners"))
-        #expect(body.contains("250,000"), "and why the cap can't simply be lifted")
+        let text = ConnectStep.why.body + ConnectStep.why.detail
+        #expect(text.contains("five listeners"))
+        #expect(text.contains("250,000"), "and why the cap can't simply be lifted")
     }
 
     @Test("Every step carries copy rather than leaving it to a view")
@@ -77,11 +83,20 @@ struct ConnectFlowTests {
         }
     }
 
+    /// The info button has to be worth opening on every step, or it is furniture
+    /// that teaches listeners to ignore it.
+    @Test("Every step has more to say behind the info button")
+    func everyStepHasDetail() {
+        for step in ConnectStep.allCases {
+            #expect(step.detail.count > step.body.count, "\(step)")
+        }
+    }
+
     /// Sorty never wants the secret, and the step where the two strings sit
     /// side by side is where saying so is worth anything.
     @Test("The Client ID step says the secret is never asked for")
     func clientIDStepDisownsTheSecret() {
-        #expect(ConnectStep.clientID.body.contains("secret"))
+        #expect((ConnectStep.clientID.body + ConnectStep.clientID.detail).contains("secret"))
     }
 }
 

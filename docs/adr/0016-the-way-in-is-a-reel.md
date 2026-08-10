@@ -340,3 +340,43 @@ read as movement instead of as a resize.
 **The scale is 6%, and small on purpose.** A page is a screenful of type, and
 type that grows or shrinks by more than a few percent stops reading as
 approaching and starts reading as a zoom effect applied to a document.
+
+
+## Addendum, 2026-08-10: five screens, one screen
+
+The four connect steps now look like the way-in screen, because they *are* it
+with different words: `OnboardingGlyph` was lifted out of `OnboardingReel` and is
+drawn by both. Before it, the reel led with a 100pt symbol ringed with pulses and
+the steps led with a 44pt one with nothing behind it, and the two halves of one
+flow looked like two apps.
+
+**The rings are back on the connect steps**, which reverses a call made above.
+That call was that rings imply *searching* and a step waiting for a tap is not
+searching - true, and outweighed: consistency across five screens buys more than
+the precision of one metaphor, and Beam puts the same treatment on screens that
+are not searching either. What survives of the argument is `bounces`, which stays
+off outside the reel: a glyph that bounces forever on a screen waiting for a
+decision does read as something loading.
+
+**One transition, everywhere.** Every page - the reel's props and all four steps
+- now pushes up from the bottom and blur-replaces. A flow whose pages each arrive
+differently reads as several flows.
+
+That retires the depth transition and its shader, both deleted rather than left
+to rot. They were good and they were the wrong answer to "make these look like
+one thing": a bespoke motion on four of five screens is precisely the seam this
+was meant to close.
+
+**Text-heavy steps were cut to two lines with an info button beside them.** The
+pages lead with a large glyph now, and that shape only works while the words can
+be taken in at a glance - a paragraph under a 100pt symbol is a paragraph wearing
+a hat. What did not fit moved to `ConnectStep.detail` rather than being deleted:
+the arithmetic behind the cap, the PKCE explanation, the Keychain promise. A
+listener in ten wants it and none of the other nine should have to read past it.
+
+Two tests moved with the words. `firstStepNamesTheCap` and
+`clientIDStepDisownsTheSecret` now assert against `body + detail` rather than
+`body`, because what they protect is that the flow *answers* the question, not
+which of its two surfaces answers it. A third was added: every step's `detail`
+must say more than its `body`, or the info button is furniture that teaches
+people to ignore it.
