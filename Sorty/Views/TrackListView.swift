@@ -533,9 +533,7 @@ struct TrackListView: View {
                 // A rule, not a failure, so it gets the empty-state treatment and
                 // the way out the state names: Spotify, where this playlist can be
                 // opened and its tracks added to one of the listener's own.
-                EmptyStateView(state: state) {
-                    if let url = URL(string: model.playlist.uri) { openURL(url) }
-                }
+                EmptyStateView(state: state, spotifyURL: playlistURL)
                 .padding(.top, 40)
                 .transition(.opacity)
 
@@ -642,6 +640,14 @@ struct TrackListView: View {
         .accessibilityAddTraits(.updatesFrequently)
     }
 
+    /// This playlist on the web, which is where every "Open on Spotify" here
+    /// goes.
+    ///
+    /// Not `URL(string: playlist.uri)`, which is the `spotify:` scheme and makes
+    /// iOS put an "Open in Spotify?" confirmation in front of it. See
+    /// `SpotifyLink`.
+    private var playlistURL: URL? { SpotifyLink.url(forURI: model.playlist.uri) }
+
     // MARK: - Toolbar
 
     /// The bar no longer carries Save: the anchor in the header does. What is
@@ -659,7 +665,7 @@ struct TrackListView: View {
                     showingFilter = true
                 }
             }
-            if let url = URL(string: model.playlist.uri) {
+            if let url = playlistURL {
                 if isOpenable { Divider() }
                 Button("Open on Spotify", systemImage: "arrow.up.forward.app") {
                     openURL(url)

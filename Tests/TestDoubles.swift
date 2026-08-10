@@ -142,12 +142,14 @@ func samplePlaylist(
     ownerID: String = "me",
     isPublic: Bool = false,
     description: String? = "Original",
-    total: Int = 8
+    total: Int = 8,
+    collaborative: Bool = false
 ) -> Playlist {
     Playlist(
         id: "p1", name: "Test Playlist", uri: "spotify:playlist:p1",
         owner: PlaylistOwner(id: ownerID, displayName: "Owner"),
         tracks: PlaylistTrackCount(total: total),
+        collaborative: collaborative,
         isPublic: isPublic, rawDescription: description
     )
 }

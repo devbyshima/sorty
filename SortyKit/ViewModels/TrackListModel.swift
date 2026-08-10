@@ -195,7 +195,8 @@ public final class TrackListModel {
             isFiltered: filter.isActive,
             canCreate: canSaveAsNewPlaylist,
             canOverwrite: canOverwrite,
-            mayOverwriteThisPlaylist: mayOverwriteThisPlaylist
+            mayOverwriteThisPlaylist: mayOverwriteThisPlaylist,
+            savesACopy: savesACopy
         )
     }
 
@@ -205,10 +206,24 @@ public final class TrackListModel {
     /// A new playlist is a duplicate unless *something* differs from what's on
     /// Spotify - and the filter counts, because a filter is the whole reason
     /// story 41 wants this path.
+    ///
+    /// **Except on a playlist that isn't yours, where the duplicate is the
+    /// point.** Sorty will not overwrite someone else's playlist (ADR-0002), so
+    /// a copy is the only way to end up with a version you can actually keep and
+    /// edit - and demanding a change first meant the listener had to reorder a
+    /// playlist they only wanted to take a copy of. The rule this relaxes was
+    /// written to stop you cloning *your own* playlist into an identical second
+    /// one, which is still what it does.
     public var canSaveAsNewPlaylist: Bool {
-        guard isReadyToWrite, let saved else { return false }
-        return saved != current && !arrangedRows.isEmpty
+        guard isReadyToWrite, let saved, !arrangedRows.isEmpty else { return false }
+        guard mayOverwriteThisPlaylist else { return true }
+        return saved != current
     }
+
+    /// Whether saving would produce a copy of somebody else's playlist rather
+    /// than a new arrangement of the listener's own. Only the wording depends on
+    /// it; both go down the same write path.
+    public var savesACopy: Bool { !mayOverwriteThisPlaylist }
 
     /// Armed by a change of **Arrangement alone**.
     ///

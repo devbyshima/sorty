@@ -30,7 +30,12 @@ public struct SaveAction: Identifiable, Sendable, Hashable {
     /// The safe action first. Overwrite is the one that touches a playlist the
     /// listener already has, so it is never the one under the thumb by default.
     public static func actions(
-        writtenCount: Int, isFiltered: Bool, canCreate: Bool, canOverwrite: Bool, mayOverwriteThisPlaylist: Bool
+        writtenCount: Int,
+        isFiltered: Bool,
+        canCreate: Bool,
+        canOverwrite: Bool,
+        mayOverwriteThisPlaylist: Bool,
+        savesACopy: Bool = false
     ) -> [SaveAction] {
         var actions = [
             SaveAction(
@@ -39,9 +44,15 @@ public struct SaveAction: Identifiable, Sendable, Hashable {
                 // be the whole playlist's, which says nothing the listener
                 // can't already see and turns a stable menu item into one whose
                 // label changes every time a track loads.
-                title: isFiltered
-                    ? "Save These \(writtenCount) as a New Playlist"
-                    : "Save as New Playlist",
+                //
+                // "Copy" on a playlist that isn't the listener's, because that
+                // is what it is and the word carries the reason: there is no
+                // Overwrite beside it and there never will be. Keyed on
+                // ownership rather than on whether anything has changed, so the
+                // label does not rename itself the moment a chip is tapped.
+                title: newPlaylistTitle(
+                    writtenCount: writtenCount, isFiltered: isFiltered, savesACopy: savesACopy
+                ),
                 isEnabled: canCreate
             )
         ]
@@ -51,5 +62,16 @@ public struct SaveAction: Identifiable, Sendable, Hashable {
             )
         }
         return actions
+    }
+
+    private static func newPlaylistTitle(
+        writtenCount: Int, isFiltered: Bool, savesACopy: Bool
+    ) -> String {
+        switch (savesACopy, isFiltered) {
+        case (true, true): "Save These \(writtenCount) as a Copy"
+        case (true, false): "Save a Copy"
+        case (false, true): "Save These \(writtenCount) as a New Playlist"
+        case (false, false): "Save as New Playlist"
+        }
     }
 }

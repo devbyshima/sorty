@@ -145,7 +145,13 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
     /// Deliberately not `savableURI`: this opens a track rather than writing
     /// one, so a local file's `spotify:local:` URI is worth offering even
     /// though it can never be saved.
-    public var spotifyURL: URL? { playable.uri.flatMap(URL.init(string:)) }
+    /// Where "Open on Spotify" goes for this row.
+    ///
+    /// The **web** URL rather than the `spotify:` URI it is built from: opening
+    /// a custom scheme makes iOS interrupt with "Open in Spotify?", which is a
+    /// confirmation dialog in front of a button that already said so. See
+    /// `SpotifyLink`.
+    public var spotifyURL: URL? { playable.uri.flatMap(SpotifyLink.url(forURI:)) }
 
     /// Only real Spotify tracks and episodes can be written back. Local files
     /// have no server-side URI and are silently dropped on save, exactly as the

@@ -144,7 +144,13 @@ public enum PlaylistSorter {
 
 public enum SaveNaming {
     public static func playlistName(original: String, arrangement: Arrangement) -> String {
-        "\(original) ordered by \(arrangement.name)"
+        // Nothing was reordered, so nothing can be claimed about the order.
+        // "Sam's Coffee House ordered by Original order" is what the general
+        // form produces here, and it is a sentence that says nothing twice -
+        // reachable two ways: copying a playlist you don't own, and saving your
+        // own filtered set without touching the arrangement.
+        guard arrangement != .originalOrder else { return "\(original) (copy)" }
+        return "\(original) ordered by \(arrangement.name)"
     }
 
     public static func playlistDescription(original: String?, arrangement: Arrangement) -> String {

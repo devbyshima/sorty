@@ -15,6 +15,7 @@ struct SaveSplitTests {
     private func loadedModel(
         count: Int = 8,
         ownerID: String = "me",
+        collaborative: Bool = false,
         service: RecordingMusicService? = nil
     ) async -> (TrackListModel, RecordingMusicService) {
         var table: [String: AudioFeatures] = [:]
@@ -23,7 +24,7 @@ struct SaveSplitTests {
         }
         let recorder = service ?? RecordingMusicService(items: sampleItems(count: count))
         let model = TrackListModel(
-            playlist: samplePlaylist(ownerID: ownerID, total: count),
+            playlist: samplePlaylist(ownerID: ownerID, total: count, collaborative: collaborative),
             service: recorder,
             featureProvider: StubFeatureProvider(table: table),
             currentUserID: "me"
@@ -302,5 +303,71 @@ struct SaveSplitTests {
 
         #expect(model.canOverwrite, "nothing was written, so there is still something to write")
         #expect(model.canSave)
+    }
+
+    // MARK: - Copying somebody else's playlist
+
+    /// **Collaborative, and that is not incidental.** A copy needs the tracks,
+    /// and since February 2026 Spotify sends a playlist's contents only to the
+    /// people who own it or collaborate on it - so a playlist of Sam's that you
+    /// are not a collaborator on never loads at all and there is nothing to
+    /// copy. These tests are about the case that *can* work, and there is no
+    /// version of them for the case that cannot. See ADR-0008.
+    ///
+    /// The rule that a new playlist needs *something* to differ exists to stop
+    /// you cloning your own playlist into an identical second one. Here it was
+    /// stopping the only thing you can do: Sorty will never overwrite someone
+    /// else's (ADR-0002), so a copy is the whole point, and demanding a reorder
+    /// first meant reordering a playlist you only wanted to take.
+    @Test("Somebody else's playlist can be copied without reordering it first")
+    func anotherListenersPlaylistCopiesUnchanged() async {
+        let (model, _) = await loadedModel(ownerID: "sam", collaborative: true)
+
+        #expect(!model.mayOverwriteThisPlaylist, "Sorty never overwrites someone else's")
+        #expect(model.savesACopy)
+        #expect(model.canSaveAsNewPlaylist, "the copy is the point, not a duplicate")
+        #expect(model.canSave)
+    }
+
+    /// And the rule still holds where it was written to hold: your own playlist,
+    /// untouched, is a duplicate nobody asked for.
+    @Test("Your own playlist still needs a change before it can be saved again")
+    func ownPlaylistStillNeedsAChange() async {
+        let (model, _) = await loadedModel(ownerID: "me")
+
+        #expect(!model.savesACopy)
+        #expect(!model.canSaveAsNewPlaylist, "nothing differs from what Spotify already holds")
+
+        model.apply(.attribute(.bpm, .descending))
+        #expect(model.canSaveAsNewPlaylist)
+    }
+
+    /// The word carries the reason: there is no Overwrite beside it and there
+    /// never will be. Keyed on ownership rather than on whether anything has
+    /// changed, so the label does not rename itself when a chip is tapped.
+    @Test("A playlist you don't own offers a Copy, and only that")
+    func copyIsTheOnlyActionOffered() async {
+        let (model, _) = await loadedModel(ownerID: "sam", collaborative: true)
+
+        #expect(model.saveActions.map(\.kind) == [.newPlaylist], "no Overwrite on someone else's")
+        #expect(model.saveActions.first?.title == "Save a Copy")
+
+        model.apply(.attribute(.bpm, .descending))
+        #expect(model.saveActions.first?.title == "Save a Copy", "the label must not move under the finger")
+    }
+
+    /// What actually reaches Spotify: every track, in the order on screen, under
+    /// a name that doesn't claim an ordering that wasn't applied.
+    @Test("Copying writes every track, and names the copy a copy")
+    func copyWritesEverythingAndIsNamedHonestly() async {
+        let (model, service) = await loadedModel(ownerID: "sam", collaborative: true)
+
+        await model.saveAsNewPlaylist()
+
+        let created = await service.createdPlaylists
+        #expect(created.count == 1)
+        #expect(created.first?.name == "Test Playlist (copy)", "no ordering was applied, so none is claimed")
+        let written = await service.writes
+        #expect(written.first?.uris.count == 8, "a copy is the whole playlist")
     }
 }

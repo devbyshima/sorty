@@ -102,7 +102,11 @@ struct TrackDetailTests {
         #expect(detail.title == "Track 1")
         #expect(detail.subtitle == "Artist 1")
         #expect(detail.album == "The Album")
-        #expect(detail.spotifyURL == URL(string: "spotify:track:t1"))
+        // The **web** URL, not the `spotify:` URI it is built from. Opening a
+        // custom scheme makes iOS interrupt with "Open in Spotify?", which is a
+        // confirmation in front of a button that already said so; a universal
+        // link goes straight there. This assertion is the rule, not a spelling.
+        #expect(detail.spotifyURL == URL(string: "https://open.spotify.com/track/t1"))
     }
 
     /// The same words the row uses - opening a track must not rename it.
@@ -114,7 +118,7 @@ struct TrackDetailTests {
         #expect(detail.subtitle == "Podcast episode")
         #expect(detail.subtitle == TrackRowText(row: episode, position: nil, arrangement: .originalOrder).subtitle)
         #expect(detail.album == nil, "an episode belongs to a show, not an album")
-        #expect(detail.spotifyURL == URL(string: "spotify:episode:e0"))
+        #expect(detail.spotifyURL == URL(string: "https://open.spotify.com/episode/e0"))
     }
 
     @Test("A track with no URI offers no way out to Spotify")

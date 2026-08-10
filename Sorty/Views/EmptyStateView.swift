@@ -10,6 +10,17 @@ import SwiftUI
 struct EmptyStateView: View {
     let state: EmptyState
     var action: (() -> Void)?
+    /// Set where the way out *is Spotify*, which is currently the one state
+    /// Spotify's own rule creates: a playlist it names and will not open.
+    ///
+    /// It replaces the text button with Spotify's mark rather than adding one.
+    /// The screen behind this still shows the playlist's name and cover - which
+    /// is their metadata - so the Developer Policy's attribution and its "link
+    /// back to the applicable playlist" are owed here exactly as they are at the
+    /// foot of a list, and were missing on this branch. One element answers
+    /// both, and it is the same mark drawn the same way everywhere else in the
+    /// app, so a listener meets one Spotify affordance rather than two.
+    var spotifyURL: URL?
 
     var body: some View {
         VStack(spacing: 12) {
@@ -32,7 +43,14 @@ struct EmptyStateView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(state.spoken)
 
-            if let actionTitle = state.actionTitle, let action {
+            if let spotifyURL {
+                // No caption under it, which is Spotify's rule rather than a
+                // layout choice: the wordmark says Spotify, and a line saying it
+                // again would be the logo used in a sentence. The paragraph
+                // above already names what tapping it is for.
+                SpotifyAttribution(url: spotifyURL)
+                    .padding(.top, 2)
+            } else if let actionTitle = state.actionTitle, let action {
                 Button(actionTitle, action: action)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(SortyTheme.accent)

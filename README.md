@@ -82,6 +82,8 @@ arrangements**, Artist separation and Shuffle. 28 distinct orderings in total.
   episode, a track nobody measured, a value Spotify didn't supply — rather than sinking silently.
 - **Save is two actions with two gates.** Save-as-new arms on an arrangement *or* filter change;
   overwrite arms on the arrangement alone, and only for playlists you own that Spotify didn't build.
+  On a playlist you don't own there is no overwrite and never will be, so **Save a Copy** is armed
+  from the moment it loads — taking a copy is the point, not a duplicate.
 - **Overwrite always writes the whole playlist**, never the filtered subset
   ([ADR-0002](docs/adr/0002-overwrite-always-writes-the-whole-playlist.md)). Only save-as-new may
   write a subset, and it says so.
@@ -117,6 +119,12 @@ Spotify sometimes lists such a playlist without describing it at all, sending a 
 playlist should be. Those cannot be drawn — there is no name, no id, no cover — so Sorty counts them
 and says so at the foot of the library rather than quietly showing you a shorter library than you
 have.
+
+> [!NOTE]
+> The same rule is why Sorty cannot offer to copy an arbitrary playlist of someone else's. Copying
+> needs the tracks, and Spotify sends a playlist's contents only to the people who own it or
+> collaborate on it. Where Sorty *can* read a playlist — one you collaborate on — **Save a Copy**
+> is there.
 
 **February 2026 changed the endpoints again.** `/playlists/{id}/tracks` became
 `/playlists/{id}/items`, `POST /users/{id}/playlists` became `POST /me/playlists`, batch `GET /albums`
