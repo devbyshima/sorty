@@ -10,3 +10,6 @@ xcuserdata/
 .build-device/
 .build-release/
 .build-sim/
+
+# Planning scratch — kept locally, not published. The record that ships is docs/adr/.
+.scratch/

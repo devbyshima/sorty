@@ -1,157 +1,167 @@
+<div align="center">
+
+<img src="Resources/Assets.xcassets/AppIcon.appiconset/icon.png" alt="Sorty" width="120">
+
 # Sorty
 
-A native iOS app that reorders a Spotify playlist by the musical character of its tracks - tempo,
-energy, mood - and saves the result back. Originally a port of
-[Sort Your Music](https://github.com/plamere/SortYourMusic).
+**Reorder a Spotify playlist by the musical character of its tracks — tempo, energy, mood — and save the result back.**
 
-SwiftUI, iOS 27, no third-party packages.
+Native iOS · SwiftUI · iOS 27 · no third-party packages
 
-## Status
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-358%20in%2046%20suites-brightgreen.svg)](Tests)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
-298 tests in 38 suites (379 cases once the parameterized ones expand), all passing.
+</div>
 
-A simulator build emits one benign `AppIntents.framework` metadata warning. A device or Release build
-additionally warns that *all interface orientations must be supported unless the app requires full
-screen* - the target ships for iPhone **and** iPad (`project.yml:47`) without declaring orientations
-or `UIRequiresFullScreen`, while [ADR-0001](docs/adr/0001-arrangements-replace-the-column-table.md)
-rules iPad out. Config and decision disagree; the warning is the symptom.
+Sorty is an iOS port of **[Sort Your Music](https://github.com/plamere/SortYourMusic)**, which
+[Paul Lamere](https://github.com/plamere) built in 2012 and which has been sorting playlists on the
+web ever since. The idea — that a playlist reads better ordered by what the music is *doing* than by
+when you happened to add it — is his.
 
-| Screen | |
+| | | | |
+|---|---|---|---|
+| ![](screenshots/01-playlists.png) | ![](screenshots/02-tracks-order.png) | ![](screenshots/15-settings.png) | ![](screenshots/08-track-detail.png) |
+| Library | Playlist | Settings | Track detail |
+
+> [!IMPORTANT]
+> **Spotify closed the endpoint this app was built on.** Sorty still works, but two of its
+> thirteen attributes now come from elsewhere and some playlists can never be opened at all. Read
+> [Spotify's limits](#spotifys-limits) before you set it up — most surprises live there, not in the app.
+
+## Getting started
+
+Sorty asks for **your own** Spotify Client ID rather than shipping one. That is not friction for its
+own sake: Spotify caps a development-mode app at five authorised listeners, so a shared ID would be
+full after five people.
+
+```sh
+git clone https://github.com/devbyshima/sorty.git
+cd sorty
+xcodegen generate
+open Sorty.xcodeproj
+```
+
+Then, in the app:
+
+1. Open **Settings → Spotify app → Open Spotify Developer Dashboard** and create an app.
+2. Paste its **Client ID** into the field above that button.
+3. Register the **redirect URI** on the dashboard exactly as Sorty shows it, character for character.
+4. Add your own Spotify account under **Users Management** on the dashboard.
+
+Sorty requests four scopes and no more:
+
+| Scope | Why |
 |---|---|
-| The way in | `screenshots/00-signed-out.png` |
-| Library | `01-playlists.png`, `14-playlists-two-up.png` |
-| Playlist | `02-tracks-order.png`, `03-tracks-bpm.png`, `04-tracks-asep.png`, `05-tracks-shuffle.png` |
-| Off-piste and unrankable | `06-tracks-offpiste.png`, `07-tracks-unrankable.png` |
-| Track detail | `08-track-detail.png`, `09-track-detail-missing.png` |
-| Arrangement picker | `10-arrangements.png` |
-| Connect flow | `11-connect-why.png`, `12-connect-app.png`, `13-connect-id.png` |
-| Settings / FAQ | `15-settings.png`, `16-faq.png` |
-| Dynamic Type | `17`–`21` (largest, then one step into the accessibility sizes) |
-| Dark Appearance | `22`–`25` |
-| Progressive blur | `26`–`29` (the only shots where content passes *under* a header) |
+| `playlist-read-private` | Your own private playlists, which is most of them |
+| `playlist-read-collaborative` | Without it Spotify omits playlists you collaborate on **entirely** — they are not mislabelled, they never arrive |
+| `playlist-modify-private` / `playlist-modify-public` | Writing the new order back |
 
-## Read this first: Spotify closed the endpoint this app was built on
+> [!NOTE]
+> A development-mode app requires its owner to hold Spotify Premium.
 
-Sort Your Music sorts by Spotify's **audio features** (tempo, energy, danceability, loudness,
-valence, acousticness). On **27 November 2024** Spotify restricted `GET /v1/audio-features` to apps
-that already held extended quota, and has shipped **no replacement** since. A Spotify app registered
-today gets `403` on every call, and extended quota now requires a registered company with 250k+
-monthly active users - a hobby app can never qualify.
+## What it does
 
-Sorty treats the feature source as swappable (`AudioFeatureProviding`) and defaults to
-**[ReccoBeats](https://reccobeats.com)**, which is free, needs no API key, is keyed by Spotify track
-ID, and returns values on Spotify's exact scale. Coverage is strong for catalogue released up to 2024
-and thin for 2025-onward releases; anything it misses is shown as unavailable and gathered into a
-labelled group rather than silently sinking to the bottom.
-
-The other two options are in Settings: Spotify's own endpoint (for a grandfathered Client ID), and
-None.
-
-Two more Spotify constraints worth knowing before you try to connect:
-
-- **A development-mode app admits at most five listeners**, and its owner needs Spotify Premium.
-  That's why Sorty asks for *your* Client ID rather than shipping one - a shared ID would be full
-  after five people.
-- **February 2026 renamed and removed endpoints** for newly registered Client IDs:
-  `/playlists/{id}/tracks` → `/playlists/{id}/items`, `POST /users/{id}/playlists` →
-  `POST /me/playlists`, batch `GET /albums` withdrawn, and `track.popularity` removed. The client
-  speaks the new spellings and falls back to the old ones on 404, so it works with either vintage of
-  Client ID.
-
-## Setting up a Spotify connection
-
-Connecting is how the app starts - see [ADR-0007](docs/adr/0007-connecting-is-the-front-door.md).
-
-1. Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).
-2. Register the redirect URI **exactly** as Sorty shows it (default `sorty://callback`).
-3. Add your own Spotify account under **Users Management**.
-4. Paste the Client ID into the connect flow, which walks these four steps.
-
-Scopes requested: `playlist-read-private`, `playlist-read-collaborative`, `playlist-modify-private`,
-`playlist-modify-public` - enough to read your playlists and write an arrangement back, and nothing
-more.
-
-`playlist-read-collaborative` is what lets Sorty see playlists shared with you. Without it Spotify
-leaves them out of its response altogether, so they cannot be arranged and the Collaborative filter is
-always empty. If you connected before Sorty asked for it, the library offers you a reconnect, and
-Settings shows whether the current token actually carries the permission.
-
-**On the redirect URI:** Spotify's docs permit custom schemes, but dashboards have been rejecting
-them as "Insecure redirect URI" for Client IDs created since April 2025. If that happens, point the
-redirect at an https URL you control and put the same value in Settings - the app switches to an
-https callback automatically when you do.
-
-Auth is Authorization Code + PKCE in `ASWebAuthenticationSession`. No client secret ships in the
-binary. Tokens live in the Keychain as `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, so they
-survive a relaunch but never ride a backup onto another device.
-
-## The sample catalogue
-
-There is a bundled, invented catalogue of seven playlists with full acoustic data, and **it does not
-ship**. `DemoCatalog`, `DemoMusicService` and `DemoArtwork` are wrapped in `#if DEBUG`, so the
-compiler never sees them in Release; the tests and `scripts/screenshots.sh` both build Debug and both
-use them. Reaching it needs the `-demo` launch argument - nothing a listener can do gets there.
-
-`DEBUG` is defined by Xcode's own default for the Debug configuration and is empty in Release; the
-project does not set `SWIFT_ACTIVE_COMPILATION_CONDITIONS` itself. A Release build compiling is the
-proof that nothing outside those fences references the catalogue.
-
-The catalogue is fictional (invented artists and titles) so no made-up measurement is ever attached
-to a real recording. It's generated from a fixed seed, so screenshots and tests are reproducible.
-
-## What the app does
-
-The UI is built on **arrangements**, not columns - see
-[ADR-0001](docs/adr/0001-arrangements-replace-the-column-table.md). An *arrangement* is a named way of
-ordering a playlist; an *attribute* is a property a track has. Attribute-derived orderings and
+The interface is built on **arrangements**, not columns
+([ADR-0001](docs/adr/0001-arrangements-replace-the-column-table.md)). An *arrangement* is a named way
+of ordering a playlist; an *attribute* is a property a track has. Attribute-derived orderings and
 computed ones are peers.
 
-**Thirteen attributes**: Original order, Title, Artist, Release date, Date added, BPM, Energy,
-Danceability, Loudness, Valence, Length, Acousticness, Popularity. **Two computed arrangements**:
-Artist separation and Shuffle. 28 distinct orderings in total.
+**Thirteen attributes** — Original order, Title, Artist, Release date, Date added, BPM, Energy,
+Danceability, Loudness, Valence, Length, Acousticness, Popularity — plus **two computed
+arrangements**, Artist separation and Shuffle. 28 distinct orderings in total.
 
-- A **chip row** carries five pinned bases that never move - Original order, BPM, Energy, Artist
-  separation, Shuffle - plus a trailing chip when the applied arrangement is off-piste, plus `More`,
-  which opens a picker listing every basis with its explanation.
-- Tapping the active chip flips direction; tapping another starts ascending. Direction shows as an
-  arrow on the active chip only. Artist separation and Shuffle have no direction, and Shuffle's
-  re-roll is a **separate button** so one gesture never means two things.
-- A row shows artwork, title, artist, the active arrangement's value, and a bar placing that value in
-  the playlist's range. There is no position number: VoiceOver still announces rank, but the column
-  went so artwork could sit at the same margin as everything else.
-- 0–1 features render 0–100; tempo and loudness round to whole units. Ties keep original playlist
-  order, so sorting is stable and repeatable.
-- Tracks an arrangement cannot place are gathered under **labelled groups** saying why - a podcast
-  episode, a track nobody measured, a value Spotify didn't supply - rather than sinking silently.
-- **BPM range filter** with a doubled-BPM option; tracks with no BPM are never hidden by it.
+- A **chip row** carries five pinned bases that never move, a trailing chip when the applied
+  arrangement is off-piste, and `More`, which lists every basis with its explanation.
+- Tapping the active chip flips direction; tapping another starts ascending. Artist separation and
+  Shuffle have no direction, and Shuffle's re-roll is a **separate button**, so one gesture never
+  means two things.
+- Rows show artwork, title, artist, the active arrangement's value, and a bar placing that value in
+  the playlist's range. Ties keep original order, so sorting is stable and repeatable.
+- Tracks an arrangement cannot place are gathered under **labelled groups saying why** — a podcast
+  episode, a track nobody measured, a value Spotify didn't supply — rather than sinking silently.
 - **Save is two actions with two gates.** Save-as-new arms on an arrangement *or* filter change;
-  overwrite arms on the arrangement alone. Overwrite is offered only for playlists you own that
-  aren't algorithmic. Disabled actions are dimmed rather than absent.
+  overwrite arms on the arrangement alone, and only for playlists you own that Spotify didn't build.
 - **Overwrite always writes the whole playlist**, never the filtered subset
   ([ADR-0002](docs/adr/0002-overwrite-always-writes-the-whole-playlist.md)). Only save-as-new may
-  write a subset, and it says so. The new playlist is named `"{original} ordered by {arrangement}"`;
-  its description is rewritten rather than preserved.
-- **Track detail sheet**: every attribute for one track, split into what came from an analysis
-  provider and what came from Spotify, with "Unavailable" where a measurement is missing.
-- **Library**: All / Mine / Spotify / Others / Collaborative filters with counts and name search.
-  Personalized playlists are reachable under Spotify rather than getting a chip of their own. Three
-  layouts - Large grid (2-up, the default), Small grid (3-up), List - and three orders, both
-  persisted.
+  write a subset, and it says so.
+- **Library**: All / Mine / Spotify / Others chips with counts, name search, three layouts and three
+  orders, all persisted.
 - **Appearance** is light or dark, both authored, followed from the device unless overridden.
 - Podcast episodes render greyed, carry no acoustic values, are grouped as unrankable, and are
-  preserved on save.
+  preserved in place on save.
 
-### Deliberate differences from the reference
+## Spotify's limits
 
-| | Reference | Sorty | Why |
+Three of them, all outside this app's control, and all of them things people hit.
+
+**Audio features are gone for new apps.** On **27 November 2024** Spotify restricted
+`GET /v1/audio-features` — tempo, energy, danceability, loudness, valence, acousticness — to
+applications that already held extended quota, and has shipped no replacement. An app registered
+today gets `403` on every call, and extended quota now requires a registered company with 250k+
+monthly active users.
+
+Sorty treats the feature source as swappable (`AudioFeatureProviding`) and defaults to
+**[ReccoBeats](https://reccobeats.com)**: free, no API key, keyed by Spotify track ID, on Spotify's
+exact scale. Coverage is strong for catalogue up to 2024 and thin for 2025-onward releases; anything
+it misses is shown as unavailable and gathered into a labelled group. The other seven attributes come
+straight from Spotify and always work.
+
+**Spotify's own playlists cannot be opened.** The same November 2024 change lists *"algorithmic and
+Spotify-owned editorial playlists"* as its own restricted item — Discover Weekly, Release Radar, the
+Daily Mixes, the editorial lists, the charts. Sorty shows them, marks them *Can't open*, and says why
+in as many words. It cannot sort them and neither can any other app at this quota tier
+([ADR-0018](docs/adr/0018-spotifys-own-playlists-are-one-thing-sorty-cannot-open.md)).
+
+Spotify sometimes lists such a playlist without describing it at all, sending a bare `null` where the
+playlist should be. Those cannot be drawn — there is no name, no id, no cover — so Sorty counts them
+and says so at the foot of the library rather than quietly showing you a shorter library than you
+have.
+
+**February 2026 changed the endpoints again.** `/playlists/{id}/tracks` became
+`/playlists/{id}/items`, `POST /users/{id}/playlists` became `POST /me/playlists`, batch `GET /albums`
+was withdrawn, and `track.popularity` was removed. Contents are now returned **only** for playlists
+you own or collaborate on ([ADR-0008](docs/adr/0008-a-playlist-you-do-not-own-never-opens.md)). The
+client speaks the new spellings and falls back to the old ones once per session, so it works with
+either vintage of Client ID.
+
+## Deliberate differences from the reference
+
+| | Sort Your Music | Sorty | Why |
 |---|---|---|---|
 | Audio features | Spotify `/v1/audio-features` | ReccoBeats by default, pluggable | The Spotify endpoint 403s for any new app |
-| Layout | 15-column HTML table | One attribute at a time on a list, with arrangements as the primary control | 15 fixed-width columns sum to ~3.4 screens on a phone; the sorted column auto-centring pushed track identity off the left edge (ADR-0001) |
+| Layout | 15-column HTML table | One attribute at a time on a list, arrangements as the primary control | 15 fixed-width columns sum to ~3.4 screens on a phone (ADR-0001) |
 | Comparing attributes | Read across a row | Open the track detail sheet | The accepted cost of ADR-0001 |
 | Track preview | Plays a 30s clip on row tap | Swipe a row to open in Spotify | Spotify stopped serving `preview_url` to new apps at the same time |
-| Artist separation with episodes | Crashes - skips artist-less entries, then dereferences `artists[0].name` on one | Artist-less entries share a bucket and are distributed | A crash isn't worth porting faithfully |
+| Artist separation with episodes | Crashes — skips artist-less entries, then dereferences `artists[0].name` on one | Artist-less entries share a bucket and are distributed | A crash isn't worth porting faithfully |
 
-## Decisions
+## Architecture
+
+```
+SortyKit/          pure logic — compiled into the app AND the test target
+  Models/            Spotify payloads, plus the copy layer: EmptyState, PlaylistRowText,
+                     LoadFailure, LibraryNotice, SettingsText, CreditsText, FAQText,
+                     Appearance, LaunchReadiness, SkeletonPlan, LibraryView
+  Sorting/           Arrangement, Attribute, PlaylistSorter, ArtistSeparation, TrackRow,
+                     TrackRowText, TrackDetail, UnrankableGroup, SaveAction, AttributeRange
+  Spotify/           MusicService protocol, live client, CoverImageLoader
+                     (+ DemoCatalog / DemoMusicService / DemoArtwork, DEBUG only)
+  Features/          AudioFeatureProviding: ReccoBeats, Spotify, None
+  Auth/              PKCE, Keychain token store, authenticator, configuration
+  ViewModels/        SessionModel, TrackListModel (@Observable, @MainActor)
+Sorty/             SwiftUI app target
+  Views/Settings/    the settings page and its three sub-pages
+Tests/             Swift Testing, hostless
+```
+
+**User-facing copy is a testable layer.** Anything a screen *says* — empty states, row text, badges,
+unrankable-group reasons, save-action titles, every word in Settings — is decided in `SortyKit` where
+a test can assert on it, not typed into a view. Views render what they are handed.
+
+The test target compiles `SortyKit` directly and runs without an app process, so sorting, decoding,
+PKCE, launch gating and save behaviour are all testable with no simulator UI and no network.
+
+### Decisions
 
 Architecture decisions live in [`docs/adr/`](docs/adr/), vocabulary in [`CONTEXT.md`](CONTEXT.md).
 
@@ -164,55 +174,18 @@ Architecture decisions live in [`docs/adr/`](docs/adr/), vocabulary in [`CONTEXT
 | [0005](docs/adr/0005-the-reorder-threshold-is-a-thousand-rows.md) | The reorder animation snaps above 1,000 rows — measured, not guessed |
 | [0006](docs/adr/0006-the-accent-is-indigo-not-green.md) | The accent is indigo, not Spotify green |
 | [0007](docs/adr/0007-connecting-is-the-front-door.md) | Connecting is the front door; Demo Mode leaves the shipped app |
-
-## Architecture
-
-```
-SortyKit/          pure logic - compiled into the app AND the test target
-  Models/            Spotify payloads, plus the copy layer: EmptyState, PlaylistRowText,
-                     LoadFailure, ReconnectNotice, LibraryView (order/layout/preferences)
-  Sorting/           Arrangement, Attribute, ArrangementChip, PlaylistSorter, ArtistSeparation,
-                     TrackRow, TrackRowText, TrackDetail, UnrankableGroup, SaveAction,
-                     AttributeRange, ReorderAnimation
-  Spotify/           MusicService protocol, live client, CoverImageLoader
-                     (+ DemoCatalog / DemoMusicService / DemoArtwork, DEBUG only)
-  Features/          AudioFeatureProviding: ReccoBeats, Spotify, None
-  Auth/              PKCE, Keychain token store, authenticator, configuration, ConnectFlow
-  ViewModels/        SessionModel, TrackListModel (@Observable, @MainActor)
-Sorty/             SwiftUI app target
-Tests/               Swift Testing, hostless
-```
-
-**User-facing copy is a testable layer.** Anything a screen *says* - empty states, row text, badges,
-unrankable-group reasons, save-action titles, the reconnect prompt - is decided in `SortyKit` where
-a test can assert on it, not typed into a view. Views render what they are handed.
-
-The test target compiles `SortyKit` directly and runs without an app process, so sorting, decoding,
-PKCE and save behaviour are all testable with no simulator UI and no network.
-
-## iOS 26/27 API in use
-
-Deployment target 27.0, Xcode 27, Swift 6.0.
-
-- **Liquid Glass** via `.glassEffect(.regular.interactive(), in:)` on chips, top-bar buttons and the
-  Save anchor, inside a `GlassEffectContainer`. `.buttonStyle(.glassProminent)` is used once, in the
-  connect flow; `.buttonStyle(.glass)` is deliberately not used - it sizes itself from its label and
-  cannot be asked for an exact diameter.
-- `.onScrollGeometryChange(for:)` derives whether the chip row has pinned, which decides where the
-  blur's fade lives.
-- `onGeometryChange(for:action:)` measures headers so a blur is never sized to a guess.
-- `ScrollPosition` + `.scrollPosition($)` backs the `-scrolled N` harness hook.
-- `.lineLimit(_:reservesSpace:)` reserves the second line of a grid tile's name, which is what makes
-  the library grid actually align.
-- `.visualEffect { }`, `.swipeActions` on a `LazyVStack` row via `swipeActionsContainer()`,
-  `.toolbarBackgroundVisibility`, `.scrollClipDisabled()`, `@ScaledMetric(relativeTo:)`.
-
-**One private API.** The progressive blur behind each screen's top bar drives the `variableBlur`
-`CAFilter` through a `UIViewRepresentable` - the same filter UIKit uses for its own navigation-bar
-blurs. There is no public equivalent. It degrades to no blur at all if that API ever changes.
-
-**Note on shipping:** App Store *production* uploads still require Xcode 26 and an iOS 26 SDK.
-Xcode 27 builds are TestFlight-only until Apple opens submissions.
+| [0008](docs/adr/0008-a-playlist-you-do-not-own-never-opens.md) | A playlist you don't own never opens — amended by 0017, 0018 |
+| [0009](docs/adr/0009-the-library-opens-two-up.md) | The library opens two-up |
+| [0010](docs/adr/0010-the-track-row-shows-no-position-number.md) | The track row shows no position number |
+| [0011](docs/adr/0011-glass-is-edged-in-light.md) | Glass is edged in light |
+| [0012](docs/adr/0012-the-cover-keeps-its-lean-and-loses-its-sheen.md) | The cover keeps its lean and loses its sheen |
+| [0013](docs/adr/0013-the-attribution-mark-is-spotifys-own-file.md) | The attribution mark is Spotify's own file |
+| [0014](docs/adr/0014-the-app-is-called-sorty.md) | The app is called Sorty |
+| [0015](docs/adr/0015-waiting-is-texture-not-status.md) | Waiting is texture, not status — amended by 0019 |
+| [0016](docs/adr/0016-the-way-in-is-a-reel.md) | The way in is a reel |
+| [0017](docs/adr/0017-collaboration-is-a-fact-not-a-feature.md) | Collaboration is a fact, not a feature |
+| [0018](docs/adr/0018-spotifys-own-playlists-are-one-thing-sorty-cannot-open.md) | Spotify's own playlists are one thing, and Sorty cannot open them |
+| [0019](docs/adr/0019-a-skeleton-is-the-shape-of-what-is-coming.md) | A skeleton is the shape of what is coming, and the splash waits for one row |
 
 ## Development
 
@@ -222,32 +195,66 @@ xcodebuild -project Sorty.xcodeproj -scheme Sorty \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' test
 ./scripts/screenshots.sh             # headless screenshots of every screen
 SETTLE=6 ./scripts/screenshots.sh    # slower machine
-DEVICE="iPhone 17" OS=27.0 ./scripts/screenshots.sh
 ```
 
-`scripts/screenshots.sh` never drives the simulator GUI. Each screen is reached from a **cold launch**
-via DEBUG-only launch arguments and captured with `simctl io screenshot`. It stages into a temp
-directory and replaces `screenshots/` wholesale, so a screen that no longer exists cannot leave a
+`scripts/screenshots.sh` **never drives the simulator GUI**. Every screen is reached from a cold
+launch through DEBUG-only launch arguments and captured with `simctl io screenshot`. It stages into a
+temp directory and replaces `screenshots/` wholesale, so a screen that no longer exists cannot leave a
 stale PNG behind pretending it does.
 
 The arguments, all compiled out of Release:
 
 | | |
 |---|---|
-| `-screen <name>` | `playlists`, `tracks`, `faq`, `settings`, `connect`, `signedOut`, `profile` |
+| `-screen <name>` | `playlists`, `tracks`, `faq`, `settings`, `spotifyApp`, `audioFeatures`, `credits`, `connect`, `signedOut`, `splash`, `profile` |
 | `-demo` | the only way into the sample catalogue |
 | `-playlist <id>` | which demo playlist to open |
 | `-arrangement <arg>` | `bpm-descending`, `artist-separation`, `shuffle-<seed>`, … — one argument, because a basis plus a direction could name a combination that doesn't exist |
 | `-sheet <name>` | `arrangements`, `filter`, `track` |
 | `-track N` | which row `-sheet track` opens |
 | `-filter LOW-HIGH` | a tempo range |
-| `-scrolled N` | arrive N points down, so the blur is photographable at all |
+| `-scrolled N` | arrive N points down; `99999` means the bottom edge |
 | `-layout <raw>` | `grid2`, `grid`, `list` |
+| `-stallLibrary N` | hold library pages after the first, to photograph placeholders |
+| `-stallTracks N` | hold a playlist's contents, to photograph the track list's placeholders |
+| `-pendingCovers` | never resolve any cover |
 | `-connectStep <step>` | a step of the connect flow |
 | `-accent RRGGBB` | override the identity colour for one launch (how ADR-0006 was decided) |
 | `-count N` | playlist size for `-screen profile` (how ADR-0005 was measured) |
 
+> [!TIP]
+> The sample catalogue is fictional — invented artists and titles with plausible acoustic values —
+> so no fabricated measurement is ever attributed to a real recording. It is generated from a fixed
+> seed, so screenshots and tests reproduce.
+
+### iOS 26/27 API in use
+
+Deployment target 27.0, Xcode 27, Swift 6.0.
+
+- **Liquid Glass** via `.glassEffect(.regular.interactive(), in:)` on chips and top-bar buttons,
+  inside a `GlassEffectContainer`. `.buttonStyle(.glass)` is deliberately not used — it sizes itself
+  from its label and cannot be asked for an exact diameter.
+- `Group(subviews:)` interleaves the settings cards' dividers, so a row cannot be added without one.
+- `.onScrollGeometryChange(for:)`, `onGeometryChange(for:action:)`, `ScrollPosition`,
+  `.lineLimit(_:reservesSpace:)`, `.visualEffect { }`, `@ScaledMetric(relativeTo:)`.
+- Two Metal shaders, both placeholder-only: a shimmer across the launch mark and a ripple over a
+  cover that hasn't arrived.
+
+> [!WARNING]
+> **One private API.** The progressive blur behind each screen's top bar drives the `variableBlur`
+> `CAFilter` through a `UIViewRepresentable` — the same filter UIKit uses for its own navigation-bar
+> blurs. There is no public equivalent. It degrades to no blur at all if that API ever changes.
+>
+> App Store *production* uploads still require Xcode 26 and an iOS 26 SDK; Xcode 27 builds are
+> TestFlight-only until Apple opens submissions.
+
 ## Credits
 
-Port of [Sort Your Music](https://github.com/plamere/SortYourMusic) by Paul Lamere.
-Not affiliated with or endorsed by Spotify.
+Sorty is an iOS port of **[Sort Your Music](https://github.com/plamere/SortYourMusic)** by
+**[Paul Lamere](https://github.com/plamere)**. Sort Your Music has been sorting playlists on the web
+since 2012, and the idea this app is built on is his. Sorty is an independent reimplementation in
+Swift — no code from Sort Your Music is used or included.
+
+Audio features by [ReccoBeats](https://reccobeats.com).
+
+Not affiliated with or endorsed by Spotify. Spotify is a trademark of Spotify AB.
