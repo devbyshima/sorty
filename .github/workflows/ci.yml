@@ -1,0 +1,134 @@
+# Tests on every pull request, and on every push to a trunk or release branch.
+#
+# Two jobs, deliberately asymmetric.
+#
+# `checks` runs on Linux, needs no Xcode, takes seconds, and BLOCKS. It asserts
+# the things that are true regardless of which toolchain a runner happens to
+# carry: that project.yml still parses, that the version helper agrees with it,
+# and that nobody committed the generated project file.
+#
+# `test` runs the real suite on macOS and does NOT block, because it cannot yet.
+# Sorty targets iOS 27 with Xcode 27, and GitHub's hosted images carry whatever
+# Apple has shipped to them - which lags. A required check that fails for a
+# reason unrelated to the change under review teaches everyone to ignore it, so
+# this one reports and stays advisory until the runner image catches up. When
+# `xcodebuild` here goes green on its own, drop `continue-on-error` and make it
+# required in the branch protection rules; that is the whole migration.
+#
+# See RELEASING.md for the channels these branches feed.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main, 'release/**']
+  push:
+    branches: [main, 'release/**']
+
+# The workflow only reads the repository.
+permissions:
+  contents: read
+
+# A second push to the same branch or PR cancels the first. Nothing here has a
+# side effect, so an superseded run is only spent minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Repository checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: project.yml parses
+        run: python3 -c "import yaml,sys; yaml.safe_load(open('project.yml')); print('project.yml parses')"
+
+      - name: Version helper agrees with project.yml
+        run: |
+          version=$(./scripts/version.sh)
+          build=$(./scripts/version.sh build)
+          echo "MARKETING_VERSION=$version"
+          echo "CURRENT_PROJECT_VERSION=$build"
+          ./scripts/version.sh check "v$version"
+
+      - name: The generated project is not committed
+        # Sorty.xcodeproj is gitignored and produced by `xcodegen generate`. A
+        # committed one silently wins over project.yml for anyone who does not
+        # regenerate, which is how a version bump goes missing.
+        run: |
+          if git ls-files --error-unmatch Sorty.xcodeproj >/dev/null 2>&1; then
+            echo "Sorty.xcodeproj is tracked. It is generated - remove it and keep project.yml authoritative." >&2
+            exit 1
+          fi
+          echo "Sorty.xcodeproj is not tracked"
+
+      - name: Scripts are executable and sane
+        run: |
+          for s in scripts/*.sh; do
+            [ -x "$s" ] || { echo "$s is not executable" >&2; exit 1; }
+            bash -n "$s" || exit 1
+            echo "ok $s"
+          done
+
+  test:
+    name: Tests (advisory)
+    runs-on: macos-latest
+    # Advisory until a hosted image carries the toolchain this app targets.
+    # See the header.
+    continue-on-error: true
+    env:
+      XCODE_VERSION: '27.0'
+      SIMULATOR: 'iPhone 17 Pro'
+      IOS_VERSION: '27.0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report the toolchain this runner actually has
+        # Printed before anything can fail, so a red run is diagnosable from the
+        # log alone rather than by guessing at the image contents.
+        run: |
+          echo "=== Xcode versions available ==="
+          ls /Applications | grep -i '^Xcode' || echo "(none found)"
+          echo "=== Current ==="
+          xcodebuild -version || true
+          echo "=== Simulator runtimes ==="
+          xcrun simctl list runtimes || true
+
+      - name: Select Xcode ${{ env.XCODE_VERSION }}
+        run: |
+          target="/Applications/Xcode_${XCODE_VERSION}.app"
+          if [ -d "$target" ]; then
+            sudo xcode-select -s "$target"
+            echo "selected $target"
+          else
+            echo "::warning::Xcode ${XCODE_VERSION} is not on this runner; using $(xcodebuild -version | head -1). Sorty targets iOS ${IOS_VERSION}, so the build below may fail for toolchain reasons rather than code reasons."
+          fi
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Sorty.xcodeproj \
+            -scheme Sorty \
+            -destination "platform=iOS Simulator,name=${SIMULATOR},OS=${IOS_VERSION}" \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
+      - name: Upload the result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults.xcresult
+          retention-days: 14
+          if-no-files-found: ignore

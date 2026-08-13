@@ -194,6 +194,7 @@ Architecture decisions live in [`docs/adr/`](docs/adr/), vocabulary in [`CONTEXT
 | [0017](docs/adr/0017-collaboration-is-a-fact-not-a-feature.md) | Collaboration is a fact, not a feature |
 | [0018](docs/adr/0018-spotifys-own-playlists-are-one-thing-sorty-cannot-open.md) | Spotify's own playlists are one thing, and Sorty cannot open them |
 | [0019](docs/adr/0019-a-skeleton-is-the-shape-of-what-is-coming.md) | A skeleton is the shape of what is coming, and the splash waits for one row |
+| [0027](docs/adr/0027-releases-run-on-branches-not-flags.md) | Releases run on branches, not flags |
 
 ## Development
 
@@ -203,7 +204,30 @@ xcodebuild -project Sorty.xcodeproj -scheme Sorty \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' test
 ./scripts/screenshots.sh             # headless screenshots of every screen
 SETTLE=6 ./scripts/screenshots.sh    # slower machine
+./scripts/version.sh                 # the version, from its one home in project.yml
 ```
+
+Branch rules and PR expectations are in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Releasing
+
+`main` is the trunk and the dev channel. `release/X.Y` branches are cut from it
+to stabilise a version and take **bug fixes only**; the newest one is the beta
+channel, tagged `vX.Y.Z-beta.N`, and a `vX.Y.Z` tag publishes a release. A
+production bug is fixed on the oldest affected release branch and merged
+forward, so a fix cannot be lost
+([ADR-0027](docs/adr/0027-releases-run-on-branches-not-flags.md)).
+
+No feature flags: the binary in a listener's hand cannot be reconfigured, so a
+release branch does the job a flag would do in a service.
+
+[RELEASING.md](RELEASING.md) has the exact commands, and
+[CHANGELOG.md](CHANGELOG.md) records what each version changed.
+
+> [!NOTE]
+> **Production does not yet mean the App Store.** Xcode 27 builds are
+> TestFlight-only until Apple opens submissions, so a production tag currently
+> means a signed archive and a published GitHub Release.
 
 `scripts/screenshots.sh` **never drives the simulator GUI**. Every screen is reached from a cold
 launch through DEBUG-only launch arguments and captured with `simctl io screenshot`. It stages into a

@@ -15,6 +15,22 @@ Verify UI changes with headless screenshots via `scripts/screenshots.sh`, which
 drives the simulator through `DebugLaunch` launch arguments. Do not drive the
 simulator GUI.
 
+## Branches
+
+`main` is the trunk — all new feature work goes here. `release/X.Y` branches
+take **bug fixes only**; never add a feature to one, however small. A production
+bug is fixed on the *oldest* affected release branch, then merged forward into
+newer release branches and `main`.
+
+The version lives in `project.yml` and is read or written only through
+`./scripts/version.sh`. Never set it in Xcode — `Sorty.xcodeproj` is generated
+and gitignored, so a version typed there vanishes at the next `xcodegen
+generate`. A normal change does not touch the version at all.
+
+Add a `CHANGELOG.md` entry under `## [Unreleased]` for anything a listener would
+notice. See `RELEASING.md` for the release commands and `CONTRIBUTING.md` for
+the branch rules in full.
+
 ## Agent skills
 
 ### Issue tracker
