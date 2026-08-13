@@ -57,11 +57,6 @@ public struct TrackRow: Sendable, Identifiable, Hashable {
         case .valence: features?.valence.map { ($0 * 100).rounded() }
         case .length: (features?.durationMS ?? playable.durationMS).map(Double.init)
         case .acoustic: features?.acousticness.map { ($0 * 100).rounded() }
-        // Nil, not zero. An episode has no popularity at all, and coercing that
-        // to 0 made it sort as the least popular track and - once bars arrived
-        // - draw one, which is exactly the "an absent measurement looking like
-        // a low one" that the bars exist to avoid.
-        case .pop: playable.popularity.map(Double.init)
         case .title, .artist, .release, .added: nil
         }
     }

@@ -121,7 +121,7 @@ struct ReleaseDateSourceTests {
                 isLocal: true,
                 track: Playable(
                     id: "local", name: "A local file", uri: nil, durationMS: 200_000,
-                    popularity: nil, artists: [TrackArtist(name: "Someone")],
+                    artists: [TrackArtist(name: "Someone")],
                     album: TrackAlbum(id: nil, name: "", releaseDate: ""), type: .track
                 )
             ),
@@ -130,7 +130,7 @@ struct ReleaseDateSourceTests {
                 isLocal: false,
                 track: Playable(
                     id: "t1", name: "A real track", uri: "spotify:track:t1", durationMS: 200_000,
-                    popularity: 50, artists: [TrackArtist(name: "Someone")],
+                    artists: [TrackArtist(name: "Someone")],
                     album: TrackAlbum(id: "alb1", releaseDate: "1999-04-01"), type: .track
                 )
             ),

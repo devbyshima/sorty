@@ -20,7 +20,6 @@ struct TrackRowTextTests {
             name: title,
             uri: isEpisode ? "spotify:episode:t\(index)" : "spotify:track:t\(index)",
             durationMS: 200_000,
-            popularity: 50,
             artists: artist.map { [TrackArtist(name: $0)] },
             album: TrackAlbum(id: "a"),
             type: isEpisode ? .episode : .track

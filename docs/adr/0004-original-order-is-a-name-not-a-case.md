@@ -7,6 +7,12 @@ Date: 2026-08-05
 Accepted. Amends one sentence of `.scratch/ui-redesign/spec.md`; implemented by
 ticket 02.
 
+The **count** below is now twelve, not thirteen:
+[ADR-0026](0026-popularity-is-removed.md) removed Popularity. What this decision
+actually settles - that `order` is an Attribute rather than a computed case - is
+unaffected, and the arithmetic is left as it was written so the reasoning still
+reads.
+
 ## Context
 
 The redesign spec describes the new ordering type as *"an **Arrangement** type

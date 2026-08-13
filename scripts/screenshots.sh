@@ -97,13 +97,59 @@ ui() {
   sleep "${UI_SETTLE:-2}"
 }
 
+# A capture is only kept if it has a screen on it.
+#
+# **`simctl io screenshot` intermittently returns a blank white frame**, and it
+# does so silently: exit status 0, a valid PNG, the right dimensions. Measured
+# over two full runs, about four shots in forty-eight came back this way, a
+# different four each time - so it is a race in the capture rather than anything
+# about a particular screen. Without this check those four land in the set as
+# though they were what the app looks like, and the swap at the end of this
+# script then publishes them.
+#
+# The test is deliberately blunt: standard deviation over the body of the frame.
+# A blank capture measures exactly 0.0, and the quietest real shot in the set
+# (`20-track-detail-stacked`) measures 10.9, so anything under 3 is a blank and
+# nothing else. Relaunching is what fixes it; a second capture of the same
+# process usually comes back blank too.
+#
+# Pillow and numpy are not in the standard library, and this script otherwise
+# needs nothing but python3, so their absence must not break the harness for
+# somebody who just cloned the repo. Without them it falls back to the PNG's
+# compressed size, which measures the same property less precisely: image
+# entropy. Measured across two full runs, blank frames land at 75-81KB and the
+# smallest real shot in the set (`00-signed-out`) at 212KB, so the floor sits
+# with room on both sides.
+looks_blank() {
+  python3 - "$1" <<'PY'
+import os, sys
+
+path = sys.argv[1]
+try:
+    from PIL import Image
+    import numpy as np
+except ImportError:
+    sys.exit(0 if os.path.getsize(path) < 150_000 else 1)
+
+a = np.asarray(Image.open(path).convert("L"))
+sys.exit(0 if a[300:2400].std() < 3 else 1)
+PY
+}
+
 shoot() {
   local name="$1"; shift
   echo "==> $name"
-  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@" >/dev/null
-  sleep "${SETTLE:-4}"
-  xcrun simctl io "$UDID" screenshot --type=png "$STAGE/$name.png" >/dev/null
+  local attempt
+  for attempt in 1 2 3; do
+    xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+    xcrun simctl launch "$UDID" "$BUNDLE_ID" "$@" >/dev/null
+    sleep "${SETTLE:-4}"
+    xcrun simctl io "$UDID" screenshot --type=png "$STAGE/$name.png" >/dev/null
+    if ! looks_blank "$STAGE/$name.png"; then return 0; fi
+    echo "    blank capture, retrying ($attempt/3)"
+  done
+  echo "!!! $name came back blank three times - not writing the set" >&2
+  exit 1
 }
 
 # ─── Light, default text size ────────────────────────────────────────────────
@@ -370,6 +416,26 @@ shoot 46-tracks-spotifys-own -demo -screen tracks -playlist 37i9dQZEVXcDEMOWEEKL
 # to the bottom. So this shot is `32`'s neighbour rather than its replacement:
 # same region, list layout, default text size.
 shoot 47-playlists-withheld -demo -screen playlists -layout list -scrolled 99999
+
+# ─── Reduce Motion ───────────────────────────────────────────────────────────
+# The shimmer's accessibility branch, and the only shot in the set that proves a
+# Reduce Motion path at all.
+#
+# It needs an argument because the simulator cannot be asked: writing
+# `ReduceMotionEnabled` into `com.apple.Accessibility` does set the preference -
+# `defaults read` returns 1 - but the accessibility daemon never reloads it, so
+# `UIAccessibility` keeps reporting false. Measured before `-reduceMotion`
+# existed: two frames a second apart still differed and a placeholder cover still
+# swept a 30-step range.
+#
+# **What to check is that the placeholders are flat, not that they are still.**
+# ADR-0020's claim is specific - the surface holds at its *resting* value rather
+# than freezing wherever the band happened to be - and those two outcomes are
+# both motionless. A tile with a bright diagonal region frozen across it is the
+# failure; an even tile a shade darker than the field is the pass. Measured on
+# this shot: interior luminance spread 5 (dither alone) against 17 with the sweep
+# running.
+shoot 48-reduce-motion -demo -screen playlists -layout grid2 -stallLibrary 30 -reduceMotion
 
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 

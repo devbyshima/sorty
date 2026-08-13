@@ -215,7 +215,6 @@ public struct DemoCatalog: Sendable {
                     name: title,
                     uri: "spotify:track:\(trackID)",
                     durationMS: durationMS,
-                    popularity: Int(generator.next(upperBound: 101)),
                     artists: [TrackArtist(id: "artist-\(artistIndex)", name: Self.artistNames[artistIndex])],
                     // The whole album, release date included: Spotify's simplified
                     // album carries `release_date`, and a fixture that left it out
@@ -277,7 +276,6 @@ public struct DemoCatalog: Sendable {
                     name: "\(Self.showNames[episodeIndex % Self.showNames.count]): Ep. \(12 + episodeIndex)",
                     uri: "spotify:episode:\(id)",
                     durationMS: 1_500_000 + Int(generator.next(upperBound: 2_400_000)),
-                    popularity: nil,
                     artists: nil,
                     album: nil,
                     // An episode belongs to a show, not an album, so it carries

@@ -23,7 +23,14 @@ struct SpotifyAppSettingsView: View {
 
     var body: some View {
         SettingsScaffold(title: SettingsText.spotifyApp) {
-            SettingsCard {
+            // **Two cards, where one card held three rows on two different left
+            // edges.** The credential labels start at the card's content edge;
+            // an icon row's title starts 40pt further in, because
+            // `SettingsRowLabel` reserves a glyph column. Putting both in one
+            // card gave it two competing left margins and a divider that agreed
+            // with neither - which is most of what "messy" meant on this screen.
+            // Splitting them also separates "type here" from "leave the app".
+            SettingsCard(dividerInset: 0) {
                 credentialRow(
                     title: SettingsText.clientID,
                     prompt: SettingsText.clientIDPrompt,
@@ -34,22 +41,33 @@ struct SpotifyAppSettingsView: View {
                     prompt: AppConfiguration.defaultRedirectURI,
                     text: $redirectURI
                 )
-                // Directly under the field it feeds. Sending somebody to Safari
-                // to fetch a string for a field they are looking at is the
-                // errand `InAppBrowser` exists to remove.
+            }
+
+            SettingsCard {
+                // Sending somebody to Safari to fetch a string for a field they
+                // are looking at is the errand `InAppBrowser` exists to remove.
+                //
+                // `safari` rather than `arrow.up.forward.square`: the row already
+                // ends in `SettingsExternalIcon`, which is that same arrow, so
+                // the old pairing drew one glyph twice and said nothing about
+                // where the row goes. Topical glyph leading, "it leaves" trailing
+                // - the pattern `CreditsView` already uses.
                 Button {
                     commit()
                     browser.open(SpotifyLinks.dashboard)
                 } label: {
-                    SettingsRowLabel(icon: "arrow.up.forward.square", title: SettingsText.openDashboard) {
+                    SettingsRowLabel(icon: "safari", title: SettingsText.openDashboard) {
                         SettingsExternalIcon()
                     }
                 }
                 .buttonStyle(.settingsRow)
             }
 
-            SettingsExplainer(SettingsText.spotifyAppSetup)
-            SettingsExplainer(SettingsText.spotifyAppLimits)
+            // One note, not two. As separate explainers they sat `attachedGap`
+            // apart - less than their own line height - so they read as one
+            // block anyway, but with a gap in the wrong place. Joined, the blank
+            // line is a real paragraph break.
+            SettingsExplainer(SettingsText.spotifyAppSetup + "\n\n" + SettingsText.spotifyAppLimits)
         }
         .onAppear {
             clientID = session.configuration.clientID
@@ -73,16 +91,36 @@ struct SpotifyAppSettingsView: View {
         prompt: String,
         text: Binding<String>
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
+            // `.footnote` weighted, not `.caption` regular. A field label sitting
+            // at the same size and colour as the page footnote below made the top
+            // of this card read as a paragraph rather than as the form it is.
             Text(title)
-                .font(.caption)
+                .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
+            // **The field is given a surface, because it had none.** No box, no
+            // fill, no rule - on first run the Client ID row was a grey label
+            // above grey placeholder text, so the one actionable thing on the
+            // screen was the thing that looked least like a control.
+            // `raisedSurface` is the existing token for one step above a card,
+            // and it works in both Appearances without a second value.
+            // **`.subheadline`, sized against the string it has to hold.** A
+            // Spotify Client ID is thirty-two hex characters. At `.body`
+            // monospaced the advance is about 10.2pt, so thirty-two of them need
+            // 326pt against the 314pt this field actually has - the value this
+            // whole stacked layout exists to show in full was truncating, and so
+            // was its own prompt ("Paste from the Spotify dashboa…"). At 15pt the
+            // advance is about 9.0pt and thirty-two characters take 288pt, which
+            // fits with room for the caret.
             TextField(prompt, text: text)
-                .font(.body.monospaced())
+                .font(.subheadline.monospaced())
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .submitLabel(.done)
                 .onSubmit(commit)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(SortyTheme.raisedSurface, in: .rect(cornerRadius: 10))
         }
         .padding(.vertical, SettingsMetrics.twoLineRowVertical)
     }

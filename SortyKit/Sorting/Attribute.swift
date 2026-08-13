@@ -1,19 +1,25 @@
 import Foundation
 
-/// A property a track has - thirteen of them, closed.
+/// A property a track has - twelve of them, closed.
 ///
 /// An Attribute is something a track *is*; an `Arrangement` is something you do
 /// to a playlist. Nothing here knows about ordering, direction or table
 /// columns: artist separation and shuffle are not Attributes, because no track
 /// carries either value.
 ///
-/// Ten are measurements of the music. The other three - position, title and
+/// Nine are measurements of the music. The other three - position, title and
 /// artist - are things a track carries rather than things it measures, but they
 /// are read from the track exactly like the rest, so they belong here and not
 /// among the orderings that compute their own values.
+///
+/// **There were thirteen.** Popularity was removed in ADR-0026: Spotify deleted
+/// `track.popularity` from the API in February 2026 for every Client ID Sorty
+/// asks a listener to create, so the value was `nil` for every real track and
+/// the ordering ranked nothing. Only Demo Mode, which invented the number, ever
+/// showed it working.
 public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
     case order, title, artist, release, added
-    case bpm, energy, dance, loud, valence, length, acoustic, pop
+    case bpm, energy, dance, loud, valence, length, acoustic
 
     public var id: String { rawValue }
 
@@ -33,7 +39,6 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
         case .valence: "Valence"
         case .length: "Length"
         case .acoustic: "Acousticness"
-        case .pop: "Popularity"
         }
     }
 
@@ -105,8 +110,6 @@ public enum Attribute: String, CaseIterable, Sendable, Identifiable, Hashable {
             "The duration of the track."
         case .acoustic:
             "A 0–100 confidence score that the track is acoustic. 100 means high confidence."
-        case .pop:
-            "A 0–100 score Spotify assigns from recent play counts. It changes often."
         }
     }
 }

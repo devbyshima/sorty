@@ -12,6 +12,11 @@ struct AudioFeatureSettingsView: View {
 
     var body: some View {
         SettingsScaffold(title: SettingsText.audioFeatures) {
+            // The reason the choice exists, above the choice. This used to be a
+            // footer under the card, where it was read after the decision and
+            // where it restated three things the rows already said.
+            SettingsLead(SettingsText.featureSourceLead)
+
             SettingsCard {
                 ForEach(FeatureSourceMode.allCases, id: \.self) { source in
                     SettingsSelectRow(
@@ -30,21 +35,9 @@ struct AudioFeatureSettingsView: View {
             // the things that are not.
             if session.configuration.featureSource.sendsTrackIDsOffDevice {
                 SettingsCard {
-                    HStack(alignment: .top, spacing: SettingsMetrics.rowSpacing) {
-                        Image(systemName: "hand.raised")
-                            .font(.body)
-                            .foregroundStyle(SortyTheme.accent)
-                            .frame(width: SettingsMetrics.iconColumn)
-                        Text(SettingsText.featureSourcePrivacy)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .padding(.vertical, SettingsMetrics.twoLineRowVertical)
+                    SettingsNote(icon: "hand.raised", text: SettingsText.featureSourcePrivacy)
                 }
             }
-
-            SettingsExplainer(SettingsText.featureSourceRationale)
         }
     }
 }

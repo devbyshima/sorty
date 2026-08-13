@@ -17,7 +17,7 @@ _Avoid_: Sort, sort column, sort order
 
 **Attribute**:
 A property a track has - its BPM, energy, danceability, loudness, valence,
-acousticness, popularity, length, release date, date added. An attribute is
+acousticness, length, release date, date added. An attribute is
 something a track *is*; an arrangement is something you *do* to a playlist. Most
 arrangements are derived from one attribute, but an attribute is not itself an
 arrangement.
@@ -92,12 +92,13 @@ reports. ADR-0018.
 _Avoid_: Algorithmic, personalized, editorial, curated
 
 **Placeholder**:
-The shape of a row that hasn't arrived: a breathing cover tile and one or two
-bars where its words will be. Not a spinner and not a progress bar - it carries
-no count, and the number of them is a layout decision that is never printed. The
-launch splash waits behind the same idea, staying up until there is one real
-playlist to uncover. ADR-0019, amending ADR-0015.
-_Avoid_: Skeleton screen, shimmer, loading state, spinner
+The shape of a row that hasn't arrived: a shimmering cover tile and one or two
+bars where its words will be, all drawn by one shader off one clock. Not a
+spinner and not a progress bar - it carries no count, and the number of them is a
+layout decision that is never printed. The launch splash waits behind the same
+idea, staying up until there is one real playlist to uncover. ADR-0020, amending
+ADR-0019 and ADR-0015.
+_Avoid_: Skeleton screen, loading state, spinner
 
 **Client ID**:
 The identifier of a Spotify developer application, which in Sorty each user

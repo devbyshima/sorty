@@ -106,12 +106,22 @@ final class VariableBlurUIView: UIVisualEffectView {
         // `applyBlur` will install it.
     }
 
+    /// **The tint is hidden first, and unconditionally.** It used to be hidden
+    /// after a `guard` that also required the filter, which made the documented
+    /// fallback do the exact opposite of what it promises: on any device where
+    /// the private `CAFilter` lookup fails, `blurFilter` is nil, this returned
+    /// early, and what was left was not "a plain effect view with its tint
+    /// hidden" but a full-strength `.regular` material rectangle 278pt tall with
+    /// a hard bottom edge - the worst possible version of the seam this whole
+    /// file exists to avoid, on precisely the devices that could not report it.
+    /// The nil result is sticky too, since `rebuildMaskIfNeeded` only retries
+    /// when `hold` moves.
     private func applyBlur() {
+        for tint in subviews.dropFirst() where tint.alpha != 0 { tint.alpha = 0 }
         guard let blurFilter, let backdrop = subviews.first else { return }
         if (backdrop.layer.filters?.first as? NSObject) !== blurFilter {
             backdrop.layer.filters = [blurFilter]
         }
-        for tint in subviews.dropFirst() where tint.alpha != 0 { tint.alpha = 0 }
     }
 
     private static func makeVariableBlurFilter(maxBlurRadius: CGFloat, hold: Double) -> NSObject? {
@@ -145,26 +155,53 @@ final class VariableBlurUIView: UIVisualEffectView {
     ///
     /// Sampled into many stops rather than expressed as a curve because
     /// `CGGradient` interpolates linearly between whatever stops it is given;
-    /// the curve has to be baked in. 512 rows deep for the same reason - at the
-    /// original 100 the steps themselves became the banding they were meant to
-    /// remove.
+    /// the curve has to be baked in.
+    ///
+    /// **The stops are spent inside the ramp, and that is the correction.** They
+    /// used to be spread evenly across the whole gradient - 64 of them over
+    /// `t` from 0 to 1 - which sounds like plenty and is not, because the curve
+    /// only exists above `hold`. A 58pt header with a 20pt fade and the default
+    /// overscan gives `hold` = 0.928, so the ramp got 64 x 0.072 ≈ **four and a
+    /// half stops**, and `CGGradient` joined them with straight lines. The
+    /// smoothstep whose whole purpose is a gradient of zero at both ends was
+    /// being rendered as a four-segment polyline with a corner at each end - so
+    /// the blur left full strength at a measurable rate and arrived at nothing at
+    /// a measurable rate, which is exactly the visible start and visible finish
+    /// the curve was chosen to remove. The solid region needs two stops, not
+    /// sixty-two; everything else belongs to the ramp.
+    ///
+    /// **Smootherstep rather than smoothstep**, for the residue the sampling fix
+    /// leaves behind. Smoothstep's first derivative is zero at both ends but its
+    /// second is not - it is ±6 there - and a discontinuity in the *rate* of
+    /// change is what the eye reports as a Mach band: a faint bright or dark line
+    /// at the join, visible precisely where the effect is meant to disappear.
+    /// The quintic 6u⁵-15u⁴+10u³ zeroes the second derivative as well, so there
+    /// is no join to find.
+    ///
+    /// 2048 rows deep because the ramp is a small fraction of the image and gets
+    /// that fraction of the rows: at the original 512 a 7% ramp was 37 rows
+    /// stretched over about 60 device pixels, and the steps themselves became the
+    /// banding they were meant to remove.
     private static func gradientMask(hold: Double) -> CGImage? {
-        let height = 512
-        let steps = 64
+        let height = 2048
+        let rampStops = 96
 
         var colors: [CGColor] = []
         var locations: [CGFloat] = []
-        for step in 0...steps {
-            let t = Double(step) / Double(steps)
-            let alpha: Double
-            if t <= hold {
-                alpha = 1
-            } else {
-                let u = (t - hold) / (1 - hold)
-                alpha = 1 - (u * u * (3 - 2 * u))
-            }
-            colors.append(UIColor(white: 0, alpha: alpha).cgColor)
-            locations.append(CGFloat(t))
+
+        let opaque = UIColor(white: 0, alpha: 1).cgColor
+        colors.append(opaque)
+        locations.append(0)
+        if hold > 0 {
+            colors.append(opaque)
+            locations.append(CGFloat(hold))
+        }
+
+        for step in 1...rampStops {
+            let u = Double(step) / Double(rampStops)
+            let eased = u * u * u * (u * (u * 6 - 15) + 10)
+            colors.append(UIColor(white: 0, alpha: 1 - eased).cgColor)
+            locations.append(CGFloat(hold + u * (1 - hold)))
         }
 
         return UIGraphicsImageRenderer(size: CGSize(width: 1, height: height)).image { ctx in
@@ -213,7 +250,30 @@ struct TopBlur: View {
     /// screen means the library, the playlist and the sheet each let content go
     /// at a different rate and stop feeling like one app. Call sites do not pass
     /// it; whatever needs to clear the band adjusts its own padding instead.
-    var fade: CGFloat = 20
+    ///
+    /// **40 rather than 20, and the curve is why.** A smootherstep spends its
+    /// length unevenly on purpose - the tails are nearly flat, which is what
+    /// makes both ends disappear, and the cost is that the actual change is
+    /// concentrated in the middle third. Measured off `26-tracks-scrolled` by
+    /// the high-frequency energy in the artwork passing underneath: at a 20pt
+    /// fade the cover went from fully smeared to fully sharp between y=360 and
+    /// y=390 device pixels, which is ten points. Soft-edged, but a ten-point
+    /// transition is still a band with a place where it happens. Doubling the
+    /// fade gives the middle third about twenty points to work in, and that is
+    /// the difference between an edge you cannot find and one you can.
+    var fade: CGFloat = Self.defaultFade
+
+    /// The one dispersion every screen shares.
+    ///
+    /// A constant rather than a repeated literal, because it was a repeated
+    /// literal and that is how the first attempt at this change did nothing:
+    /// `ScreenTopBar` declared its own `fade` defaulting to 20, under a comment
+    /// promising it was "handed straight to `TopBlur`, whose default is the one
+    /// dispersion every screen shares". Raising the default here left every
+    /// screen that goes through the shared bar - which is most of them - on the
+    /// old value, and the measurement came back unchanged. One definition, and
+    /// the comment is true by construction.
+    static let defaultFade: CGFloat = 40
     /// How far the solid region reaches **above** this view's own top edge.
     ///
     /// `ignoresSafeArea(edges: .top)` used to do this job and could not: it is a

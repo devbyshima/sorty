@@ -152,19 +152,41 @@ struct SkeletonPlanTests {
         #expect(SkeletonPlan.trackCount(expected: nil) == 12)
     }
 
-    /// A screen of twelve pulsing in unison reads as an error light rather than
-    /// as waiting, so no two adjacent rows may share a phase.
+    /// A screen of twelve sweeping in unison reads as an error light rather than
+    /// as waiting - and a band crossing every tile at once is also the one way a
+    /// shimmer starts reading as a measurement of progress, which is what
+    /// ADR-0020 leans on when it reverses ADR-0019's objection to sweeps. So no
+    /// two adjacent rows may share a phase.
     @Test("Adjacent placeholders are never in phase")
     func phasesAreSpread() {
         let phases = (0..<24).map { SkeletonPlan.phase(at: $0) }
         for (index, phase) in phases.enumerated() {
-            #expect(phase >= 0 && phase < 4.5, "phase \(index) fell outside one cycle")
+            #expect(
+                phase >= 0 && phase < SkeletonPlan.period,
+                "phase \(index) fell outside one cycle"
+            )
             if index > 0 {
-                #expect(abs(phase - phases[index - 1]) > 0.2, "rows \(index - 1) and \(index) breathe together")
+                #expect(
+                    abs(phase - phases[index - 1]) > 0.2,
+                    "rows \(index - 1) and \(index) shimmer together"
+                )
             }
         }
         // Stable: the same index is the same phase, every time, or placeholders
         // would reshuffle on every view update.
         #expect(SkeletonPlan.phase(at: 7) == SkeletonPlan.phase(at: 7))
+    }
+
+    /// The offsets have to *fill* the cycle, not merely differ inside part of
+    /// it. Twelve placeholders all landing in the first third would sweep as one
+    /// loose band travelling down the screen, which is the reading the per-index
+    /// phase exists to prevent.
+    @Test("Twelve placeholders spread across the whole cycle")
+    func phasesCoverTheCycle() {
+        let phases = (0..<12).map { SkeletonPlan.phase(at: $0) }
+        let thirds = Set(phases.map { Int($0 / (SkeletonPlan.period / 3)) })
+        #expect(thirds.count == 3, "every third of the cycle should be occupied")
+        #expect(phases.min()! < SkeletonPlan.period * 0.2)
+        #expect(phases.max()! > SkeletonPlan.period * 0.8)
     }
 }

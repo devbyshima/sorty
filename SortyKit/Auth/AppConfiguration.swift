@@ -26,14 +26,30 @@ public enum FeatureSourceMode: String, Sendable, CaseIterable, Hashable {
         }
     }
 
+    /// One option's line, and **a line is what it has to be.**
+    ///
+    /// These were 25 to 29 words each. Three of them stacked put twelve lines of
+    /// identical grey between the listener and a three-way choice, which is the
+    /// whole of why the screen read as a wall - the choice was the smallest thing
+    /// on a page about making it. Each is now at most two lines at the default
+    /// text size, carrying only what distinguishes this option from the other
+    /// two.
+    ///
+    /// What they no longer carry, and where it went instead:
+    /// - The six column names. `SettingsText.featureSourceLead` names them once,
+    ///   above the card, in `Attribute.name`'s spelling. They used to appear
+    ///   twice on one screen in two different vocabularies - "Danceability,
+    ///   Loudness, Acousticness" here and "Dance, Loud, Acoustic" in the footer.
+    /// - "keyed by Spotify track ID". The privacy note directly beneath says
+    ///   which IDs go where, and says it better.
     public var explanation: String {
         switch self {
         case .reccoBeats:
-            "Free, no account needed, keyed by Spotify track ID. Coverage is strong for catalogue released up to 2024 and thin for 2025-onward releases; missing tracks leave those cells blank."
+            "Free, no account needed. Coverage is strong up to 2024 and patchy after; missing tracks leave blank cells."
         case .spotify:
-            "Spotify restricted this endpoint in November 2024. It works only if your Client ID was granted extended quota before then. Otherwise every request returns 403."
+            "Only works for a Client ID granted extended quota before November 2024. Every other app is refused."
         case .none:
-            "BPM, Energy, Danceability, Loudness, Valence and Acousticness stay empty. Every other arrangement works normally."
+            "Those six columns stay empty. Every other arrangement still works."
         }
     }
 

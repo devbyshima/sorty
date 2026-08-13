@@ -57,14 +57,30 @@ public enum SkeletonPlan {
         return max(1, min(expected, cap))
     }
 
-    /// A stable per-row offset into the breath, so a screen of twelve does not
-    /// pulse in unison - which reads as an error light rather than as waiting.
+    /// One full sweep of the placeholder shimmer, in seconds.
     ///
-    /// The same property `CoverImage.ripplePhase(for:)` takes from a URL hash,
+    /// **Here rather than beside the view, because it is a number two files have
+    /// to agree on and one of them is Metal.** `CoverShimmer.cycle` reads this,
+    /// and `coverShimmer`'s own `cycle` constant in `Shaders.metal` must equal
+    /// it - a shader cannot import Swift, so that pair is kept by hand and this
+    /// is the value it is kept against. Putting it in SortyKit is also what lets
+    /// `phase(at:)` be tested at the period the app actually runs.
+    ///
+    /// 2.2s. A sweep has to be quicker than the nine-second breath it replaced
+    /// or it stops reading as one gesture, and slower than the ~1.2s web idiom
+    /// or it reads as a loading bar. ADR-0020.
+    public static let period: Double = 2.2
+
+    /// A stable per-row offset into the sweep, so a screen of twelve does not
+    /// shimmer in unison - which reads as an error light rather than as waiting,
+    /// and which is also the property that stops a band travelling across a
+    /// whole list from reading as one measurement of progress.
+    ///
+    /// The same property `CoverImage.shimmerPhase(for:)` takes from a URL hash,
     /// taken from the index instead, because a placeholder has no URL to hash.
     /// The step is irrational so adjacent rows are never in phase and the
     /// pattern never repeats down a list of any length.
-    public static func phase(at index: Int, period: Double = 4.5) -> Double {
+    public static func phase(at index: Int, period: Double = SkeletonPlan.period) -> Double {
         let golden = 0.6180339887498949
         return (Double(index) * golden).truncatingRemainder(dividingBy: 1) * period
     }

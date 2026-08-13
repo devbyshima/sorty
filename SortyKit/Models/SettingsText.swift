@@ -50,23 +50,39 @@ public enum SettingsText {
     public static let clientID = "Client ID"
     public static let clientIDPrompt = "Paste from the Spotify dashboard"
     public static let redirectURI = "Redirect URI"
-    public static let openDashboard = "Open Spotify Developer Dashboard"
 
+    /// **"Open" is the trailing glyph's job, not the label's.**
+    /// "Open Spotify Developer Dashboard" measured about 269pt at `.body`
+    /// against roughly 263pt of available title width, so it wrapped by six
+    /// points at the *default* text size - and `SettingsRowLabel` centres its
+    /// leading glyph, which then floated in the gutter beside neither line. The
+    /// row already ends in `SettingsExternalIcon`, which says "this leaves the
+    /// app" more precisely than the word did.
+    public static let openDashboard = "Spotify Developer Dashboard"
+
+    /// The procedure, as a procedure.
+    ///
     /// "Character for character" rather than a bolded *exactly*, which is the
     /// same instruction surviving the loss of the formatting that carried it.
+    ///
+    /// No longer opens with "Create an app on the Spotify dashboard, then paste
+    /// its Client ID here": the field's own prompt directly above already reads
+    /// "Paste from the Spotify dashboard", and of the two the prompt is the one
+    /// in the right place.
     public static let spotifyAppSetup = """
-        Create an app on the Spotify dashboard, then paste its Client ID here. \
-        Register the redirect URI character for character as it appears above, \
-        and add your own Spotify account under Users Management.
+        On the Spotify dashboard: create an app, register the redirect URI above \
+        character for character, then add your own account under Users Management.
         """
 
-    public static let spotifyAppLimits = """
-        Two limits are worth knowing before you start: a development-mode app \
-        admits at most five listeners, and its owner needs Spotify Premium. \
-        Spotify's own docs prefer an https redirect over a custom scheme, so if \
-        the dashboard rejects the sorty://callback address as insecure, point \
-        this at an https URL you control instead.
-        """
+    /// **Twelve words, from fifty-two.**
+    ///
+    /// What went: the https-versus-custom-scheme troubleshooting, which is only
+    /// relevant if the dashboard actually rejects the URI and which now lives in
+    /// `FAQText.limits` where a reader goes *after* hitting the problem rather
+    /// than before. A form is not the place to pre-empt a failure that usually
+    /// does not happen.
+    public static let spotifyAppLimits =
+        "A development-mode app admits five listeners, and its owner needs Spotify Premium."
 
     // MARK: - Audio features
 
@@ -77,12 +93,24 @@ public enum SettingsText {
         Nothing else leaves the device: not your name, not your tokens.
         """
 
-    public static let featureSourceRationale = """
-        BPM, Energy, Dance, Loud, Valence and Acoustic come from an \
-        audio-feature source. Spotify restricted its own audio-features endpoint \
-        in November 2024 for every app registered after that date and has \
-        published no replacement, so Sorty defaults to ReccoBeats. The other \
-        nine columns come straight from Spotify and always work.
+    /// **Above the card, because the "why" belongs before the choice.**
+    ///
+    /// This replaces a 49-word footer that restated three things the option rows
+    /// below it already said - the November 2024 restriction (the Spotify row's
+    /// own first sentence), the six columns, and that ReccoBeats is the default
+    /// (the checkmark says so). A footer that repeats the card above it is the
+    /// single biggest reason that screen read as a wall of grey.
+    ///
+    /// It also drops a number that was wrong, and the drop has since paid for
+    /// itself twice. "The other nine columns come straight from Spotify" was not
+    /// checkable against the model - `Attribute` had thirteen cases, six of them
+    /// audio features, which left seven; nine was the count of non-feature
+    /// *arrangements*, a different thing wearing the word "columns". ADR-0026
+    /// then removed Popularity and the true figure moved again. A sentence with
+    /// no count in it needed no edit either time.
+    public static let featureSourceLead = """
+        BPM, Energy, Danceability, Loudness, Valence and Acousticness need an \
+        outside source. Every other arrangement comes from Spotify.
         """
 
     // MARK: - Footer

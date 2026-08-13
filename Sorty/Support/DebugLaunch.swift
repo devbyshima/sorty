@@ -178,12 +178,37 @@ enum DebugLaunch {
 
     /// `-pendingCovers` - every cover stays unresolved for the whole launch.
     ///
-    /// The ripple that stands in for a loading cover is, by design, on screen
+    /// The shimmer that stands in for a loading cover is, by design, on screen
     /// only until the file arrives, and against the demo catalogue covers are
     /// drawn on device in a frame or two. So the one state the shader exists
     /// for is the one state no screenshot could ever catch. This holds it.
     static var holdsCovers: Bool {
         CommandLine.arguments.contains("-pendingCovers")
+    }
+
+    /// `-reduceMotion` - run as though the accessibility setting were on.
+    ///
+    /// **The simulator cannot be asked.** Writing `ReduceMotionEnabled` into
+    /// `com.apple.Accessibility` does set the preference - `defaults read`
+    /// returns 1 - but the accessibility daemon does not reload it, so
+    /// `UIAccessibility` keeps reporting false and the environment value the
+    /// views actually read never flips. Measured: two frames a second apart
+    /// still differed, and a placeholder cover still swept across a 30-step
+    /// range.
+    ///
+    /// That leaves every Reduce Motion branch in the app unverifiable, and
+    /// ADR-0020 makes a specific claim about one of them - that the shimmer
+    /// holds at its *resting* value rather than freezing wherever the band
+    /// happened to be, because a stopped band reads as a rendering fault. The
+    /// difference between those two outcomes is a still frame, which is exactly
+    /// what this harness produces.
+    ///
+    /// Read through `Motion.isReduced(_:)` rather than directly, because
+    /// `\.accessibilityReduceMotion` is not a writable environment key - there
+    /// is no way to inject this at the root the way `appearance` is injected,
+    /// so each reader combines it itself.
+    static var forcesReduceMotion: Bool {
+        CommandLine.arguments.contains("-reduceMotion")
     }
 
     /// `-advanceAfter 2` - move the connect flow on by one step, that many
@@ -196,6 +221,34 @@ enum DebugLaunch {
     /// exactly the silent failure ADR-0015 exists to catch.
     static var advanceAfter: Double? {
         UserDefaults.standard.string(forKey: "advanceAfter").flatMap(Double.init)
+    }
+
+    /// `-pushAfter 3` - open the named playlist that many seconds after the
+    /// library has settled, rather than arriving already pushed.
+    ///
+    /// **The difference between this and `-screen tracks` is the whole point.**
+    /// `-screen tracks` sets the path during launch, so the zoom runs while the
+    /// app is still starting: any measurement taken then is dominated by process
+    /// start, the demo catalogue and the splash, and the transition is a rounding
+    /// error inside it. What a listener actually experiences is a *warm* push
+    /// from a library that is already on screen, and this is the only way to
+    /// produce one without a finger.
+    ///
+    /// Same family as `-advanceAfter`, which exists so the connect flow's page
+    /// transition can be seen at all.
+    static var pushAfter: Double? {
+        UserDefaults.standard.string(forKey: "pushAfter").flatMap(Double.init)
+    }
+
+    /// `-popAfter 3` - go back to the library that many seconds after
+    /// `-pushAfter` opened a playlist.
+    ///
+    /// The collapse is the half of the zoom that nothing could reach: `-screen
+    /// tracks` arrives already pushed and never leaves, so every shot and every
+    /// measurement of this transition has been of the way *in*. Pairs with
+    /// `-pushAfter`, and does nothing without it.
+    static var popAfter: Double? {
+        UserDefaults.standard.string(forKey: "popAfter").flatMap(Double.init)
     }
 
     /// `-connectDetail` - arrive with a step's info sheet already open.
@@ -234,7 +287,10 @@ enum DebugLaunch {
     static var libraryStall: Duration? { nil }
     static var trackStall: Duration? { nil }
     static var holdsCovers: Bool { false }
+    static var forcesReduceMotion: Bool { false }
     static var advanceAfter: Double? { nil }
+    static var pushAfter: Double? { nil }
+    static var popAfter: Double? { nil }
     static var showsConnectDetail: Bool { false }
     static var opensDashboard: Bool { false }
     static var isActive: Bool { false }

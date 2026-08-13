@@ -9,7 +9,7 @@
 Native iOS · SwiftUI · iOS 27 · no third-party packages
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-358%20in%2046%20suites-brightgreen.svg)](Tests)
+[![Tests](https://img.shields.io/badge/tests-372%20in%2049%20suites-brightgreen.svg)](Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
 </div>
@@ -26,7 +26,7 @@ when you happened to add it — is his.
 
 > [!IMPORTANT]
 > **Spotify closed the endpoint this app was built on.** Sorty still works, but two of its
-> thirteen attributes now come from elsewhere and some playlists can never be opened at all. Read
+> twelve attributes now come from elsewhere and some playlists can never be opened at all. Read
 > [Spotify's limits](#spotifys-limits) before you set it up — most surprises live there, not in the app.
 
 ## Getting started
@@ -67,9 +67,9 @@ The interface is built on **arrangements**, not columns
 of ordering a playlist; an *attribute* is a property a track has. Attribute-derived orderings and
 computed ones are peers.
 
-**Thirteen attributes** — Original order, Title, Artist, Release date, Date added, BPM, Energy,
-Danceability, Loudness, Valence, Length, Acousticness, Popularity — plus **two computed
-arrangements**, Artist separation and Shuffle. 28 distinct orderings in total.
+**Twelve attributes** — Original order, Title, Artist, Release date, Date added, BPM, Energy,
+Danceability, Loudness, Valence, Length, Acousticness — plus **two computed
+arrangements**, Artist separation and Shuffle. 26 distinct orderings in total.
 
 - A **chip row** carries five pinned bases that never move, a trailing chip when the applied
   arrangement is off-piste, and `More`, which lists every basis with its explanation.
@@ -106,7 +106,7 @@ monthly active users.
 Sorty treats the feature source as swappable (`AudioFeatureProviding`) and defaults to
 **[ReccoBeats](https://reccobeats.com)**: free, no API key, keyed by Spotify track ID, on Spotify's
 exact scale. Coverage is strong for catalogue up to 2024 and thin for 2025-onward releases; anything
-it misses is shown as unavailable and gathered into a labelled group. The other seven attributes come
+it misses is shown as unavailable and gathered into a labelled group. The other six attributes come
 straight from Spotify and always work.
 
 **Spotify's own playlists cannot be opened.** The same November 2024 change lists *"algorithmic and
@@ -132,6 +132,11 @@ was withdrawn, and `track.popularity` was removed. Contents are now returned **o
 you own or collaborate on ([ADR-0008](docs/adr/0008-a-playlist-you-do-not-own-never-opens.md)). The
 client speaks the new spellings and falls back to the old ones once per session, so it works with
 either vintage of Client ID.
+
+The removed field cost Sorty an attribute. A release date survived because a track's own album still
+carries one; popularity had no second source, so arranging by it ranked nothing for every listener
+who was not in Demo Mode. It is gone
+([ADR-0026](docs/adr/0026-popularity-is-removed.md)).
 
 ## Deliberate differences from the reference
 
@@ -178,7 +183,7 @@ Architecture decisions live in [`docs/adr/`](docs/adr/), vocabulary in [`CONTEXT
 | [0001](docs/adr/0001-arrangements-replace-the-column-table.md) | Arrangements replace the column table |
 | [0002](docs/adr/0002-overwrite-always-writes-the-whole-playlist.md) | Overwrite always writes the whole playlist |
 | [0003](docs/adr/0003-demo-mode-is-the-front-door.md) | ~~Demo Mode is the front door~~ — superseded by 0007 |
-| [0004](docs/adr/0004-original-order-is-a-name-not-a-case.md) | Original order is a name, not a case |
+| [0004](docs/adr/0004-original-order-is-a-name-not-a-case.md) | Original order is a name, not a case — amended by 0026 |
 | [0005](docs/adr/0005-the-reorder-threshold-is-a-thousand-rows.md) | The reorder animation snaps above 1,000 rows — measured, not guessed |
 | [0006](docs/adr/0006-the-accent-is-indigo-not-green.md) | The accent is indigo, not Spotify green |
 | [0007](docs/adr/0007-connecting-is-the-front-door.md) | Connecting is the front door; Demo Mode leaves the shipped app |
@@ -189,11 +194,18 @@ Architecture decisions live in [`docs/adr/`](docs/adr/), vocabulary in [`CONTEXT
 | [0012](docs/adr/0012-the-cover-keeps-its-lean-and-loses-its-sheen.md) | The cover keeps its lean and loses its sheen |
 | [0013](docs/adr/0013-the-attribution-mark-is-spotifys-own-file.md) | The attribution mark is Spotify's own file |
 | [0014](docs/adr/0014-the-app-is-called-sorty.md) | The app is called Sorty |
-| [0015](docs/adr/0015-waiting-is-texture-not-status.md) | Waiting is texture, not status — amended by 0019 |
+| [0015](docs/adr/0015-waiting-is-texture-not-status.md) | Waiting is texture, not status — amended by 0019, 0020 |
 | [0016](docs/adr/0016-the-way-in-is-a-reel.md) | The way in is a reel |
-| [0017](docs/adr/0017-collaboration-is-a-fact-not-a-feature.md) | Collaboration is a fact, not a feature |
+| [0017](docs/adr/0017-collaboration-is-a-fact-not-a-feature.md) | Collaboration is a fact, not a feature — refined by 0022 |
 | [0018](docs/adr/0018-spotifys-own-playlists-are-one-thing-sorty-cannot-open.md) | Spotify's own playlists are one thing, and Sorty cannot open them |
-| [0019](docs/adr/0019-a-skeleton-is-the-shape-of-what-is-coming.md) | A skeleton is the shape of what is coming, and the splash waits for one row |
+| [0019](docs/adr/0019-a-skeleton-is-the-shape-of-what-is-coming.md) | A skeleton is the shape of what is coming, and the splash waits for one row — amended by 0020 |
+| [0020](docs/adr/0020-the-placeholder-shimmers.md) | The placeholder shimmers, and one shader draws all of it |
+| [0021](docs/adr/0021-a-playlist-opens-by-growing.md) | A playlist opens by growing out of the tile you touched — refined by 0024 |
+| [0022](docs/adr/0022-settings-has-four-type-roles-and-its-cards-have-edges.md) | Settings has four type roles, and its cards have edges |
+| [0023](docs/adr/0023-the-blur-has-no-edge-to-find.md) | The blur has no edge to find |
+| [0024](docs/adr/0024-the-zoom-grows-from-the-cover.md) | The zoom grows from the cover, and the simulator lied about why it was slow |
+| [0025](docs/adr/0025-fetched-covers-are-held.md) | Fetched covers are held, and the demo catalogue was hiding that they weren't |
+| [0026](docs/adr/0026-popularity-is-removed.md) | Popularity is removed |
 | [0027](docs/adr/0027-releases-run-on-branches-not-flags.md) | Releases run on branches, not flags |
 
 ## Development
@@ -269,8 +281,10 @@ Deployment target 27.0, Xcode 27, Swift 6.0.
 - `Group(subviews:)` interleaves the settings cards' dividers, so a row cannot be added without one.
 - `.onScrollGeometryChange(for:)`, `onGeometryChange(for:action:)`, `ScrollPosition`,
   `.lineLimit(_:reservesSpace:)`, `.visualEffect { }`, `@ScaledMetric(relativeTo:)`.
-- Two Metal shaders, both placeholder-only: a shimmer across the launch mark and a ripple over a
-  cover that hasn't arrived.
+- Two Metal shaders, both placeholder-only: a sweep across the launch mark, and one that draws
+  every waiting cover and text bar in the app off a single clock.
+- `.navigationTransition(.zoom(sourceID:in:))` with `.matchedTransitionSource`, so a playlist grows
+  out of the tile you touched.
 
 > [!WARNING]
 > **One private API.** The progressive blur behind each screen's top bar drives the `variableBlur`

@@ -11,14 +11,13 @@ struct DemoCatalogSpreadTests {
 
     /// The 0–100 Audio features, which share a scale and so share a threshold.
     ///
-    /// Deliberately excludes `.pop`: popularity is Spotify's own metadata, not
-    /// an Audio feature, and it is drawn uniformly across the whole range, so
-    /// including it would pad every measurement here with a value that passes
-    /// by construction.
+    /// Every Attribute here is an Audio feature. Spotify's own metadata is not
+    /// spread-tested: the catalogue does not choose those values, it copies the
+    /// shape of what the API returns.
     private static let scaled: [Attribute] = [.energy, .dance, .valence, .acoustic]
 
-    /// Music only. An episode's "popularity" is not a measurement of anything,
-    /// so counting it would let a run of zeroes stand in for real spread.
+    /// Music only. An episode measures none of these, so counting one would let
+    /// a run of absences stand in for real spread.
     private func rows(forPlaylist id: String, in catalog: DemoCatalog) -> [TrackRow] {
         catalog.items(forPlaylist: id).enumerated().compactMap { index, item in
             guard let playable = item.track, !playable.isEpisode else { return nil }

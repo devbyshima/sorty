@@ -158,7 +158,7 @@ struct ArrangementPickerTests {
     @Test("The picker offers every Arrangement the app can produce")
     func offersEverything() {
         #expect(ArrangementChip.pickerBases == Arrangement.Basis.allCases)
-        #expect(ArrangementChip.pickerBases.count == 15)
+        #expect(ArrangementChip.pickerBases.count == 14)
     }
 
     @Test("Every entry carries an explanation from the one source")

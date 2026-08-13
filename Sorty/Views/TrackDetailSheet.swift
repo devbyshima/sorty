@@ -68,11 +68,13 @@ struct TrackDetailSheet: View {
             .padding(.horizontal, 24)
             // Longer than the blur's fade, with room to spare: a Gaussian's
             // visible smear runs past its nominal radius, so matching the fade
-            // exactly still left a haze on the artwork's top edge.
-            .padding(.top, 30)
+            // exactly still left a haze on the artwork's top edge. Tracks
+            // `TopBlur.fade`, which went from 20 to 40.
+            .padding(.top, 52)
             .padding(.bottom, 18)
-            // The title beneath already names the track, and `CoverImage` shows
-            // an unlabelled spinner while a fetched cover resolves.
+            // The title beneath already names the track, and what `CoverImage`
+            // shows while a fetched cover resolves is a shimmer that is itself
+            // hidden from VoiceOver - there is nothing here to announce.
             .accessibilityHidden(true)
     }
 

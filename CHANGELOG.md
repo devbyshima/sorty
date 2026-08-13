@@ -25,24 +25,28 @@ merge; `RELEASING.md` explains when it gets renamed to a version.
 ### Added
 
 - The waiting placeholder shimmers, driven off a single clock for every cover
-  and text bar in the app (ADR-0020).
+  and text bar in the app ([ADR-0020](docs/adr/0020-the-placeholder-shimmers.md)).
 - A playlist opens by growing out of the tile you touched, via
-  `.navigationTransition(.zoom(sourceID:in:))` (ADR-0021, ADR-0024).
+  `.navigationTransition(.zoom(sourceID:in:))`
+  ([ADR-0021](docs/adr/0021-a-playlist-opens-by-growing.md),
+  [ADR-0024](docs/adr/0024-the-zoom-grows-from-the-cover.md)).
 - Fetched cover artwork is held rather than refetched, in a new
-  `CoverImageCache` (ADR-0025).
+  `CoverImageCache` ([ADR-0025](docs/adr/0025-fetched-covers-are-held.md)).
 - A reduce-motion screenshot joins the harness set.
 
 ### Changed
 
-- Settings has four type roles, and its cards have edges (ADR-0022).
-- The progressive blur behind each top bar has no edge to find (ADR-0023).
+- Settings has four type roles, and its cards have edges
+  ([ADR-0022](docs/adr/0022-settings-has-four-type-roles-and-its-cards-have-edges.md)).
+- The progressive blur behind each top bar has no edge to find
+  ([ADR-0023](docs/adr/0023-the-blur-has-no-edge-to-find.md)).
 
 ### Removed
 
 - **Popularity.** Spotify removed `track.popularity` from the API in February
   2026 and it has no second source, so arranging by it ranked nothing for every
   listener outside Demo Mode. The attribute set drops from thirteen to twelve
-  (ADR-0026).
+  ([ADR-0026](docs/adr/0026-popularity-is-removed.md)).
 
 ## [0.1.0] - 2026-08-10
 

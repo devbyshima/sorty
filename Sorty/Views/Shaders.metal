@@ -4,7 +4,7 @@ using namespace metal;
 
 // MARK: - Cover placeholder
 //
-// A ripple that stands in for a cover while its file is being fetched, in place
+// A shimmer that stands in for a cover while its file is being fetched, in place
 // of a spinner.
 //
 // **It draws on an empty tile, never on artwork, and that boundary is the whole
@@ -16,31 +16,61 @@ using namespace metal;
 // arrives. Anyone extending this: the moment it touches a loaded cover it is a
 // violation, not a design choice.
 //
-// `phase` is per-tile, so a grid of twenty loading covers does not pulse as one
-// organism - which reads as an error state rather than as waiting.
-[[ stitchable ]] half4 coverRipple(float2 position, half4 color, float2 size,
-                                   float time, float phase, half4 low, half4 high) {
+// **A sweep, where this used to be a ripple.** ADR-0020 reverses the "not a
+// shimmer" clause of ADR-0019; the reasoning it replaces is recorded there. What
+// carries over unchanged is everything the ripple got right: `phase` is
+// per-tile, so a grid of twenty loading covers does not pulse as one organism -
+// which reads as an error state rather than as waiting - and `motion` is the
+// Reduce Motion branch, holding the surface at its resting value rather than
+// freezing the band mid-tile, which would read as a rendering fault.
+[[ stitchable ]] half4 coverShimmer(float2 position, half4 color, float2 size,
+                                    float time, float phase, float motion,
+                                    half4 base, half4 highlight) {
     float2 uv = position / max(size, float2(1.0));
-    float2 centred = uv - 0.5;
-    float r = length(centred);
 
-    // Rings traveling outward from the middle. The frequency is low on purpose:
-    // tight rings on a 44pt thumbnail alias into noise.
-    float wave = sin(r * 14.0 - (time + phase) * 2.0);
+    // The sweep axis, diagonal. Normalised coordinates rather than points, so
+    // the band is the same fraction of a 44pt thumbnail as of a 180pt tile -
+    // and so a 140x12 bar gets the same treatment, where the diagonal flattens
+    // into a band travelling left to right. One material for every placeholder
+    // shape, which is the property ADR-0019 asked for and got from the breath.
+    float band = (uv.x + uv.y) * 0.5;
 
-    // Falloff, so the rings dissolve toward the corners and the tile never
-    // reads as a target or a radar sweep. Measured rather than chosen: at
-    // exp(-r * 2.2) the rings were down to a fifth of their amplitude by the
-    // corner, which on a white surface left the whole effect invisible.
-    float falloff = exp(-r * 1.4);
+    // Half the band's width, in `band` units.
+    //
+    // Wide on purpose, and this is the number that decides whether the effect
+    // reads as calm or as a progress bar. A narrow band is a highlight passing
+    // over a surface and the eye tracks it, times it, and waits for the next
+    // one. A wide one is the surface itself brightening and dimming, and at
+    // 0.38 the band is most of the tile at any moment - there is no edge to
+    // follow, so nothing to time.
+    const float halfWidth = 0.38;
 
-    // A slow breath over the whole thing, so a tile that waits a long time is
-    // never perfectly still and never frantic either.
-    float breathe = 0.78 + 0.22 * sin((time + phase) * 0.7);
+    // One pass every `cycle` seconds, the band starting and ending fully clear
+    // of the tile so passes are separated by a real rest rather than by a wrap.
+    //
+    // 2.2s against the ripple's nine-second breath. A sweep has to be quicker
+    // than a breath or it stops reading as one gesture, and slower than the
+    // ~1.2s web idiom or it reads as the frantic loading bar ADR-0015 removed.
+    const float cycle = 2.2;
+    float travel = fract((time + phase) / cycle);
+    float centre = travel * (1.0 + 2.0 * halfWidth) - halfWidth;
 
-    float m = clamp((0.5 + 0.5 * wave) * falloff * breathe, 0.0, 1.0);
+    float d = clamp(abs(band - centre) / halfWidth, 0.0, 1.0);
+    float s = 1.0 - d;
+    // Smoothstep shaping, so the band has no edge on either side. A linear
+    // falloff leaves a visible crease where the ramp begins, which is the same
+    // mistake the progressive blur's mask makes when its curve is undersampled.
+    s = s * s * (3.0 - 2.0 * s);
 
-    float3 col = mix(float3(low.rgb), float3(high.rgb), m);
+    // What the surface reads as between passes. Low rather than zero because the
+    // band leaves the shape entirely at each end of its travel, and a placeholder
+    // that snaps to a perfectly flat `base` in that gap looks like the shader
+    // stopped. `base` is already a step away from the field, so this is a lift
+    // off a visible body rather than the only thing making the body visible.
+    const float rest = 0.08;
+    float m = clamp(rest + s * 0.9 * motion, 0.0, 1.0);
+
+    float3 col = mix(float3(base.rgb), float3(highlight.rgb), m);
 
     // TPDF dither. Two nearly-equal greys separated by a smooth gradient is the
     // textbook case for 8-bit banding, and a placeholder is a large flat area.
@@ -48,7 +78,14 @@ using namespace metal;
     float n2 = fract(52.9829189 * fract(dot(position + 23.7, float2(0.06711056, 0.00583715))));
     col += (n1 + n2 - 1.0) * 1.1 / 255.0;
 
-    return half4(half3(clamp(col, 0.0, 1.0)), 1.0h);
+    // Premultiplied by the source alpha, which is what lets one shader serve a
+    // square cover and a capsule text bar. A cover is a filled `Rectangle` whose
+    // alpha is 1 everywhere, so this is a no-op there; a `SkeletonShape` is a
+    // capsule, and without this the effect would paint its bounding box and
+    // every bar would come back a rectangle with soft edges nowhere.
+    // Multiplying rather than branching also keeps the shape's antialiased edge,
+    // where alpha is fractional.
+    return half4(half3(clamp(col, 0.0, 1.0)), 1.0h) * color.a;
 }
 
 // MARK: - Splash mark
