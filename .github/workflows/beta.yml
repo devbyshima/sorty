@@ -42,6 +42,11 @@ jobs:
   beta:
     name: Beta build
     runs-on: macos-latest
+    # Advisory for the same reason as the test job in ci.yml and the build job
+    # in release.yml: until a hosted image carries Xcode 27, this fails for
+    # toolchain reasons rather than code reasons, and a check that is always red
+    # is a check nobody reads. Drop this the same day ci.yml's does.
+    continue-on-error: true
     env:
       XCODE_VERSION: '27.0'
     steps:
