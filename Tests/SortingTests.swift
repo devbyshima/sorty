@@ -8,7 +8,6 @@ private func makeRow(
     title: String = "Track",
     artist: String? = "Artist",
     durationMS: Int? = 200_000,
-    popularity: Int? = 50,
     tempo: Double? = 120,
     energy: Double? = 0.5,
     danceability: Double? = 0.5,
@@ -26,7 +25,6 @@ private func makeRow(
         name: title,
         uri: isEpisode ? "spotify:episode:\(id)" : "spotify:track:\(id)",
         durationMS: durationMS,
-        popularity: popularity,
         artists: artist.map { [TrackArtist(name: $0)] },
         album: TrackAlbum(id: "a\(index)"),
         type: isEpisode ? .episode : .track
@@ -397,7 +395,6 @@ struct SaveNamingTests {
         let expected: [(Attribute, String)] = [
             (.dance, "increasing Danceability"),
             (.loud, "increasing Loudness"),
-            (.pop, "increasing Popularity"),
             (.acoustic, "increasing Acousticness"),
             (.release, "increasing Release date"),
             (.added, "increasing Date added"),

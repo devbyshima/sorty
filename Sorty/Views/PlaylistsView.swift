@@ -14,6 +14,13 @@ struct PlaylistsView: View {
     /// The menu lives in this screen's own header rather than in the toolbar,
     /// so this is handed in rather than reached from here.
     var onSettings: () -> Void = {}
+    /// The namespace the zoom into a playlist is matched in.
+    ///
+    /// Handed in rather than declared here, for the reason `RootView` gives
+    /// where it declares it: the destination side of the pair is built in the
+    /// `navigationDestination` closure, which cannot see a namespace that lives
+    /// in this view.
+    let zoomNamespace: Namespace.ID
 
     /// Search state lives here rather than in the bar, because the title has to
     /// know about it too.
@@ -94,8 +101,9 @@ struct PlaylistsView: View {
                 }
             }
             // Longer than the blur's fade, so the ramp finishes in the gap
-            // rather than on the first row of covers.
-            .padding(.top, 28)
+            // rather than on the first row of covers. Tracks `TopBlur.fade`,
+            // which went from 20 to 40.
+            .padding(.top, 48)
             .padding(.bottom, 24)
         }
         .debugScrolled()
@@ -289,7 +297,9 @@ struct PlaylistsView: View {
                     PlaylistTile(
                         text: PlaylistRowText(playlist: playlist, currentUserID: session.user?.id),
                         artwork: playlist.artworkImages,
-                        owner: ownerName(for: playlist)
+                        owner: ownerName(for: playlist),
+                        zoomID: playlist.id,
+                        zoomNamespace: zoomNamespace
                     )
                     .contentShape(.rect)
                 }
@@ -311,7 +321,9 @@ struct PlaylistsView: View {
                 } label: {
                     PlaylistRow(
                         text: PlaylistRowText(playlist: playlist, currentUserID: session.user?.id),
-                        artwork: playlist.artworkImages
+                        artwork: playlist.artworkImages,
+                        zoomID: playlist.id,
+                        zoomNamespace: zoomNamespace
                     )
                     .contentShape(.rect)
                 }
@@ -330,12 +342,46 @@ struct PlaylistsView: View {
     }
 }
 
+/// The corner every playlist cover is cut to, in both layouts.
+///
+/// A constant rather than four literals because a fifth place now reads it: the
+/// zoom's `matchedTransitionSource` carries this radius into the transition, so
+/// a change here that missed the transition would show up as the artwork
+/// changing shape for half a second on its way to opening.
+enum PlaylistArtwork {
+    static let radius: CGFloat = 6
+}
+
+extension View {
+    /// Marks a playlist's cover as the thing its screen grows out of.
+    ///
+    /// **On the artwork, not on the row that contains it.** The first version
+    /// put this on the whole button - cover, name and owner - on the reasoning
+    /// that the zoom should start from what the finger hit. What that produced
+    /// was a portrait rectangle of mostly text unfolding into a screen, and the
+    /// one element the two screens genuinely share went along for the ride.
+    /// The track list opens on this same artwork, large and centred; growing the
+    /// screen out of the cover makes the transition a statement about *this
+    /// playlist* rather than about a cell.
+    ///
+    /// The clip shape is the cover's own corner, carried into the transition, so
+    /// the artwork does not change shape on its way there. It reads
+    /// `PlaylistArtwork.radius` rather than repeating 6 for that reason.
+    func playlistZoomSource(id: String, in namespace: Namespace.ID) -> some View {
+        matchedTransitionSource(id: id, in: namespace) { source in
+            source.clipShape(.rect(cornerRadius: PlaylistArtwork.radius))
+        }
+    }
+}
+
 // MARK: - Grid tile
 
 private struct PlaylistTile: View {
     let text: PlaylistRowText
     let artwork: [SpotifyImage]
     let owner: String
+    let zoomID: String
+    let zoomNamespace: Namespace.ID
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -343,7 +389,8 @@ private struct PlaylistTile: View {
         VStack(alignment: .leading, spacing: 8) {
             CoverImage(images: artwork)
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 6))
+                .clipShape(.rect(cornerRadius: PlaylistArtwork.radius))
+                .playlistZoomSource(id: zoomID, in: zoomNamespace)
                 .shadow(color: SortyTheme.cardShadow(colorScheme), radius: 6, y: 3)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -388,7 +435,7 @@ private struct PlaylistTile: View {
 /// between them. The square cover with its 6pt radius, the 8pt gap, the two
 /// reserved name lines, the 2pt gap and the `.caption2` detail line.
 ///
-/// The cover is `CoverRipple` rather than a `SkeletonShape`, because a cover
+/// The cover is `CoverShimmer` rather than a `SkeletonShape`, because a cover
 /// waiting for its file is a state this app already had a placeholder for and
 /// one idiom is better than two.
 private struct PlaylistTilePlaceholder: View {
@@ -398,9 +445,9 @@ private struct PlaylistTilePlaceholder: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            CoverRipple(phase: SkeletonPlan.phase(at: index))
+            CoverShimmer(phase: SkeletonPlan.phase(at: index, period: CoverShimmer.cycle))
                 .aspectRatio(1, contentMode: .fit)
-                .clipShape(.rect(cornerRadius: 6))
+                .clipShape(.rect(cornerRadius: PlaylistArtwork.radius))
                 .shadow(color: SortyTheme.cardShadow(colorScheme), radius: 6, y: 3)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -427,9 +474,9 @@ private struct PlaylistRowPlaceholder: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CoverRipple(phase: SkeletonPlan.phase(at: index))
+            CoverShimmer(phase: SkeletonPlan.phase(at: index, period: CoverShimmer.cycle))
                 .frame(width: side, height: side)
-                .clipShape(.rect(cornerRadius: 6))
+                .clipShape(.rect(cornerRadius: PlaylistArtwork.radius))
 
             VStack(alignment: .leading, spacing: 3) {
                 SkeletonLine(font: .subheadline.weight(.medium), widthFraction: 0.66, index: index)
@@ -452,6 +499,8 @@ private struct PlaylistRowPlaceholder: View {
 private struct PlaylistRow: View {
     let text: PlaylistRowText
     let artwork: [SpotifyImage]
+    let zoomID: String
+    let zoomNamespace: Namespace.ID
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.displayScale) private var displayScale
@@ -462,7 +511,8 @@ private struct PlaylistRow: View {
         HStack(spacing: 12) {
             CoverImage(images: artwork)
                 .frame(width: isAccessibilitySize ? 72 : 52, height: isAccessibilitySize ? 72 : 52)
-                .clipShape(.rect(cornerRadius: 6))
+                .clipShape(.rect(cornerRadius: PlaylistArtwork.radius))
+                .playlistZoomSource(id: zoomID, in: zoomNamespace)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(text.name)

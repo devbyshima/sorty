@@ -27,6 +27,15 @@ struct RootView: View {
     @State private var path: [LibraryRoute] = []
     @State private var showingConnect = false
     @State private var didRestore = false
+    /// The zoom that carries a playlist from the library into its tracks.
+    ///
+    /// Declared here rather than in `PlaylistsView` because a
+    /// `.matchedTransitionSource` and the `.navigationTransition` that pairs with
+    /// it have to share one namespace, and the two live on opposite sides of the
+    /// `navigationDestination` below - the source is a tile in the library, the
+    /// destination is built here. A namespace declared in the library could not
+    /// be seen from the closure that builds the destination.
+    @Namespace private var playlistZoom
     /// Holds the splash until there is a library behind it. ADR-0019.
     @State private var launch = LaunchGate()
     /// Appearance, as `CONTEXT.md` defines it: followed from the device unless
@@ -169,7 +178,8 @@ struct RootView: View {
         NavigationStack(path: $path) {
             PlaylistsView(
                 onSelect: { path.append(.playlist($0)) },
-                onSettings: { path.append(.settings) }
+                onSettings: { path.append(.settings) },
+                zoomNamespace: playlistZoom
             )
             // Every destination is registered here, on the root, so a push from
             // a pushed page needs nothing of its own: a `NavigationLink(value:)`
@@ -182,6 +192,17 @@ struct RootView: View {
                         model: session.makeTrackListModel(for: playlist),
                         onConnect: { showingConnect = true }
                     )
+                    // The tile the listener touched grows into the screen it
+                    // opens, rather than the screen sliding in over it from the
+                    // right. Only this route takes it: a settings row is a line
+                    // of text with no geometry worth carrying across, and zooming
+                    // one would be motion applied for its own sake.
+                    //
+                    // No Reduce Motion branch here, and it is not an oversight -
+                    // `.zoom` degrades to a cross-fade on its own when the
+                    // setting is on, which is the same reduced form every other
+                    // transition in this app falls back to.
+                    .navigationTransition(.zoom(sourceID: playlist.id, in: playlistZoom))
                 case .settings:
                     SettingsView(onConnect: { showingConnect = true })
                 case .spotifyApp:
@@ -232,7 +253,19 @@ struct RootView: View {
             let target = DebugLaunch.playlistID.flatMap { id in
                 session.playlists.first { $0.id == id }
             } ?? session.playlists.first
-            if let target { path = [.playlist(target)] }
+            guard let target else { break }
+            // `-pushAfter` waits, so the push happens from a library that has
+            // already drawn and settled - which is the only warm push this
+            // harness can produce, and the only one whose frame timings say
+            // anything about the transition rather than about process start.
+            if let delay = DebugLaunch.pushAfter {
+                try? await Task.sleep(for: .seconds(delay))
+            }
+            path = [.playlist(target)]
+            if let back = DebugLaunch.popAfter {
+                try? await Task.sleep(for: .seconds(back))
+                path.removeLast()
+            }
         case .profile:
             // Handled above, before the session is consulted at all.
             break

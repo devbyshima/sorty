@@ -86,16 +86,18 @@ struct AttributeRangeTests {
         #expect(TrackRow.dayCount(fromISODate: "not-a-date") == nil)
     }
 
-    /// Popularity used to coerce a missing value to zero, which made an episode
-    /// the least popular track in the playlist and drew it a bar.
-    @Test("A track with no popularity has none, rather than zero")
-    func missingPopularityIsAbsent() {
+    /// An absent measurement must never read as a low one - the rule Popularity
+    /// used to break by coercing a missing value to zero. Popularity is gone
+    /// (ADR-0026); the rule it taught is pinned here on an Attribute that can
+    /// still go missing.
+    @Test("A track with no measurement has none, rather than zero")
+    func missingMeasurementIsAbsent() {
         let episode = TrackRow(
             originalIndex: 0,
-            playable: Playable(id: "e", name: "Ep", uri: "spotify:episode:e", popularity: nil, type: .episode)
+            playable: Playable(id: "e", name: "Ep", uri: "spotify:episode:e", type: .episode)
         )
-        #expect(episode.numericValue(for: .pop) == nil)
-        #expect(episode.plottableValue(for: .pop) == nil)
+        #expect(episode.numericValue(for: .bpm) == nil)
+        #expect(episode.plottableValue(for: .bpm) == nil)
     }
 
     // MARK: - Fraction

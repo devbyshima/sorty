@@ -18,8 +18,9 @@ import SwiftUI
 struct ScreenTopBar<Leading: View, Trailing: View>: View {
     let title: String
     /// Handed straight to `TopBlur`, whose default is the one dispersion every
-    /// screen shares. Not overridden anywhere.
-    var fade: CGFloat = 20
+    /// screen shares. Not overridden anywhere - and taken *from* `TopBlur`
+    /// rather than restated, so that raising it there raises it here.
+    var fade: CGFloat = TopBlur.defaultFade
     /// 0 inside a sheet, whose own top edge is already the top of the world and
     /// where reaching past it draws over the presenting screen.
     var overscan: CGFloat = 200

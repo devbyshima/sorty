@@ -95,9 +95,9 @@ public struct UnrankableGroup: Identifiable, Sendable, Hashable {
             // True only of the audio features. An episode really has no tempo.
             return "\(attribute.name) is measured from music, and a podcast episode isn't music. \(kept)"
         case .episode:
-            // A Spotify episode may well have a release date or a popularity -
-            // Sorty just doesn't read them, and saying "an episode isn't
-            // music" would be the wrong reason.
+            // A Spotify episode may well have a release date - Sorty just
+            // doesn't read it, and saying "an episode isn't music" would be the
+            // wrong reason.
             return "Sorty doesn't read \(attribute.name) for podcast episodes. \(kept)"
         case .notMeasured:
             // The provider's own words when it has any, but the reassurance is

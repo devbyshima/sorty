@@ -26,11 +26,14 @@ struct SettingsView: View {
         SettingsScaffold(title: SettingsText.title, largeTitle: true) {
             accountCard
 
+            // **One card, where Appearance had its own.** A card that groups
+            // nothing is a row wearing a background, and it cost a full card gap
+            // to say so. All three of these are things you set and all three
+            // carry a trailing value, which is the only test a card here has to
+            // pass. Sign out keeps its own card, and is the one single-row card
+            // that earns it: it is the only destructive thing on the page.
             SettingsCard {
                 appearanceRow
-            }
-
-            SettingsCard {
                 navigationRow(
                     icon: "key",
                     title: SettingsText.spotifyApp,
@@ -160,15 +163,24 @@ struct SettingsView: View {
     /// The row whose glyph *is* its value, so it answers what it is set to
     /// without being read. Beam's move, and the only row on the page with
     /// nowhere to hang a trailing value.
+    /// **The whole row is the menu's label, not the value at the end of it.**
+    ///
+    /// The `Menu` used to wrap only its own `HStack` of text and chevron, which
+    /// is an unpadded ~22pt target against the 44pt minimum - and
+    /// `SettingsRowLabel`'s own `.contentShape(.rect)` was decorative here,
+    /// because nothing wrapped the row in a button at all. Tapping the word
+    /// "Appearance", or its glyph, or the gap between them did nothing; only the
+    /// word "System" worked. Now the row behaves like every other row on the
+    /// page, at its full height, with the same press response.
     private var appearanceRow: some View {
-        SettingsRowLabel(icon: appearance.symbolName, title: SettingsText.appearance) {
-            Menu {
-                Picker(SettingsText.appearance, selection: $appearance) {
-                    ForEach(AppearanceChoice.allCases) { choice in
-                        Label(choice.label, systemImage: choice.symbolName).tag(choice)
-                    }
+        Menu {
+            Picker(SettingsText.appearance, selection: $appearance) {
+                ForEach(AppearanceChoice.allCases) { choice in
+                    Label(choice.label, systemImage: choice.symbolName).tag(choice)
                 }
-            } label: {
+            }
+        } label: {
+            SettingsRowLabel(icon: appearance.symbolName, title: SettingsText.appearance) {
                 HStack(spacing: 4) {
                     Text(appearance.label)
                     Image(systemName: "chevron.up.chevron.down").font(.caption2)
@@ -176,8 +188,8 @@ struct SettingsView: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
         }
+        .buttonStyle(.settingsRow)
     }
 
     /// `NavigationLink(value:)` rather than a `Button` that appends to a path:

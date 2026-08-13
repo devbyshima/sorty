@@ -378,7 +378,6 @@ public struct Playable: Codable, Sendable, Hashable {
     public let name: String
     public let uri: String?
     public let durationMS: Int?
-    public let popularity: Int?
     public let artists: [TrackArtist]?
     public let album: TrackAlbum?
     /// Episodes carry their own artwork - they belong to a show, not an album,
@@ -388,7 +387,7 @@ public struct Playable: Codable, Sendable, Hashable {
     public let type: PlayableKind?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, uri, popularity, artists, album, images, type
+        case id, name, uri, artists, album, images, type
         case durationMS = "duration_ms"
     }
 
@@ -397,7 +396,6 @@ public struct Playable: Codable, Sendable, Hashable {
         name: String,
         uri: String? = nil,
         durationMS: Int? = nil,
-        popularity: Int? = nil,
         artists: [TrackArtist]? = nil,
         album: TrackAlbum? = nil,
         images: [SpotifyImage]? = nil,
@@ -407,7 +405,6 @@ public struct Playable: Codable, Sendable, Hashable {
         self.name = name
         self.uri = uri
         self.durationMS = durationMS
-        self.popularity = popularity
         self.artists = artists
         self.album = album
         self.images = images

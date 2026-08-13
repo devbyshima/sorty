@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
 
 @Suite("Demo artwork")
@@ -127,5 +128,134 @@ struct CoverImageLoaderTests {
         #expect(small?.width == 32)
         #expect(large?.width == 96)
         #expect(await loader.cachedCount == 2)
+    }
+}
+
+@Suite("Cover image cache")
+struct CoverImageCacheTests {
+
+    /// A drawn cover stands in for a fetched one: what is being tested is the
+    /// bookkeeping, and the cache does not care where a `CGImage` came from.
+    private func cover(_ seed: String, size: Int = 64) -> CGImage {
+        DemoArtwork.cover(seed: seed, size: size)!
+    }
+
+    private func url(_ name: String) -> URL {
+        URL(string: "https://i.scdn.co/image/\(name)")!
+    }
+
+    @Test("What the app already holds is answered without awaiting anything")
+    func readsSynchronously() {
+        let cache = CoverImageCache()
+        let target = url("a")
+        #expect(cache.image(for: target) == nil)
+
+        cache.store(cover("a"), for: target)
+        #expect(cache.image(for: target) != nil, "this is the read that beats the first frame")
+    }
+
+    @Test("The budget is bytes, and it is enforced")
+    func evictsByBytes() {
+        let one = CoverImageCache.byteCost(DemoArtwork.cover(seed: "size", size: 64)!)
+        // Room for three, asked for five.
+        let cache = CoverImageCache(byteBudget: one * 3)
+        for index in 0..<5 {
+            cache.store(cover("seed-\(index)"), for: url("seed-\(index)"))
+        }
+        #expect(cache.count == 3)
+        #expect(cache.byteCount <= one * 3)
+    }
+
+    @Test("Eviction drops the least recently stored, not the most recent")
+    func evictsOldestFirst() {
+        let one = CoverImageCache.byteCost(DemoArtwork.cover(seed: "size", size: 64)!)
+        let cache = CoverImageCache(byteBudget: one * 2)
+
+        cache.store(cover("old"), for: url("old"))
+        cache.store(cover("mid"), for: url("mid"))
+        cache.store(cover("new"), for: url("new"))
+
+        #expect(cache.image(for: url("old")) == nil, "the oldest goes first")
+        #expect(cache.image(for: url("new")) != nil)
+    }
+
+    /// Reading must not promote, or the eviction order becomes a function of
+    /// SwiftUI's invalidation rather than of what the listener is looking at -
+    /// `CoverImage` reads this from its body, which runs for all sorts of
+    /// reasons.
+    @Test("Reading does not reorder the cache")
+    func readingDoesNotPromote() {
+        let one = CoverImageCache.byteCost(DemoArtwork.cover(seed: "size", size: 64)!)
+        let cache = CoverImageCache(byteBudget: one * 2)
+
+        cache.store(cover("first"), for: url("first"))
+        cache.store(cover("second"), for: url("second"))
+        _ = cache.image(for: url("first"))
+        cache.store(cover("third"), for: url("third"))
+
+        #expect(cache.image(for: url("first")) == nil, "a read must not have saved it")
+    }
+
+    @Test("Storing the same cover twice does not double-count its bytes")
+    func replacingDoesNotLeakBudget() {
+        let cache = CoverImageCache()
+        let target = url("same")
+        cache.store(cover("same"), for: target)
+        let after = cache.byteCount
+        cache.store(cover("same"), for: target)
+
+        #expect(cache.count == 1)
+        #expect(cache.byteCount == after)
+    }
+}
+
+/// The fetched path, which the demo catalogue never exercises.
+///
+/// **This is the gap the bug lived in.** Demo covers are drawn and were always
+/// cached, so every screenshot, every harness run and every test went down the
+/// `drawn` branch - while a signed-in listener, whose covers are fetched, got a
+/// fresh `CGImageSourceCreateImageAtIndex` on every appearance of every cover.
+/// A `file:` URL is enough to take the other branch for real.
+@Suite("Fetched covers are cached")
+struct FetchedCoverTests {
+
+    private func writePNG(_ seed: String) throws -> URL {
+        let image = DemoArtwork.cover(seed: seed, size: 64)!
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("sorty-\(seed)-\(UUID().uuidString).png")
+        let destination = CGImageDestinationCreateWithURL(
+            url as CFURL, "public.png" as CFString, 1, nil
+        )!
+        CGImageDestinationAddImage(destination, image, nil)
+        #expect(CGImageDestinationFinalize(destination))
+        return url
+    }
+
+    @Test("A fetched cover is decoded once and then held")
+    func fetchedCoversAreCached() async throws {
+        CoverImageCache.shared.removeAll()
+        let file = try writePNG("fetched-once")
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let loader = CoverImageLoader()
+        let first = await loader.image(for: file, pixels: 64)
+        #expect(first != nil, "the file: branch really is the fetch path")
+        #expect(CoverImageCache.shared.image(for: file) != nil)
+
+        // The second ask must be answerable without touching the file at all -
+        // which is what returning from a playlist does, for every visible cover.
+        try? FileManager.default.removeItem(at: file)
+        let second = await loader.image(for: file, pixels: 64)
+        #expect(second != nil, "a deleted file proves the answer came from the cache")
+    }
+
+    @Test("A held cover is readable before any await, which is what beats the first frame")
+    func heldCoverIsReadableSynchronously() async throws {
+        CoverImageCache.shared.removeAll()
+        let file = try writePNG("fetched-sync")
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        _ = await CoverImageLoader().image(for: file, pixels: 64)
+        #expect(CoverImageCache.shared.image(for: file) != nil)
     }
 }

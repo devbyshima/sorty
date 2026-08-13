@@ -93,7 +93,6 @@ struct ProfilingMusicService: MusicService {
                     name: "Track \(index)",
                     uri: "spotify:track:prof-\(index)",
                     durationMS: 180_000,
-                    popularity: index % 100,
                     artists: [TrackArtist(name: "Artist \(index % 20)")],
                     album: TrackAlbum(id: "prof-album-\(index / 3)"),
                     type: .track

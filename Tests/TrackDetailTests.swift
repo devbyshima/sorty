@@ -17,7 +17,6 @@ struct TrackDetailTests {
                     name: "Track \(index)",
                     uri: "spotify:track:t\(index)",
                     durationMS: 200_000,
-                    popularity: 50,
                     artists: [TrackArtist(name: "Artist \(index)")],
                     album: TrackAlbum(id: "alb", name: "The Album"),
                     type: .track
@@ -47,7 +46,6 @@ struct TrackDetailTests {
                 name: "Field Notes: Ep. 12",
                 uri: "spotify:episode:e0",
                 durationMS: 1_800_000,
-                popularity: nil,
                 artists: nil,
                 album: nil,
                 type: .episode
@@ -170,16 +168,15 @@ struct TrackDetailTests {
         let detail = TrackDetail(row: all[0], in: all)
 
         #expect(detail.reading(for: .length)?.value == "3:20")
-        #expect(detail.reading(for: .pop)?.value == "50")
         #expect(detail.reading(for: .release)?.value == "2019-05-01")
         #expect(detail.reading(for: .title)?.value == "Track 0")
     }
 
     /// The footer explains the six absences above it. It must not also claim
-    /// the section below never has any - an episode carries no artist, no
-    /// popularity and no album to hold a release date, so four of those seven
-    /// read "Unavailable" too, and a footer promising otherwise would be a
-    /// sentence the very next screenful contradicts.
+    /// the section below never has any - an episode carries no artist and no
+    /// album to hold a release date, so two of those six read "Unavailable"
+    /// too, and a footer promising otherwise would be a sentence the very next
+    /// screenful contradicts.
     @Test("The audio-features footer promises nothing about the section below")
     func footerDoesNotOverclaim() {
         let all = rows() + [episode]
@@ -192,13 +189,13 @@ struct TrackDetailTests {
         #expect(!footer.contains("never"))
     }
 
-    @Test("An episode's popularity is unavailable rather than the least popular")
-    func episodePopularityIsAbsent() {
+    @Test("An episode's absent values read as unavailable, not as low ones")
+    func episodeAbsencesAreAbsent() {
         let all = rows() + [episode]
         let detail = TrackDetail(row: episode, in: all)
 
-        #expect(detail.reading(for: .pop)?.value == nil)
         #expect(detail.reading(for: .artist)?.value == nil)
+        #expect(detail.reading(for: .release)?.value == nil)
         #expect(detail.reading(for: .length)?.value == "30:00", "an episode still has a duration")
     }
 
@@ -332,6 +329,6 @@ struct TrackDetailModelTests {
         let detail = model.detail(for: model.arrangedRows[0])
 
         #expect(detail.reading(for: .bpm)?.isAvailable == false)
-        #expect(detail.reading(for: .pop)?.isAvailable == true)
+        #expect(detail.reading(for: .release)?.isAvailable == true)
     }
 }

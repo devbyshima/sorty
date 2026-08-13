@@ -111,9 +111,9 @@ public struct TrackDetail: Equatable, Sendable {
             Section(
                 title: "Audio features",
                 // Deliberately does not promise that the section below never
-                // goes missing. It does: a podcast episode has no artist, no
-                // popularity and no album to carry a release date, and a local
-                // file's album can arrive with an empty one. The honest claim is
+                // goes missing. It does: a podcast episode has no artist and no
+                // album to carry a release date, and a local file's album can
+                // arrive with an empty one. The honest claim is
                 // about where these six come from and why they are the ones most
                 // often gone, not about the others.
                 footer: "Measured by a source outside Spotify rather than by Spotify itself, so these are the values most often missing for a track.",

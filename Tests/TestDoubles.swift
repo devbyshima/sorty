@@ -110,7 +110,6 @@ func sampleItems(count: Int, nestedReleaseDates: Bool = true) -> [PlaylistItem] 
                 name: "Track \(index)",
                 uri: "spotify:track:t\(index)",
                 durationMS: 180_000 + index * 1_000,
-                popularity: 40 + index,
                 artists: [TrackArtist(name: "Artist \(index % 3)")],
                 album: TrackAlbum(
                     id: albumID,

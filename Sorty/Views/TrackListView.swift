@@ -560,13 +560,29 @@ struct TrackListView: View {
         }
     }
 
+    /// The notice that sits above the rows, in both the loaded list and the
+    /// placeholder one.
+    ///
+    /// **Shared, because it is the difference between the two states that the
+    /// placeholders cannot absorb.** `canWriteBack` reads from the service and
+    /// has nothing to do with whether the tracks have landed, so this is true and
+    /// drawable from the first frame - but it was only ever in `list`. Measured
+    /// on a demo build: the notice is 49pt tall with its padding, so every load
+    /// ended with the whole track list jumping up by that much at the instant the
+    /// rows arrived. That is precisely the reflow the placeholders exist to
+    /// prevent, sitting inside the mechanism meant to prevent it.
+    @ViewBuilder
+    private var saveNotice: some View {
+        if !model.canWriteBack {
+            DisclosureNotice(text: "Connect a Spotify account to save an arrangement.")
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+        }
+    }
+
     private var list: some View {
         LazyVStack(spacing: 0) {
-            if !model.canWriteBack {
-                DisclosureNotice(text: "Connect a Spotify account to save an arrangement.")
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 10)
-            }
+            saveNotice
 
             ForEach(Array(model.rankedRows.enumerated()), id: \.element.id) { position, row in
                 trackRow(row, position: position + 1)
@@ -631,13 +647,25 @@ struct TrackListView: View {
             expected: model.playlist.trackCountIsKnown ? model.playlist.tracks.total : nil
         )
         return LazyVStack(spacing: 0) {
-            ForEach(0..<count, id: \.self) { index in
-                TrackRowPlaceholder(index: index)
+            // The real notice, not a placeholder for one. It is already true
+            // while the rows are loading, and reserving its height with a grey
+            // bar would be a worse answer to the same question: the listener can
+            // read it now.
+            //
+            // Outside the collapsed region below, or `children: .ignore` would
+            // take a sentence the listener needs and replace it with the word
+            // "Loading".
+            saveNotice
+
+            VStack(spacing: 0) {
+                ForEach(0..<count, id: \.self) { index in
+                    TrackRowPlaceholder(index: index)
+                }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Loading tracks")
+            .accessibilityAddTraits(.updatesFrequently)
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Loading tracks")
-        .accessibilityAddTraits(.updatesFrequently)
     }
 
     /// This playlist on the web, which is where every "Open on Spotify" here
@@ -777,7 +805,7 @@ private struct TrackRowPlaceholder: View {
     }
 
     private var artwork: some View {
-        CoverRipple(phase: SkeletonPlan.phase(at: index))
+        CoverShimmer(phase: SkeletonPlan.phase(at: index, period: CoverShimmer.cycle))
             .frame(width: side, height: side)
             .clipShape(.rect(cornerRadius: 4))
     }

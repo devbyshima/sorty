@@ -12,8 +12,7 @@ struct UnrankableTests {
             originalIndex: index,
             playable: Playable(
                 id: "t\(index)", name: "Track \(index)", uri: "spotify:track:t\(index)",
-                durationMS: 200_000, popularity: 50,
-                artists: artist.map { [TrackArtist(name: $0)] },
+                durationMS: 200_000,                artists: artist.map { [TrackArtist(name: $0)] },
                 album: TrackAlbum(id: "a"), type: .track
             ),
             features: tempo.map { AudioFeatures(id: "t\(index)", tempo: $0) },
@@ -26,7 +25,7 @@ struct UnrankableTests {
             originalIndex: index,
             playable: Playable(
                 id: "e\(index)", name: "Episode \(index)", uri: "spotify:episode:e\(index)",
-                durationMS: 1_800_000, popularity: nil, artists: nil, album: nil, type: .episode
+                durationMS: 1_800_000, artists: nil, album: nil, type: .episode
             )
         )
     }

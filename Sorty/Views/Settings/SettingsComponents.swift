@@ -20,13 +20,47 @@ enum SettingsMetrics {
     static let cardRadius: CGFloat = 20
     /// One step rounder, for the accent card at the head of the page.
     static let headerCardRadius: CGFloat = 22
-    static let cardSpacing: CGFloat = 20
+
+    /// The gap between two cards that have nothing to do with each other.
+    ///
+    /// **30, because 20 lost an argument with the rows inside the cards.** Two
+    /// rows in the same card are 26pt apart (13 + 13 of `rowVertical`), so at a
+    /// 20pt card gap things in *different* groups sat closer together than things
+    /// in the same group - proximity arguing against the grouping the cards exist
+    /// to express, with only the dotted divider left to correct it. At 30 the
+    /// ratio is the right way round.
+    static let cardSpacing: CGFloat = 30
+
+    /// The gap between a card and a note or heading that belongs to it.
+    ///
+    /// A `SettingsExplainer` used to sit exactly `cardSpacing` from the card it
+    /// describes and exactly `cardSpacing` from the unrelated card below it, so
+    /// nothing but reading order said which one it belonged to. Roughly a
+    /// quarter of `cardSpacing` is enough to make ownership unambiguous.
+    static let attachedGap: CGFloat = 8
+
     static let rowSpacing: CGFloat = 14
     static let iconColumn: Double = 26
     static let rowVertical: CGFloat = 13
     /// Two-line rows take a little less, so they do not tower over their
     /// single-line siblings in the same card.
     static let twoLineRowVertical: CGFloat = 11
+    /// Rows carrying a real paragraph take more.
+    ///
+    /// At `twoLineRowVertical` the white gap between one option's last line and
+    /// the next option's title was 11 + 1 + 11 = 23pt against an intra-paragraph
+    /// leading of about 18 - a ratio of 1.3, which is not enough separation for
+    /// the eye to tell "next line of this" from "next option". 18 puts it at
+    /// about 2:1, which is.
+    static let proseRowVertical: CGFloat = 18
+
+    /// The leading the prose on these screens is set at.
+    ///
+    /// Everything ran at iOS's default 1.33 line-height, which is tuned for
+    /// labels and short strings. These blocks are four to eight lines long, and
+    /// at that length 1.33 reads as a solid block rather than as lines. Two extra
+    /// points takes the paragraph roles to about 1.5.
+    static let proseLineSpacing: CGFloat = 2
 
     /// Unclamped, a `.body` glyph at the largest accessibility size takes the
     /// column past 60pt and leaves the title nowhere to be. Same reasoning, and
@@ -48,6 +82,16 @@ enum SettingsMetrics {
 /// row cannot be added without its divider: the separators are this type's
 /// business and no call site gets to decide how much of one it wants.
 struct SettingsCard<Content: View>: View {
+    /// How far in from the card's content edge the dividers start.
+    ///
+    /// **Nil means "past the icon column", which is right only for cards whose
+    /// rows have icons.** It was unconditional, and on the two screens whose rows
+    /// draw no leading glyph - the FAQ, and the credential fields on the Spotify
+    /// app screen - all twenty-two dotted rules floated 40pt to the right of the
+    /// text they divide, aligned with nothing on the screen. A divider's whole
+    /// job is to say where a row begins.
+    var dividerInset: CGFloat?
+
     @ViewBuilder var content: Content
 
     /// Seeded from the same constant `SettingsRowLabel` scales, so the divider
@@ -56,13 +100,19 @@ struct SettingsCard<Content: View>: View {
     /// `TopBarButton` already share.
     @ScaledMetric(relativeTo: .body) private var iconColumn: Double = SettingsMetrics.iconColumn
 
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var resolvedInset: CGFloat {
+        dividerInset ?? (SettingsMetrics.clamped(iconColumn) + SettingsMetrics.rowSpacing)
+    }
+
     var body: some View {
         Group(subviews: content) { subviews in
             VStack(spacing: 0) {
                 ForEach(subviews.indices, id: \.self) { index in
                     if index > 0 {
                         SettingsDottedDivider()
-                            .padding(.leading, SettingsMetrics.clamped(iconColumn) + SettingsMetrics.rowSpacing)
+                            .padding(.leading, resolvedInset)
                     }
                     subviews[index]
                 }
@@ -70,6 +120,14 @@ struct SettingsCard<Content: View>: View {
         }
         .padding(.horizontal, SettingsMetrics.cardPadding)
         .background(SortyTheme.surface, in: .rect(cornerRadius: SettingsMetrics.cardRadius))
+        // **The one change that makes light Appearance work.** `surface` is pure
+        // white and `background` is rgb(0.957, 0.957, 0.969): about 1.09:1, which
+        // is a card boundary you cannot see. Every other card-like surface in the
+        // app already takes this exact shadow - `PlaylistTile` at radius 6, y 3 -
+        // so settings cards were the only ones floating without elevation. Dark
+        // is unaffected: `cardShadow` returns `.clear` there, because a cast
+        // shadow on a near-black field is a grey smear at best.
+        .shadow(color: SortyTheme.cardShadow(colorScheme), radius: 6, y: 3)
     }
 }
 
@@ -109,7 +167,15 @@ struct SettingsRowLabel<Trailing: View>: View {
     @ScaledMetric(relativeTo: .body) private var iconColumn: Double = SettingsMetrics.iconColumn
 
     var body: some View {
-        HStack(spacing: SettingsMetrics.rowSpacing) {
+        // **`.firstTextBaseline`, not centred, and it only shows when a title
+        // wraps.** Every title here fits one line at the default text size, where
+        // the two alignments are indistinguishable. At an accessibility size they
+        // are not: "Spotify Developer Dashboard" breaks onto three lines, and a
+        // centred glyph then floats in the gutter beside the middle of a word,
+        // labelling nothing. A leading glyph belongs beside the first line of the
+        // thing it labels - which is the arrangement `SettingsSelectRow` already
+        // uses for exactly this reason, on rows that always wrap.
+        HStack(alignment: .firstTextBaseline, spacing: SettingsMetrics.rowSpacing) {
             Image(systemName: icon)
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -183,34 +249,49 @@ struct SettingsSelectRow: View {
     var body: some View {
         Button(action: action) {
             // Top-aligned, not centred. These rows carry a paragraph, and a
-            // glyph centred against five lines of it floats in the middle of
-            // nowhere - it belongs beside the title it labels. The checkmark
-            // goes with it, so the row's two ends agree.
+            // glyph centred against four lines of it floats in the middle of
+            // nowhere - it belongs beside the title it labels.
             HStack(alignment: .firstTextBaseline, spacing: SettingsMetrics.rowSpacing) {
                 Image(systemName: icon)
                     .font(.body)
                     .foregroundStyle(isSelected ? AnyShapeStyle(SortyTheme.accent) : AnyShapeStyle(.secondary))
                     .frame(width: SettingsMetrics.clamped(iconColumn))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.leading)
+                VStack(alignment: .leading, spacing: 3) {
+                    // **The checkmark rides the title line rather than the whole
+                    // row, and that is measure rather than decoration.** Parked
+                    // in the outer stack it reserved its width down the full
+                    // height of the row, so every line of the detail below was
+                    // cut short by a glyph that only ever sits beside the first
+                    // one. Measured: the detail column went from 269pt to 294pt,
+                    // which is the difference between the ReccoBeats line
+                    // breaking at 36 characters with a six-character widow and
+                    // running clean to 45.
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(title)
+                            .font(.body)
+                            .foregroundStyle(isSelected ? AnyShapeStyle(SortyTheme.accent) : AnyShapeStyle(.primary))
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 8)
+                        Image(systemName: "checkmark")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(SortyTheme.accent)
+                            .opacity(isSelected ? 1 : 0)
+                    }
                     if let detail {
+                        // `.footnote`, not `.caption`. Caption is the page-note
+                        // role that `SettingsExplainer` owns; setting a per-option
+                        // explanation at the same size as a page footer left the
+                        // screen with one grey size doing three different jobs.
                         Text(detail)
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
+                            .lineSpacing(SettingsMetrics.proseLineSpacing)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "checkmark")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(SortyTheme.accent)
-                    .opacity(isSelected ? 1 : 0)
             }
-            .padding(.vertical, SettingsMetrics.twoLineRowVertical)
+            .padding(.vertical, SettingsMetrics.proseRowVertical)
             .contentShape(.rect)
         }
         .buttonStyle(.settingsRow)
@@ -244,11 +325,23 @@ extension ButtonStyle where Self == SettingsRowStyle {
 
 // MARK: - Prose
 
-/// A paragraph that belongs to the card above it without being in it.
+/// A short note that belongs to the card above it without being in it.
 ///
 /// Inset six points from the card's edge rather than flush, which is Beam's
 /// arrangement and reads as a note *about* the group instead of a row that lost
 /// its surface.
+///
+/// **`.caption` is this component's alone now, and that is what makes it mean
+/// something.** It used to share the size with a select row's per-option
+/// explanation, so a page-level footnote and a paragraph you had to read to make
+/// a choice were set identically. The paragraph roles moved up to `.footnote`
+/// and `.subheadline`; this stayed where it was and is now the smallest text on
+/// the page, which is the one thing a footnote should be.
+///
+/// It also bonds *upward*. `SettingsScaffold` spaces its children by
+/// `cardSpacing`, which put an explainer the same distance from the card it
+/// describes as from the unrelated card beneath it. The negative top padding
+/// pulls it back to `attachedGap`.
 struct SettingsExplainer: View {
     let text: String
 
@@ -258,9 +351,100 @@ struct SettingsExplainer: View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.secondary)
+            .lineSpacing(SettingsMetrics.proseLineSpacing)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 6)
+            .padding(.top, SettingsMetrics.attachedGap - SettingsMetrics.cardSpacing)
+    }
+}
+
+/// A paragraph the listener has to read before they can decide anything.
+///
+/// **Distinct from `SettingsExplainer` by position, not by size.** Both are
+/// secondary prose; this one sits above the card it introduces and bonds
+/// *downward*, where an explainer sits below and bonds up. That is where the
+/// "why" goes - a footer explaining a choice is read after the choice has been
+/// made.
+///
+/// It was `.subheadline` for one revision, on the reasoning that a lead-in
+/// naming six columns deserves more than a footnote. Measured at
+/// accessibility-extra-extra-extra-large, that put nine lines of grey above the
+/// card and pushed the three-way choice the screen exists for entirely off the
+/// first screenful. `.footnote` is the app's one paragraph role and this is a
+/// paragraph; position already says it leads.
+struct SettingsLead: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineSpacing(SettingsMetrics.proseLineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 6)
+            .padding(.bottom, SettingsMetrics.attachedGap - SettingsMetrics.cardSpacing)
+    }
+}
+
+/// The label above a group of cards.
+///
+/// Sorty has exactly one of these - "The arrangements", on the FAQ - and until
+/// now it was drawn by `SettingsExplainer`, which made the only section heading
+/// in the app typographically identical to a legal disclaimer and to a six-line
+/// footnote. A heading that is the smallest, faintest text on its screen is not
+/// a heading.
+///
+/// Weight rather than size does the work, so it stays a quiet label on a screen
+/// whose cards are the real structure - the grouping is still the card, which is
+/// the rule these screens are built on.
+struct SettingsSectionHeading: View {
+    let text: String
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 6)
+            .padding(.bottom, SettingsMetrics.attachedGap - SettingsMetrics.cardSpacing)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A callout inside a card: one glyph, one paragraph, no action.
+///
+/// Extracted because `AudioFeatureSettingsView` built this inline and framed its
+/// icon at the raw `iconColumn` constant while every row beside it framed a
+/// `@ScaledMetric` copy of the same number - so at accessibility text sizes the
+/// option rows' text stepped right and the callout's did not, and the card lost
+/// its left edge exactly where the text was largest. One place to scale it, next
+/// to the rows it has to match.
+struct SettingsNote: View {
+    let icon: String
+    let text: String
+
+    @ScaledMetric(relativeTo: .body) private var iconColumn: Double = SettingsMetrics.iconColumn
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: SettingsMetrics.rowSpacing) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(SortyTheme.accent)
+                .frame(width: SettingsMetrics.clamped(iconColumn))
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineSpacing(SettingsMetrics.proseLineSpacing)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, SettingsMetrics.proseRowVertical)
     }
 }
 
@@ -292,8 +476,9 @@ struct SettingsScaffold<Content: View>: View {
             }
             .padding(.horizontal, SettingsMetrics.pageMargin)
             // Longer than the blur's fade, so the ramp finishes in the gap above
-            // the first card rather than across its top edge.
-            .padding(.top, 20)
+            // the first card rather than across its top edge. Tracks
+            // `TopBlur.fade`, which went from 20 to 40.
+            .padding(.top, 48)
             .padding(.bottom, 40)
         }
         .debugScrolled()

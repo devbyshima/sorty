@@ -17,8 +17,8 @@ struct ArrangementTests {
 
     @Test("Every distinct ordering has exactly one value")
     func arrangementsAreFaithful() {
-        // 13 attributes × 2 directions + artist separation + shuffle.
-        #expect(Arrangement.all.count == 28)
+        // 12 attributes × 2 directions + artist separation + shuffle.
+        #expect(Arrangement.all.count == 26)
         #expect(Set(Arrangement.all).count == Arrangement.all.count)
     }
 
@@ -52,18 +52,22 @@ struct ArrangementTests {
         #expect(Arrangement.shuffled.basis == .shuffle)
     }
 
-    @Test("The fifteen choosable orderings keep the order the table presented them in")
+    @Test("The fourteen choosable orderings keep the order the table presented them in")
     func basisOrdering() {
         #expect(Arrangement.Basis.allCases.map(\.rawValue) == [
             "order", "title", "artist", "release", "added",
-            "bpm", "energy", "dance", "loud", "valence", "length", "acoustic", "pop",
+            "bpm", "energy", "dance", "loud", "valence", "length", "acoustic",
             "artist-separation", "shuffle",
         ])
     }
 
-    @Test("There are exactly thirteen Attributes")
-    func thirteenAttributes() {
-        #expect(Attribute.allCases.count == 13)
+    /// Twelve since ADR-0026 removed Popularity. The count is asserted rather
+    /// than derived on purpose: adding or dropping an Attribute changes the
+    /// picker, the chip row, the FAQ and the detail sheet all at once, and this
+    /// is the one place that has to be edited deliberately when it happens.
+    @Test("There are exactly twelve Attributes")
+    func twelveAttributes() {
+        #expect(Attribute.allCases.count == 12)
     }
 
     @Test("Explanation copy has one source - a Basis defers to its Attribute")

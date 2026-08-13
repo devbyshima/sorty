@@ -13,22 +13,26 @@ import SwiftUI
 /// crediting anybody.
 struct FAQView: View {
     var body: some View {
+        // `dividerInset: 0` on every card here. An `FAQRow` draws no leading
+        // glyph, and the card's default inset clears one - so all twenty-two
+        // dotted rules on this screen used to float 40pt right of the questions
+        // they divide, lined up with nothing.
         SettingsScaffold(title: FAQText.title) {
-            SettingsCard {
+            SettingsCard(dividerInset: 0) {
                 ForEach(FAQText.basics) { entry in
                     FAQRow(question: entry.question, answer: entry.answer)
                 }
             }
 
-            SettingsExplainer(FAQText.arrangementsHeading)
+            SettingsSectionHeading(FAQText.arrangementsHeading)
 
-            SettingsCard {
+            SettingsCard(dividerInset: 0) {
                 ForEach(Arrangement.Basis.allCases) { basis in
                     FAQRow(question: basis.name, answer: basis.explanation)
                 }
             }
 
-            SettingsCard {
+            SettingsCard(dividerInset: 0) {
                 ForEach(FAQText.limits) { entry in
                     FAQRow(question: entry.question, answer: entry.answer)
                 }
@@ -55,8 +59,13 @@ private struct FAQRow: View {
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { isOpen.toggle() }
             } label: {
                 HStack(spacing: SettingsMetrics.rowSpacing) {
+                    // `.body`, the same as every other row title in the app. It
+                    // was `.subheadline.weight(.medium)` - two points smaller
+                    // than the role it plays, with the weight compensating for
+                    // the size. A question is a row title; it should not be a
+                    // different size here than on the four screens around it.
                     Text(question)
-                        .font(.subheadline.weight(.medium))
+                        .font(.body)
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
                     Spacer(minLength: 8)
@@ -65,19 +74,31 @@ private struct FAQRow: View {
                         .foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(isOpen ? 0 : -90))
                 }
+                // **Inside the label, which is the whole of the fix.** The
+                // padding used to sit on the outer `VStack`, so the button's
+                // label was the bare `HStack` and the tap target was the text's
+                // own height - about 22pt at the old size, half the 44pt
+                // minimum. Twenty-five disclosure rows on this screen, every one
+                // of them under-sized.
+                .padding(.vertical, SettingsMetrics.twoLineRowVertical)
                 .contentShape(.rect)
             }
             .buttonStyle(.settingsRow)
 
             if isOpen {
+                // `.subheadline` against the question's `.body`: a 17:15 size
+                // step plus a colour step, where `.footnote` gave 17:13 and read
+                // as fine print rather than as the answer to the thing just
+                // asked.
                 Text(answer)
-                    .font(.footnote)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .lineSpacing(SettingsMetrics.proseLineSpacing)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, SettingsMetrics.twoLineRowVertical)
             }
         }
-        .padding(.vertical, SettingsMetrics.twoLineRowVertical)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(question)
         .accessibilityValue(isOpen ? answer : "")

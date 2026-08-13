@@ -1,7 +1,7 @@
 import Foundation
 
-/// The per-track acoustic attributes every sortable column except popularity,
-/// release date and add date is derived from.
+/// The per-track acoustic attributes every sortable column except release date
+/// and add date is derived from.
 ///
 /// Field names and value ranges mirror Spotify's `/v1/audio-features` payload so
 /// providers that mimic that shape decode without a translation layer.
