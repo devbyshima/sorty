@@ -90,7 +90,11 @@ jobs:
   build:
     name: Production build
     needs: verify
-    runs-on: macos-latest
+    # The self-hosted Mac. Safe to target from here because this workflow runs
+    # only on tag pushes, which nobody without write access can cause. ci.yml
+    # must NEVER move here: it triggers on pull_request, and this repository is
+    # public, so a fork's code would execute on a personal machine.
+    runs-on: [self-hosted, macOS, xcode-27]
     # NOT advisory, unlike ci.yml's test job. A tag is a claim that something
     # shippable exists; publishing a Release whose build failed makes that claim
     # falsely, and quietly - the Release appears, with no archive attached and
@@ -102,11 +106,18 @@ jobs:
 
       - name: Select Xcode
         run: |
+          # See beta.yml: the self-hosted Mac has Xcode 27 selected already, at
+          # a path the hosted naming scheme does not use, and no passwordless
+          # sudo. Only switch on a runner that has the versioned app and can
+          # sudo without prompting.
+          have=$(xcodebuild -version | head -1 | awk '{print $2}')
           target="/Applications/Xcode_${XCODE_VERSION}.app"
-          if [ -d "$target" ]; then
+          if [ "${have%%.*}" -ge "${XCODE_VERSION%%.*}" ] 2>/dev/null; then
+            echo "Xcode $have is selected already."
+          elif [ -d "$target" ] && sudo -n true 2>/dev/null; then
             sudo xcode-select -s "$target"
           else
-            echo "::warning::Xcode ${XCODE_VERSION} is not on this runner; using $(xcodebuild -version | head -1)."
+            echo "::warning::Xcode ${XCODE_VERSION} is not selectable here; using $have."
           fi
 
       - name: Do we have signing credentials?
