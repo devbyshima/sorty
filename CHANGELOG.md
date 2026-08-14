@@ -22,7 +22,7 @@ published when that version is tagged.
 Work on `main`, not yet cut to a release branch. Add to this section as you
 merge; `RELEASING.md` explains when it gets renamed to a version.
 
-## [0.2.0]
+## [0.2.0] - 2026-08-14
 
 ### Added
 
