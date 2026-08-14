@@ -379,11 +379,11 @@ ships the bug.
 
 Nothing here required existing CI to change — there was none. Three workflows:
 
-| Workflow | Trigger | Does |
-|---|---|---|
-| `ci.yml` | PR and push to `main`, `release/**` | Repository checks (blocking) and the test suite (advisory) |
-| `beta.yml` | push to `release/**` | Beta build; TestFlight upload when secrets exist |
-| `release.yml` | tag `v*` | Verifies the tag, builds, publishes the GitHub Release |
+| Workflow | Trigger | Runs on | Does |
+|---|---|---|---|
+| `ci.yml` | PR and push to `main`, `release/**` | GitHub-hosted | Repository checks (blocking) and the test suite (advisory) |
+| `beta.yml` | push to `release/**` | **the Mac** | Beta build; TestFlight upload when secrets exist |
+| `release.yml` | tag `v*` | Linux + **the Mac** | Verifies the tag, builds, publishes the GitHub Release |
 
 **The test job does not block yet, on purpose.** Sorty targets iOS 27 with
 Xcode 27, and GitHub's hosted images carry whatever Apple has shipped them,
@@ -398,9 +398,46 @@ syntactically valid.
 **When `xcodebuild` on a hosted runner goes green on its own**, delete
 `continue-on-error` from the `test` job in `ci.yml` and add `Tests (advisory)` —
 renamed, by then — to the required checks of the ruleset described under
-[Protected branches](#protected-branches). That is the entire migration. If Apple's runner
-images never catch up, register a self-hosted runner on a Mac that has Xcode 27
-and change `runs-on`.
+[Protected branches](#protected-branches). That is the entire migration.
+
+### The self-hosted runner
+
+Apple's images did not catch up, so builds that need Xcode 27 run on a Mac
+instead. Registered 2026-08-14 as `sorty-mac-xcode27`, labelled `xcode-27`, from
+`~/Dev/.tools/actions-runner-sorty`, kept alive by a LaunchAgent. Jobs ask for it
+by label:
+
+```yaml
+runs-on: [self-hosted, macOS, xcode-27]
+```
+
+`beta.yml` and the `build` job of `release.yml` target it, and neither is
+advisory any more — on a runner that has the toolchain, a red build means the
+code is broken rather than the image is old.
+
+> [!CAUTION]
+> **`ci.yml` must never move to the self-hosted runner.** This repository is
+> public and `ci.yml` triggers on `pull_request`, so pointing it at the Mac
+> would let any stranger's fork PR execute arbitrary code on a personal machine
+> — with its keychain, its signing identity, and everything else on it. The two
+> workflows that *do* use the runner are triggered only by a tag push or a push
+> to `release/**`, neither of which anyone without write access can cause. That
+> distinction is the whole security argument; keep it when editing any of the
+> three.
+
+The `test` job therefore stays on a hosted image and stays advisory, which is
+the honest trade: PR feedback on a public repository is worth less than the
+machine it would run on.
+
+Two operational notes. The runner is a LaunchAgent, so it runs when the founder
+is logged in and not otherwise — a tag pushed while the Mac is off queues until
+it comes back rather than failing. And `svc.sh` manages it:
+
+```bash
+cd ~/Dev/.tools/actions-runner-sorty
+./svc.sh status        # is it listening?
+./svc.sh stop / start
+```
 
 ## Signing secrets
 
