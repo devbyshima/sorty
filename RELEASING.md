@@ -11,6 +11,7 @@ branch — a place where a version stops changing shape and only gets less broke
 
 - [Channels](#channels)
 - [Versioning](#versioning)
+- [Protected branches](#protected-branches)
 - [Cut a release branch](#cut-a-release-branch)
 - [Run a beta](#run-a-beta)
 - [Promote to production](#promote-to-production)
@@ -76,39 +77,100 @@ builds is the build number, which CI stamps as a UTC timestamp
 separate workflows with separate run numbers, and a shared counter they can both
 increment is a race that ends in a rejected upload.
 
+## Protected branches
+
+Ruleset **"Trunk and release branches"** covers `refs/heads/main` and
+`refs/heads/release/*`. It forbids deletion and non-fast-forward, and requires
+the `Repository checks` status. Two consequences shape every recipe below, and
+both are easy to learn the hard way.
+
+**A required status check gates pushes, not merely merges.** There is no
+"require a pull request" rule here, but the status check achieves the same
+thing: a commit you wrote a moment ago has no check status, so pushing it
+straight to `main` or a release branch is refused —
+
+```
+GH013: Required status check "Repository checks" is expected.
+```
+
+So **nothing reaches `main` or `release/*` except through a pull request**, where
+`ci.yml` runs on `pull_request` and produces the status the rule wants. That
+includes commits nobody would think of as a change under review: a version bump,
+a changelog date, a merge resolving `project.yml`.
+
+**The rule is enforced on branch creation too** (`do_not_enforce_on_create` is
+false), which is the one that surprises. You cannot create `release/0.2` by
+pushing a branch whose tip you just wrote: the check cannot run until the ref
+exists, and the ref cannot be created until the check has run. The way out is to
+create the branch at a commit that **already carries a passing check** — the tip
+of `main`, which earned one when it landed — and let every later commit arrive by
+PR.
+
+Tags are untouched. The ruleset's target is branches, so `git push origin
+v0.2.0` needs no ceremony.
+
+> [!NOTE]
+> `--admin` does not help. The ruleset's `bypass_actors` is empty and
+> `current_user_can_bypass` is `never`, so no one bypasses it, repository owner
+> included. That is deliberate — a bypass nobody uses is a bypass nobody
+> audits — but it means the answer to a refused push is always a PR, never a
+> flag.
+
 ## Cut a release branch
 
 When `main` is ready to stabilise. Say the next version is **0.2.0**.
+
+A cut costs **two pull requests**: one carrying the version onto the new branch,
+one moving `main` past it. See [Protected branches](#protected-branches) for why
+none of this can be a plain push.
 
 ```bash
 git checkout main
 git pull
 
-# 1. Set the version that this release branch will carry.
+# 1. Create the branch AT MAIN'S TIP, and commit nothing yet. That commit
+#    already carries a passing check; anything you write here would not, and
+#    the ref could never be created. See Protected branches.
+git push origin main:refs/heads/release/0.2
+git fetch origin
+```
+
+The branch now exists, at the same commit as `main`, and `beta.yml` has already
+built it once. Give it its version:
+
+```bash
+# 2. Set the version this release branch will carry.
+git checkout -b release-prep/0.2.0 origin/release/0.2
 ./scripts/version.sh set 0.2.0
 
-# 2. Rename the changelog's Unreleased section to this version.
+# 3. Rename the changelog's Unreleased section to this version.
 #    Add a new empty Unreleased above it, and update the link refs at the foot.
+#    Leave it undated — it gets its date when it is promoted.
 $EDITOR CHANGELOG.md
 
 git commit -am "Sorty 0.2.0"
-
-# 3. Cut the branch.
-git checkout -b release/0.2
-git push -u origin release/0.2
+git push -u origin release-prep/0.2.0
+gh pr create --base release/0.2 --title "Sorty 0.2.0"
 ```
 
-Pushing it triggers `beta.yml`, which builds the branch.
+Merging that PR triggers `beta.yml` again, on the branch as it will actually
+ship.
 
 Then move `main` on, so a dev build never claims to be the version stabilising
-next to it:
+next to it. Branch from the prep branch rather than from `main`, so trunk
+receives the changelog rename as well as its own next version:
 
 ```bash
-git checkout main
+git checkout -b main-is-0.3.0 release-prep/0.2.0
 ./scripts/version.sh set 0.3.0
 git commit -am "main is 0.3.0 now"
-git push
+git push -u origin main-is-0.3.0
+gh pr create --base main --title "main is 0.3.0 now"
 ```
+
+Both PRs need `Repository checks` to pass, which takes seconds on Linux. The
+macOS test job will be red; it is advisory, and [What CI does](#what-ci-does)
+explains why.
 
 > [!IMPORTANT]
 > The branch is `release/0.2` — **minor only, no patch component**. Every
@@ -117,8 +179,9 @@ git push
 
 ## Run a beta
 
-Every push to `release/0.2` already produces a build. A tag is how you mark one
-as the beta people should install.
+Every commit that lands on `release/0.2` already produces a build. A tag is how
+you mark one as the beta people should install. Tags are not covered by the
+ruleset, so this section is the one place you still push directly.
 
 ```bash
 git checkout release/0.2
@@ -147,9 +210,20 @@ git checkout release/0.2
 git pull
 
 # Date the changelog section — it has been sitting there unreleased.
+git checkout -b date-the-0.2.0-changelog
 $EDITOR CHANGELOG.md    # "## [0.2.0] - 2026-09-01"
 git commit -am "Date the 0.2.0 changelog"
-git push
+git push -u origin date-the-0.2.0-changelog
+gh pr create --base release/0.2 --title "Date the 0.2.0 changelog"
+```
+
+**Tag only once that PR is merged**, and tag the merged commit — a tag on the
+branch tip before the date lands publishes a Release whose notes have no date in
+them:
+
+```bash
+git checkout release/0.2
+git pull
 
 ./scripts/version.sh check v0.2.0
 git tag -a v0.2.0 -m "Sorty 0.2.0"
@@ -164,10 +238,18 @@ Then carry the dated changelog back to `main` so history agrees with itself:
 
 ```bash
 git checkout main
+git pull
+git checkout -b carry-0.2.0-back
 git merge --no-ff release/0.2
 # Resolve project.yml in main's favour — see the warning below.
-git push
+git push -u origin carry-0.2.0-back
+gh pr create --base main --title "Carry the 0.2.0 changelog back to main"
 ```
+
+The merge happens on a branch rather than on `main` itself for the same reason
+everything else does: a merge commit is a commit, and it reaches `main` only
+through a PR. This is the better place for it anyway — a conflict resolved on a
+branch can be reviewed, and one resolved on `main` cannot.
 
 `release/0.2` is now the production branch. It stays alive as long as anyone
 runs 0.2.x.
@@ -196,12 +278,16 @@ git commit -am "Fix the crash on an empty playlist"
 git push -u origin hotfix/0.1.1-crash-on-empty-playlist
 ```
 
-Open a PR into `release/0.1`. When it is green and reviewed:
+```bash
+gh pr create --base release/0.1 --title "Fix the crash on an empty playlist"
+```
+
+Merge it through GitHub — `release/0.1` takes no direct push, merge commit
+included. Then tag the merged commit:
 
 ```bash
 git checkout release/0.1
-git merge --no-ff hotfix/0.1.1-crash-on-empty-playlist
-git push
+git pull
 
 ./scripts/version.sh check v0.1.1
 git tag -a v0.1.1 -m "Sorty 0.1.1"
@@ -223,19 +309,31 @@ Merge rather than cherry-pick where you can. A merge records in the graph that
 the fix arrived, so `git branch --contains` can prove it later; a cherry-pick
 creates a new commit that looks unrelated.
 
+Each step is a merge onto a protected branch, so each step is a PR. Resolve the
+conflict on the branch, where the resolution can be read:
+
 ```bash
 git checkout release/0.2
 git pull
+git checkout -b propagate-0.1.1-to-0.2
 git merge --no-ff release/0.1
 # ... resolve, see below ...
-git push
+git push -u origin propagate-0.1.1-to-0.2
+gh pr create --base release/0.2 --title "Propagate 0.1.1 into 0.2"
 
+# then, once that is merged:
 git checkout main
 git pull
+git checkout -b propagate-0.1.1-to-main
 git merge --no-ff release/0.2
 # ... resolve ...
-git push
+git push -u origin propagate-0.1.1-to-main
+gh pr create --base main --title "Propagate 0.1.1 into main"
 ```
+
+Wait for each PR to merge before opening the next. Merging `release/0.2` into
+`main` before the fix has actually reached `release/0.2` propagates nothing,
+quietly.
 
 > [!WARNING]
 > **`project.yml` will conflict every single time, and the resolution is always
@@ -259,8 +357,11 @@ commit and **record where it came from**:
 
 ```bash
 git checkout main
+git pull
+git checkout -b cherry-pick-the-empty-playlist-fix
 git cherry-pick -x <sha-of-the-fix>    # -x writes the source SHA into the message
-git push
+git push -u origin cherry-pick-the-empty-playlist-fix
+gh pr create --base main --title "Cherry-pick the empty-playlist fix"
 ```
 
 Then verify the fix is genuinely everywhere. This is the check that makes "fixes
@@ -294,8 +395,9 @@ with it, `Sorty.xcodeproj` is not tracked, and the scripts are executable and
 syntactically valid.
 
 **When `xcodebuild` on a hosted runner goes green on its own**, delete
-`continue-on-error` from the `test` job in `ci.yml` and make it a required check
-in the branch protection rules. That is the entire migration. If Apple's runner
+`continue-on-error` from the `test` job in `ci.yml` and add `Tests (advisory)` —
+renamed, by then — to the required checks of the ruleset described under
+[Protected branches](#protected-branches). That is the entire migration. If Apple's runner
 images never catch up, register a self-hosted runner on a Mac that has Xcode 27
 and change `runs-on`.
 
