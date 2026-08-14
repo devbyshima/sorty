@@ -81,8 +81,8 @@ increment is a race that ends in a rejected upload.
 
 Ruleset **"Trunk and release branches"** covers `refs/heads/main` and
 `refs/heads/release/*`. It forbids deletion and non-fast-forward, and requires
-the `Repository checks` status. Two consequences shape every recipe below, and
-both are easy to learn the hard way.
+the `Repository checks` status. One consequence and one exemption shape every
+recipe below.
 
 **A required status check gates pushes, not merely merges.** There is no
 "require a pull request" rule here, but the status check achieves the same
@@ -93,18 +93,24 @@ straight to `main` or a release branch is refused —
 GH013: Required status check "Repository checks" is expected.
 ```
 
-So **nothing reaches `main` or `release/*` except through a pull request**, where
-`ci.yml` runs on `pull_request` and produces the status the rule wants. That
-includes commits nobody would think of as a change under review: a version bump,
-a changelog date, a merge resolving `project.yml`.
+So **nothing reaches an existing `main` or `release/*` except through a pull
+request**, where `ci.yml` runs on `pull_request` and produces the status the rule
+wants. That includes commits nobody would think of as a change under review: a
+version bump, a changelog date, a merge resolving `project.yml`.
 
-**The rule is enforced on branch creation too** (`do_not_enforce_on_create` is
-false), which is the one that surprises. You cannot create `release/0.2` by
-pushing a branch whose tip you just wrote: the check cannot run until the ref
-exists, and the ref cannot be created until the check has run. The way out is to
-create the branch at a commit that **already carries a passing check** — the tip
-of `main`, which earned one when it landed — and let every later commit arrive by
-PR.
+**Creating a branch is the one exemption.** `do_not_enforce_on_create` is true,
+so `git push -u origin release/0.2` works even though the commit on its tip was
+written a minute ago and has no check yet. This is what makes a cut a single
+push rather than a ceremony.
+
+> [!CAUTION]
+> **Do not set `do_not_enforce_on_create` back to false.** It was false until
+> 2026-08-14, and it made cutting a release branch *impossible* rather than
+> merely strict: the check cannot run until the ref exists, and the ref could not
+> be created until the check had run. There is no loss of safety in the
+> exemption — a new release branch is created from a commit already on `main`,
+> which passed its checks to get there, and every subsequent commit on the branch
+> is gated normally.
 
 Tags are untouched. The ruleset's target is branches, so `git push origin
 v0.2.0` needs no ceremony.
@@ -120,55 +126,50 @@ v0.2.0` needs no ceremony.
 
 When `main` is ready to stabilise. Say the next version is **0.2.0**.
 
-A cut costs **two pull requests**: one carrying the version onto the new branch,
-one moving `main` past it. See [Protected branches](#protected-branches) for why
-none of this can be a plain push.
+The branch itself is a plain push — creating one is exempt from the required
+check. Moving `main` on afterwards is not, so it goes through a PR. See
+[Protected branches](#protected-branches).
 
 ```bash
 git checkout main
 git pull
 
-# 1. Create the branch AT MAIN'S TIP, and commit nothing yet. That commit
-#    already carries a passing check; anything you write here would not, and
-#    the ref could never be created. See Protected branches.
-git push origin main:refs/heads/release/0.2
-git fetch origin
-```
-
-The branch now exists, at the same commit as `main`, and `beta.yml` has already
-built it once. Give it its version:
-
-```bash
-# 2. Set the version this release branch will carry.
-git checkout -b release-prep/0.2.0 origin/release/0.2
+# 1. Set the version that this release branch will carry.
 ./scripts/version.sh set 0.2.0
 
-# 3. Rename the changelog's Unreleased section to this version.
+# 2. Rename the changelog's Unreleased section to this version.
 #    Add a new empty Unreleased above it, and update the link refs at the foot.
 #    Leave it undated — it gets its date when it is promoted.
 $EDITOR CHANGELOG.md
 
 git commit -am "Sorty 0.2.0"
-git push -u origin release-prep/0.2.0
-gh pr create --base release/0.2 --title "Sorty 0.2.0"
+
+# 3. Cut the branch.
+git checkout -b release/0.2
+git push -u origin release/0.2
 ```
 
-Merging that PR triggers `beta.yml` again, on the branch as it will actually
-ship.
+Pushing it triggers `beta.yml`, which builds the branch.
 
 Then move `main` on, so a dev build never claims to be the version stabilising
-next to it. Branch from the prep branch rather than from `main`, so trunk
-receives the changelog rename as well as its own next version:
+next to it. `main` already carries the `Sorty 0.2.0` commit locally — it was made
+there before the branch was cut, which is what puts the changelog rename on both
+— so branch from it and add trunk's own next version:
 
 ```bash
-git checkout -b main-is-0.3.0 release-prep/0.2.0
+git checkout main
+git checkout -b main-is-0.3.0
 ./scripts/version.sh set 0.3.0
 git commit -am "main is 0.3.0 now"
 git push -u origin main-is-0.3.0
 gh pr create --base main --title "main is 0.3.0 now"
+
+# main has commits origin/main does not, until that PR merges. Once it has:
+git checkout main
+git reset --hard origin/main
 ```
 
-Both PRs need `Repository checks` to pass, which takes seconds on Linux. The
+That PR needs `Repository checks` to pass, which takes seconds on Linux. The
 macOS test job will be red; it is advisory, and [What CI does](#what-ci-does)
 explains why.
 
@@ -181,7 +182,7 @@ explains why.
 
 Every commit that lands on `release/0.2` already produces a build. A tag is how
 you mark one as the beta people should install. Tags are not covered by the
-ruleset, so this section is the one place you still push directly.
+ruleset at all, so tagging needs no PR.
 
 ```bash
 git checkout release/0.2
