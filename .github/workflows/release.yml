@@ -19,7 +19,15 @@
 # submissions open, the upload step below is the one that changes.
 #
 # Uses the same secrets as beta.yml. Without them, this job still verifies,
-# builds unsigned and publishes the Release - only the .ipa is missing.
+# builds unsigned and publishes the Release - only the .ipa is missing. That is
+# the one degraded outcome worth having: an unsigned build still proves the tree
+# compiles and links.
+#
+# A FAILED build is different, and blocks publishing entirely. Until a hosted
+# image carries Xcode 27, that means every tag fails here rather than publishing
+# an empty Release - which is the honest outcome, and the same reason `checks`
+# blocks in ci.yml while `test` does not. Register a self-hosted runner with
+# Xcode 27 to lift it.
 
 name: Release
 
@@ -83,7 +91,10 @@ jobs:
     name: Production build
     needs: verify
     runs-on: macos-latest
-    continue-on-error: true   # toolchain-advisory, as in ci.yml
+    # NOT advisory, unlike ci.yml's test job. A tag is a claim that something
+    # shippable exists; publishing a Release whose build failed makes that claim
+    # falsely, and quietly - the Release appears, with no archive attached and
+    # nothing on its page to say why. So this job blocks `publish` below.
     env:
       XCODE_VERSION: '27.0'
     steps:
@@ -214,7 +225,11 @@ jobs:
   publish:
     name: Publish the GitHub Release
     needs: [verify, build]
-    if: always() && needs.verify.result == 'success'
+    # Both must have succeeded. `always()` is deliberately absent: a skipped or
+    # cancelled build must not publish either, and the default `success()` would
+    # already cover it - the explicit results are here so the intent survives
+    # someone re-adding `always()` to debug something.
+    if: needs.verify.result == 'success' && needs.build.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
