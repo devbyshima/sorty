@@ -41,12 +41,14 @@ concurrency:
 jobs:
   beta:
     name: Beta build
-    runs-on: macos-latest
-    # Advisory for the same reason as the test job in ci.yml and the build job
-    # in release.yml: until a hosted image carries Xcode 27, this fails for
-    # toolchain reasons rather than code reasons, and a check that is always red
-    # is a check nobody reads. Drop this the same day ci.yml's does.
-    continue-on-error: true
+    # The self-hosted Mac, which carries Xcode 27 and the iOS 27 SDK that no
+    # hosted image has yet. Safe to target from here because this workflow runs
+    # only on pushes to release/**, which nobody without write access can cause.
+    # ci.yml must NEVER move here: it triggers on pull_request, and this
+    # repository is public, so a fork's code would execute on a personal machine.
+    runs-on: [self-hosted, macOS, xcode-27]
+    # No longer advisory. It was only ever advisory because the toolchain was
+    # missing; on a runner that has it, a red build means the code is broken.
     env:
       XCODE_VERSION: '27.0'
     steps:
@@ -59,11 +61,19 @@ jobs:
 
       - name: Select Xcode
         run: |
+          # The self-hosted Mac already has Xcode 27 selected, at a path the
+          # hosted naming scheme does not use (Xcode-beta.app), and no
+          # passwordless sudo. So: if what is already selected is new enough,
+          # leave it alone. Only reach for xcode-select on a runner that both
+          # has the versioned app and can sudo without a prompt.
+          have=$(xcodebuild -version | head -1 | awk '{print $2}')
           target="/Applications/Xcode_${XCODE_VERSION}.app"
-          if [ -d "$target" ]; then
+          if [ "${have%%.*}" -ge "${XCODE_VERSION%%.*}" ] 2>/dev/null; then
+            echo "Xcode $have is selected already."
+          elif [ -d "$target" ] && sudo -n true 2>/dev/null; then
             sudo xcode-select -s "$target"
           else
-            echo "::warning::Xcode ${XCODE_VERSION} is not on this runner; using $(xcodebuild -version | head -1)."
+            echo "::warning::Xcode ${XCODE_VERSION} is not selectable here; using $have."
           fi
 
       - name: Do we have signing credentials?
