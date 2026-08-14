@@ -22,6 +22,8 @@ published when that version is tagged.
 Work on `main`, not yet cut to a release branch. Add to this section as you
 merge; `RELEASING.md` explains when it gets renamed to a version.
 
+## [0.2.0]
+
 ### Added
 
 - The waiting placeholder shimmers, driven off a single clock for every cover
@@ -123,5 +125,6 @@ None of these are in Sorty's control, and all of them are things people hit.
 - A development-mode Spotify app admits five listeners and requires its owner to
   hold Premium, which is why Sorty asks for your own Client ID.
 
-[Unreleased]: https://github.com/devbyshima/sorty/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/devbyshima/sorty/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/devbyshima/sorty/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/devbyshima/sorty/releases/tag/v0.1.0
