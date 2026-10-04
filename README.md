@@ -8,7 +8,7 @@
 
 Native iOS · SwiftUI · iOS 27 · no third-party packages
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-372%20in%2049%20suites-brightgreen.svg)](Tests)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
 
@@ -293,6 +293,15 @@ Deployment target 27.0, Xcode 27, Swift 6.0.
 >
 > App Store *production* uploads still require Xcode 26 and an iOS 26 SDK; Xcode 27 builds are
 > TestFlight-only until Apple opens submissions.
+
+## License
+
+Sorty is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+You may use, study and change it for any non-commercial purpose. Selling it, or using it in
+anything that earns money, is not allowed. Versions published before this change remain under GPL-3.0.
+
+The Sorty name and icon are not covered by the license: a modified version must use its own
+name and icon.
 
 ## Credits
 

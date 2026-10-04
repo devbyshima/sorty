@@ -18,7 +18,7 @@ was a spine, then left-aligned prose, four times, distinguishable only by readin
 it.
 
 The instruction was to bring both closer to Beam
-(`~/Dev/apps/beam/Apps/iOS/BeamiOS/OnboardingView.swift`), whose onboarding is
+(`~/Dev/fulltime/building/beam/Apps/iOS/BeamiOS/OnboardingView.swift`), whose onboarding is
 already the reference the splash was rebuilt against in ADR-0015.
 
 ## Decision
