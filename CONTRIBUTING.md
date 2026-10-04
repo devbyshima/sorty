@@ -123,7 +123,8 @@ or shipping a hotfix, both in [RELEASING.md](RELEASING.md).
 
 ## Licence
 
-Sorty is GPL-3.0. Contributions are accepted under the same licence.
+Sorty is source-available under the PolyForm Noncommercial License 1.0.0. Contributions are
+accepted under the same licence.
 
 Sorty is an independent reimplementation of
 [Sort Your Music](https://github.com/plamere/SortYourMusic) by
